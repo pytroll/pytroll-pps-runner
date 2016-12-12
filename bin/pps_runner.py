@@ -127,7 +127,7 @@ import threading
 import Queue
 from datetime import datetime, timedelta
 
-from safnwcpps_runner.prepare_nwp import update_nwp
+from nwcsafpps_runner.prepare_nwp import update_nwp
 SATNAME = {'Aqua': 'EOS-Aqua'}
 
 
