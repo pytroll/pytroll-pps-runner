@@ -25,7 +25,7 @@
 from setuptools import setup
 import imp
 
-version = imp.load_source('pps_runner.version', 'pps_runner/version.py')
+version = imp.load_source('pps_runner.version', 'safnwcpps_runner/version.py')
 
 setup(name="pps_runner",
       version=version.__version__,
@@ -40,7 +40,7 @@ setup(name="pps_runner",
                    "Programming Language :: Python",
                    "Topic :: Scientific/Engineering"],
       url="https://github.com/pytroll/pytroll-pps-runner",
-      packages=['pps_runner', ],
+      packages=['safnwcpps_runner', ],
       scripts=['bin/pps_runner.py', 'bin/pps_run.sh', ],
       data_files=[],
       zip_safe=False,

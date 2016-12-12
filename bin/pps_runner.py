@@ -127,9 +127,7 @@ import threading
 import Queue
 from datetime import datetime, timedelta
 
-print sys.path
-LOG.debug("PYTHONPATH: " + str(sys.path))
-from nwcsafpps_runner.prepare_nwp import update_nwp
+from safnwcpps_runner.prepare_nwp import update_nwp
 SATNAME = {'Aqua': 'EOS-Aqua'}
 
 
