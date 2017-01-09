@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013, 2014, 2015, 2016 Martin Raspaud
+# Copyright (c) 2013, 2014, 2015, 2016, 2017 Martin Raspaud
 
 # Author(s):
 
@@ -25,7 +25,8 @@
 from setuptools import setup
 import imp
 
-version = imp.load_source('pps_runner.version', 'pps_runner/version.py')
+version = imp.load_source(
+    'nwcsafpps_runner.version', 'nwcsafpps_runner/version.py')
 
 setup(name="pps_runner",
       version=version.__version__,
@@ -40,7 +41,7 @@ setup(name="pps_runner",
                    "Programming Language :: Python",
                    "Topic :: Scientific/Engineering"],
       url="https://github.com/pytroll/pytroll-pps-runner",
-      packages=['pps_runner', ],
+      packages=['nwcsafpps_runner', ],
       scripts=['bin/pps_runner.py', 'bin/pps_run.sh', ],
       data_files=[],
       zip_safe=False,
