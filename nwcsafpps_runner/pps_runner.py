@@ -129,7 +129,7 @@ from datetime import datetime, timedelta
 
 print sys.path
 LOG.debug("PYTHONPATH: " + str(sys.path))
-from pps_runner.prepare_nwp import update_nwp
+from nwcsafpps_runner.prepare_nwp import update_nwp
 SATNAME = {'Aqua': 'EOS-Aqua'}
 
 
@@ -207,18 +207,18 @@ def pps_worker(semaphore_obj, scene, job_dict, job_key, publish_q, input_msg):
         LOG.debug("Waiting for acquired semaphore...")
         with semaphore_obj:
             LOG.debug("Acquired semaphore")
-            # if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
-            cmdstr = "%s %s %s %s %s" % (PPS_SCRIPT,
-                                         SATELLITE_NAME[
-                                             scene['platform_name']],
-                                         scene['orbit_number'], scene[
-                                             'satday'],
-                                         scene['sathour'])
-            # else:
-            #     cmdstr = "%s %s %s 0 0" % (PPS_SCRIPT,
-            #                                SATELLITE_NAME[
-            #                                    scene['platform_name']],
-            #                                scene['orbit_number'])
+            if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
+                cmdstr = "%s %s %s %s %s" % (PPS_SCRIPT,
+                                             SATELLITE_NAME[
+                                                 scene['platform_name']],
+                                             scene['orbit_number'], scene[
+                                                 'satday'],
+                                             scene['sathour'])
+            else:
+                cmdstr = "%s %s %s 0 0" % (PPS_SCRIPT,
+                                           SATELLITE_NAME[
+                                               scene['platform_name']],
+                                           scene['orbit_number'])
 
             if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
                 cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
@@ -361,7 +361,7 @@ def ready2run(msg, files4pps, job_register, sceneid):
     #"""Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
 
-    from pps_runner.helper_functions import check_uri
+    from trollduction.producer import check_uri
     from socket import gethostbyaddr, gaierror
 
     LOG.debug("Ready to run...")
