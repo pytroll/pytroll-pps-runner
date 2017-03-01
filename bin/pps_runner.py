@@ -23,7 +23,7 @@
 """Posttroll runner for PPS
 """
 import os
-import ConfigParser
+from ConfigParser import ConfigParser, NoSectionError, NoOptionError
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ PPS_SCRIPT = os.environ['PPS_SCRIPT']
 
 LOG.debug("PPS_SCRIPT = " + str(PPS_SCRIPT))
 
-CONF = ConfigParser.ConfigParser()
+CONF = ConfigParser()
 CONF.read(os.path.join(CONFIG_PATH, "pps_config.cfg"))
 
 MODE = os.getenv("SMHI_MODE")
@@ -128,6 +128,7 @@ import Queue
 from datetime import datetime, timedelta
 
 from nwcsafpps_runner.prepare_nwp import update_nwp
+from trollsift import Parser, compose
 SATNAME = {'Aqua': 'EOS-Aqua'}
 
 
@@ -231,6 +232,7 @@ def pps_worker(semaphore_obj, scene, job_dict, job_key, publish_q, input_msg):
             #    LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
             LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
             LOG.debug("...from config file = " + str(OPTIONS['pps_outdir']))
+            LOG.debug("CWD: {}".format(os.getcwd()))
             if not os.path.isfile(PPS_SCRIPT):
                 raise IOError("PPS script" + PPS_SCRIPT + " is not there!")
             elif not os.access(PPS_SCRIPT, os.X_OK):
@@ -292,6 +294,7 @@ def pps_worker(semaphore_obj, scene, job_dict, job_key, publish_q, input_msg):
 
             # Now check what netCDF/hdf5 output was produced and publish them:
             pps_path = my_env.get('SM_PRODUCT_DIR', PPS_OUTPUT_DIR)
+            LOG.debug("PPS_PATH: {}".format(pps_path))
             result_files = get_outputfiles(
                 pps_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
             LOG.info("PPS Output files: " + str(result_files))
@@ -329,23 +332,41 @@ def pps_worker(semaphore_obj, scene, job_dict, job_key, publish_q, input_msg):
                 environment = MODE
                 to_send['start_time'], to_send['end_time'] = scene[
                     'starttime'], scene['endtime']
-                pubmsg = Message('/' + to_send['format'] + '/' +
-                                 to_send['data_processing_level'] +
-                                 '/norrköping/' + environment +
-                                 '/polar/direct_readout/',
-                                 "file", to_send).encode()
+
+                #Need to put all need keys into a dict to make them available for sift
+                #This is a bit dangerous because this will fail if keys are not defined...
+                sift_to_send = dict()
+                sift_to_send['data_processing_level'] = to_send['data_processing_level']
+                sift_to_send['format'] = to_send['format']
+                sift_to_send['type'] = to_send['type']
+                sift_to_send['location'] = 'norrköping'
+                sift_to_send['environment'] = environment
+
+                if 'publish_sift_format' in OPTIONS:
+                    publish_topic = compose(OPTIONS['publish_sift_format'], sift_to_send)
+                    LOG.debug("Using publish topic from config: {}".format(publish_topic))
+                    pubmsg = Message(publish_topic, "file", to_send).encode()
+                else:
+                    pubmsg = Message('/' + to_send['format'] + '/' +
+                                     to_send['data_processing_level'] +
+                                     '/norrköping/' + environment +
+                                     '/polar/direct_readout/',
+                                     "file", to_send).encode()
                 LOG.debug("sending: " + str(pubmsg))
                 LOG.info("Sending: " + str(pubmsg))
                 publish_q.put(pubmsg)
 
-                job_id = job_dict[job_key]
-                if isinstance(job_id, datetime):
-                    dt_ = datetime.utcnow() - job_id
-                    LOG.info("PPS on scene " + str(job_key) +
-                             " finished. It took: " + str(dt_))
-                else:
-                    LOG.warning(
-                        "Job entry is not a datetime instance: " + str(job_id))
+                try:
+                    job_id = job_dict[job_key]
+                    if isinstance(job_id, datetime):
+                        dt_ = datetime.utcnow() - job_id
+                        LOG.info("PPS on scene " + str(job_key) +
+                                 " finished. It took: " + str(dt_))
+                    else:
+                        LOG.warning(
+                            "Job entry is not a datetime instance: " + str(job_id))
+                except KeyError as ke:
+                    LOG.error("Failed with {}".format(ke))
 
             t__.cancel()
 
@@ -359,7 +380,7 @@ def ready2run(msg, files4pps, job_register, sceneid):
     #"""Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
 
-    from pps_runner.helper_functions import check_uri
+    from nwcsafpps_runner.helper_functions import check_uri
     from socket import gethostbyaddr, gaierror
 
     LOG.debug("Ready to run...")
@@ -502,8 +523,9 @@ def ready2run(msg, files4pps, job_register, sceneid):
                 files4pps[sceneid].append(item)
     else:
         for item in level1_files:
-            fname = os.path.basename(item)
-            files4pps[sceneid].append(fname)
+            #fname = os.path.basename(item)
+            #files4pps[sceneid].append(fname)
+            files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
 
@@ -531,6 +553,9 @@ def ready2run(msg, files4pps, job_register, sceneid):
         LOG.info("Process the scene (sat, orbit) = " +
                  str(platform_name) + ' ' + str(orbit_number))
 
+        #Will need to prepare the Data for PPS processing
+        prepare_data4pps(files4pps[sceneid])
+        
         job_register[sceneid] = datetime.utcnow()
         return True
 
@@ -553,15 +578,20 @@ class FilePublisher(threading.Thread):
 
     def run(self):
 
-        with Publish('pps_runner', 0, ['PPS', ]) as publisher:
+        try:
+            with Publish('pps_runner', 0, ['PPS', ]) as publisher:
 
-            while self.loop:
-                retv = self.queue.get()
+                while self.loop:
+                    retv = self.queue.get()
 
-                if retv != None:
-                    LOG.info("Publish the files...")
-                    publisher.send(retv)
+                    if retv != None:
+                        LOG.info("Publish the files...")
+                        publisher.send(retv)
 
+        except KeyboardInterrupt as ki:
+            LOG.info("Received keyboard interrupt. Shutting down")
+        finally:
+            LOG.info("Exiting publisher in pps_runner. See ya")
 
 class FileListener(threading.Thread):
 
@@ -577,19 +607,24 @@ class FileListener(threading.Thread):
 
     def run(self):
 
-        with posttroll.subscriber.Subscribe("", ['AAPP-HRPT', 'AAPP-PPS',
-                                                 'EOS/1B', 'SDR/1B'],
-                                            True) as subscr:
+        try:
+            with posttroll.subscriber.Subscribe("", ['AAPP-HRPT', 'AAPP-PPS',
+                                                     'EOS/1B', 'SDR/1B', '/AAPP'],
+                                                True) as subscr:
 
-            for msg in subscr.recv(timeout=90):
-                if not self.loop:
-                    break
+                for msg in subscr.recv(timeout=90):
+                    if not self.loop:
+                        break
 
-                # Check if it is a relevant message:
-                if self.check_message(msg):
-                    LOG.info("Put the message on the queue...")
-                    LOG.debug("Message = " + str(msg))
-                    self.queue.put(msg)
+                    # Check if it is a relevant message:
+                    if self.check_message(msg):
+                        LOG.info("Put the message on the queue...")
+                        LOG.debug("Message = " + str(msg))
+                        self.queue.put(msg)
+        except KeyboardInterrupt as ki:
+            LOG.info("Received keyboard interrupt. Shutting down")
+        finally:
+            LOG.info("Exiting subscriber in pps_runner. See ya")
 
     def check_message(self, msg):
 
@@ -626,6 +661,60 @@ def check_threads(threads):
     return
 
 
+def prepare_data4pps(filelist):
+
+    first = True
+
+    for file in filelist:
+        LOG.debug("Handeling file: {}".format(file))
+        filename = os.path.basename(file)
+        
+        #Parse filenames according to input files and config
+        try:
+            parser = Parser(OPTIONS['data_file_name_sift'])
+        except NoOptionError as noe:
+            LOG.error("NoOptionError {}".format(noe)) 
+            continue
+        if not parser.validate(filename):
+            LOG.error("Parser validate on filename: {} failed.".format(filename))
+            continue
+        res = parser.parse("{}".format(filename))
+
+        LOG.debug("{}".format(res))
+        
+        #Build up new pps data directory
+        pps_data_import_dir = compose(OPTIONS['import_pps_data_dir'], res)
+        LOG.debug("{}".format(pps_data_import_dir))
+        if not os.path.exists(pps_data_import_dir):
+            try:
+                os.makedirs(pps_data_import_dir)
+            except OSError as err:
+                LOG.error("Can't create directory: {} because: {}".format(pps_data_import_dir, err))
+                return False
+            else:
+                LOG.debug("Created new directory for PPS data files: {}".format(pps_data_import_dir))
+        elif first:
+            LOG.debug("PPS data directory: {} exists. This can mean the data have been processed before. Take care.".format(pps_data_import_dir))
+            
+        #Distribute data from AAPP for PPS processing
+        from shutil import copy2
+        try:
+            copy2(file, pps_data_import_dir)
+            if os.path.exists(os.path.join(pps_data_import_dir,os.path.basename(file))):
+                LOG.debug("Distribution success: {}".format(os.path.join(pps_data_import_dir,os.path.basename(file))))
+            else:
+                LOG.error("Distribution failed: {}".format(file))
+        except (IOError, os.error) as err:
+            LOG.error("Distribution of PPS data(copy2) failed: {}".format(err))
+            return False
+        except:
+            LOG.error("Distribution of PPS data failed.")
+            return False
+
+        first = False
+
+    return True
+
 def prepare_nwp4pps(sphor_obj, starttime, flens):
     """Prepare NWP data for pps"""
 
@@ -633,8 +722,36 @@ def prepare_nwp4pps(sphor_obj, starttime, flens):
         LOG.debug("Waiting for acquired semaphore for nwp prepare...")
         with sphor_obj:
             LOG.debug("Acquired semaphore for nwp preparation...")
-            update_nwp(starttime, flens)
+            try:
+                module_name = CONF.get("nwp_handeling_function", "module")
+            except (NoSectionError, NoOptionError):
+                LOG.debug("No custom nwp_handeling_function provided i config file...")
+                LOG.debug("Use build in.")
+                update_nwp(starttime, flens)
+            else:
+                LOG.debug("Use custom nwp_handeling_function provided i config file...")
+                LOG.debug("module_name = %s", str(module_name))
+                try:
+                    name = "update_nwp"
+                    name = name.replace("/", "")
+                    module = __import__(module_name, globals(), locals(), [name])
+                    LOG.info("function : {} loaded from module: {}".format([name],module_name))
+                except ImportError:
+                    LOG.debug("Failed to import custom compositer for %s", str(name))
+
+                try:
+                    params = {}
+                    params['starttime'] = starttime
+                    params['nlengths'] = flens
+                    params['options'] = OPTIONS
+                    getattr(module, name)(params)
+                    #LOG.debug("get_attr: {}".format(get_attr))
+                except AttributeError:
+                    LOG.debug("Could not get attribute %s from %s", str(name), str(module))
+                #return []
+
             LOG.info("Ready with nwp preparation")
+
 
         LOG.debug("Leaving prepare_nwp4pps...")
     except:
@@ -650,7 +767,35 @@ def pps():
 
     LOG.info("First check if NWP data should be downloaded and prepared")
     now = datetime.utcnow()
-    update_nwp(now - timedelta(days=1), NWP_FLENS)
+    try:
+        module_name = CONF.get("nwp_handeling_function", "module")
+    except (NoSectionError, NoOptionError):
+        LOG.debug("No custom nwp_handeling_function provided i config file...")
+        LOG.debug("Use build in.")
+        update_nwp(now - timedelta(days=1), NWP_FLENS)
+    else:
+        LOG.debug("Use custom nwp_handeling_function provided i config file...")
+        LOG.debug("module_name = %s", str(module_name))
+        try:
+            name = "update_nwp"
+            name = name.replace("/", "")
+            module = __import__(module_name, globals(), locals(), [name])
+            LOG.info("function : {} loaded from module: {}".format([name],module_name))
+        except ImportError:
+            LOG.debug("Failed to import custom compositer for %s", str(name))
+            #return []
+
+        try:
+            params = {}
+            params['starttime'] = now - timedelta(days=1)
+            params['nlengths'] = NWP_FLENS
+            params['options'] = OPTIONS
+            getattr(module, name)(params)
+            #LOG.debug("get_attr: {}".format(get_attr))
+        except AttributeError:
+            LOG.debug("Could not get attribute %s from %s", str(name), str(module))
+            #return []
+
     LOG.info("Ready with nwp preparation...")
 
     nwp_pp_sema = threading.Semaphore(1)
@@ -709,6 +854,8 @@ def pps():
                                               now - timedelta(days=1), NWP_FLENS))
             t_nwp_pp.start()
 
+            #t_data_pp = threading.Thread(target=prepare_data4pps,
+            #                             args=(msg
             t__ = threading.Thread(target=pps_worker, args=(sema, scene,
                                                             jobs_dict,
                                                             keyname,
