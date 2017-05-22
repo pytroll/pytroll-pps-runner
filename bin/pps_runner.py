@@ -61,7 +61,8 @@ SERVERNAME = OPTIONS.get('servername', servername)
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
 
-SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19']
+SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19',
+                             'noaa15', 'noaa18', 'noaa19']
 SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A']
 SUPPORTED_EOS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
 SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'JPSS-1', 'JPSS-2']
@@ -529,9 +530,17 @@ def ready2run(msg, files4pps, job_register, sceneid):
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
 
+    number_of_sensors = 3
+    if platform_name in SUPPORTED_METOP_SATELLITES:
+        if 'antenna' in msg.data:
+            LOG.debug("antenna in msg.data {}".format(msg.data['antenna']))
+            if msg.data['antenna'] == "ears" or msg.data['antenna'] == "global":
+                LOG.debug("is ears or global")
+                number_of_sensors = 1
+
     if (platform_name in SUPPORTED_METOP_SATELLITES or
             platform_name in SUPPORTED_NOAA_SATELLITES):
-        if len(files4pps[sceneid]) < 3:
+        if len(files4pps[sceneid]) < number_of_sensors:
             LOG.info(
                 "Not enough NOAA/Metop sensor data available yet...")
             return False
@@ -607,9 +616,11 @@ class FileListener(threading.Thread):
 
     def run(self):
 
+        topics_to_listen = OPTIONS.get('topics', ['AAPP-HRPT', 'AAPP-PPS', 'EOS/1B', 'SDR/1B', '/AAPP'])
+        if type(topics_to_listen) not in (set,tuple,dict,list):
+            topics_to_listen = topics_to_listen.split()
         try:
-            with posttroll.subscriber.Subscribe("", ['AAPP-HRPT', 'AAPP-PPS',
-                                                     'EOS/1B', 'SDR/1B', '/AAPP'],
+            with posttroll.subscriber.Subscribe("", topics_to_listen,
                                                 True) as subscr:
 
                 for msg in subscr.recv(timeout=90):
