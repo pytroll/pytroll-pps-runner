@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, 2015, 2016 Adam.Dybbroe
+# Copyright (c) 2014, 2015, 2016, 2017 Adam.Dybbroe
 
 # Author(s):
 
@@ -153,17 +153,17 @@ def get_outputfiles(path, platform_name, orb):
 
     h5_output = (os.path.join(path, 'S_NWC') + '*' +
                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + str(orb) + '*.h5')
+                 '_' + str(orb) + '_*.h5')
     LOG.info(
         "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
     nc_output = (os.path.join(path, 'S_NWC') + '*' +
                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + str(orb) + '*.nc')
+                 '_' + str(orb) + '_*.nc')
     LOG.info(
         "Match string to do a file globbing on netcdf output files: " + str(nc_output))
     xml_output = (os.path.join(path, 'S_NWC') + '*' +
                   str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                  '_' + str(orb) + '*.xml')
+                  '_' + str(orb) + '_*.xml')
     LOG.info(
         "Match string to do a file globbing on xml output files: " + str(xml_output))
     return glob(h5_output) + glob(nc_output) + glob(xml_output)
