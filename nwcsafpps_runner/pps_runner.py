@@ -153,17 +153,17 @@ def get_outputfiles(path, platform_name, orb):
 
     h5_output = (os.path.join(path, 'S_NWC') + '*' +
                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + str(orb) + '_*.h5')
+                 '_' + '%.5d' % int(orb) + '_*.h5')
     LOG.info(
         "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
     nc_output = (os.path.join(path, 'S_NWC') + '*' +
                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + str(orb) + '_*.nc')
+                 '_' + '%.5d' % int(orb) + '_*.nc')
     LOG.info(
         "Match string to do a file globbing on netcdf output files: " + str(nc_output))
     xml_output = (os.path.join(path, 'S_NWC') + '*' +
                   str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                  '_' + str(orb) + '_*.xml')
+                  '_' + '%.5d' % int(orb) + '_*.xml')
     LOG.info(
         "Match string to do a file globbing on xml output files: " + str(xml_output))
     return glob(h5_output) + glob(nc_output) + glob(xml_output)
