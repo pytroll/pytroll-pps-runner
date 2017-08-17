@@ -207,7 +207,9 @@ def pps_worker(semaphore_obj, scene, lock, publish_q, input_msg):
         LOG.debug("Waiting for acquired semaphore...")
         with semaphore_obj:
             LOG.debug("Acquired semaphore")
+            LOG.debug("Locked? %s", str(lock.locked()))
             with lock:
+                LOG.debug("Acquired lock...")
                 if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
                     cmdstr = "%s %s %s %s %s" % (PPS_SCRIPT,
                                                  SATELLITE_NAME[
@@ -729,10 +731,6 @@ def pps():
                 t__.start()
                 lock.release()
 
-            # Clean lock dict:
-            for key in lock_dict.keys():
-                if lock_dict[key].acquire(False):
-                    lock_dict.pop(key, None)
             LOG.debug("Status of thread locks: %s", str(lock_dict))
 
             # Clean the files4pps dict:
@@ -752,6 +750,11 @@ def pps():
             thread_job_registry = threading.Timer(
                 20 * 60.0, reset_job_registry, args=(jobs_dict, keyname))
             thread_job_registry.start()
+
+        # Clean lock dict:
+        for key in lock_dict.keys():
+            if lock_dict[key].acquire(False):
+                lock_dict.pop(key, None)
 
     LOG.info("Wait till all threads are dead...")
     while True:
