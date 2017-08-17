@@ -730,9 +730,9 @@ def pps():
                 lock.release()
 
             # Clean lock dict:
-            for key in lock_dict:
+            for key in lock_dict.keys():
                 if lock_dict[key].acquire(False):
-                    lock_dict.pop(key)
+                    lock_dict.pop(key, None)
             LOG.debug("Status of thread locks: %s", str(lock_dict))
 
             # Clean the files4pps dict:
