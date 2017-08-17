@@ -194,7 +194,7 @@ def terminate_process(popen_obj, scene):
     return
 
 
-def pps_worker(semaphore_obj, scene, lock, publish_q, input_msg):
+def pps_worker(semaphore_obj, scene, lock, job_dict, job_key, publish_q, input_msg):
     """Spawn/Start a PPS run on a new thread if available
 
         scene = {'platform_name': platform_name,
@@ -714,6 +714,7 @@ def pps():
                 continue
 
             lock = lock_dict.setdefault(keyname, threading.Lock())
+            jobs_dict_copy = jobs_dict.copy()
             if lock.acquire(False):
 
                 LOG.info('Start a thread preparing the nwp data...')
@@ -725,6 +726,7 @@ def pps():
 
                 t__ = threading.Thread(target=pps_worker, args=(sema, scene,
                                                                 lock,
+                                                                jobs_dict_copy, keyname,
                                                                 publisher_q,
                                                                 msg))
                 threads.append(t__)
