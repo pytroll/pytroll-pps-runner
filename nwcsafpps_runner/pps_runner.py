@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, 2015, 2016, 2017 Adam.Dybbroe
+# Copyright (c) 2014 - 2017 Adam.Dybbroe
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c14526.ad.smhi.se>
+#   Adam.Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -127,7 +127,6 @@ import threading
 import Queue
 from datetime import datetime, timedelta
 
-print sys.path
 LOG.debug("PYTHONPATH: " + str(sys.path))
 from nwcsafpps_runner.prepare_nwp import update_nwp
 SATNAME = {'Aqua': 'EOS-Aqua'}
@@ -226,19 +225,6 @@ def get_outputfiles(path, platform_name, orb):
     LOG.info(
         "Match string to do a file globbing on xml output files: " + str(xml_output))
     return glob(h5_output) + glob(nc_output) + glob(xml_output)
-
-
-def reset_job_registry(objdict, key):
-    """Remove job key from registry"""
-    LOG.debug("Release/reset job-key " + str(key) + " from job registry")
-    if key in objdict:
-        objdict.pop(key)
-    else:
-        LOG.warning("Nothing to reset/release - " +
-                    "Register didn't contain any entry matching: " +
-                    str(key))
-
-    return
 
 
 def terminate_process(popen_obj, scene):
@@ -656,9 +642,12 @@ def check_threads(threads):
 
 
 def run_nwp_and_pps(scene, flens, publish_q, input_msg):
+    """Run first the nwp-preparation and then pps. No parallel running here!"""
 
     prepare_nwp4pps(flens)
     pps_worker(scene, publish_q, input_msg)
+
+    return
 
 
 def prepare_nwp4pps(flens):
