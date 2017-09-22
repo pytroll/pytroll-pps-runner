@@ -30,6 +30,10 @@ import os
 from datetime import datetime
 from helper_functions import run_command, run_shell_command
 
+import numpy as np
+
+from eccodes import *
+
 LOG = logging.getLogger(__name__)
 
 def update_nwp(params):
@@ -130,6 +134,7 @@ def update_nwp(params):
         output_parameters['step_min'] = 0
         try:
             result_file = os.path.join(params['options']['nwp_outdir'], compose(params['options']['nwp_output'],output_parameters))
+            _result_file = os.path.join(params['options']['nwp_outdir'], compose("."+params['options']['nwp_output'],output_parameters))
         except Exception as e:
             LOG.error("Joining outdir with output for nwp failed with: {}".format(e))
 
@@ -155,6 +160,9 @@ def update_nwp(params):
         level = None
         type_of_level = None
         static_filename = params['options']['ecmwf_static_surface']
+        if not os.path.exists(static_filename):
+            static_filename = static_filename.replace("storeB","storeA")
+            LOG.warning("Need to replace storeB with storeA")
         for par in parameters:
             for parameter_name in parameter_name_list:
                 cmd = ("grib_copy -f -w {}:l={} {} {}".format(parameter_name, par, static_filename, __tmpfile))
@@ -165,7 +173,7 @@ def update_nwp(params):
                     grib_filter = open("/tmp/rule-filter.append", 'w')
                     grib_filter.write("append;\n")
                     grib_filter.close()
-                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(result_file, __tmpfile))
+                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(_result_file, __tmpfile))
                     retv = run_command(cmd)
                     os.remove(__tmpfile)
                     break
@@ -186,7 +194,7 @@ def update_nwp(params):
                     grib_filter = open("/tmp/rule-filter.append", 'w')
                     grib_filter.write("append;\n")
                     grib_filter.close()
-                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(result_file, __tmpfile))
+                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(_result_file, __tmpfile))
                     retv = run_command(cmd)
                     os.remove(__tmpfile)
                     break
@@ -207,11 +215,11 @@ def update_nwp(params):
                     grib_filter = open("/tmp/rule-filter.append", 'w')
                     grib_filter.write("append;\n")
                     grib_filter.close()
-                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(result_file, __tmpfile))
+                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(_result_file, __tmpfile))
                     retv = run_command(cmd)
                     os.remove(__tmpfile)
-                    if result_file not in result_files:
-                        result_files[result_file] = filename
+                    if _result_file not in result_files:
+                        result_files[_result_file] = {'filename':filename, 'result_file':result_file}
                     break
                 else:
                     LOG.error("grib_copy failed and/or {} does not exist".format(__tmpfile))
@@ -226,9 +234,9 @@ def update_nwp(params):
 
         #os.exit
 
-    for result_file, filename in result_files.iteritems():
-        LOG.debug("Need to add 235 to this {} {}".format(result_file, filename))
-        filename_base = os.path.basename(filename)
+    for _result_file, filename in result_files.iteritems():
+        LOG.debug("Need to add 235 to this {} {}".format(_result_file, filename['filename']))
+        filename_base = os.path.basename(filename['filename'])
         filename_base_time = filename_base[3:]
         filename_base_new = "N1S" + filename_base_time
 
@@ -236,18 +244,86 @@ def update_nwp(params):
         par = 235
         parameter_name = "indicatorOfParameter"
         
-        cmd = ("grib_copy -f -w {}:l={} {} {}".format(parameter_name, par, os.path.join(os.path.dirname(filename),filename_base_new), __tmpfile))
+        cmd = ("grib_copy -f -w {}:l={} {} {}".format(parameter_name, par, os.path.join(os.path.dirname(filename['filename']),filename_base_new), __tmpfile))
         retv = run_command(cmd)
         if not retv and os.path.exists(__tmpfile):
             grib_filter = open("/tmp/rule-filter.append", 'w')
             grib_filter.write("append;\n")
             grib_filter.close()
-            cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(result_file, __tmpfile))
+            cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(_result_file, __tmpfile))
             retv = run_command(cmd)
             os.remove(__tmpfile)
         else:
             LOG.error("grib_copy failed and/or {} does not exist".format(__tmpfile))
 
+    for _result_file, filename in result_files.iteritems():
+        fin = open(_result_file)
+        
+        codes_grib_multi_support_on()
+    
+        #no_messages = codes_count_in_file(fin)
+        #print "no_messages: {}".format(no_messages)
+    
+        #multi
+        mgid = codes_grib_multi_new()
+
+        while 1:
+            gid = codes_grib_new_from_file(fin)
+            if gid is None:
+                LOG.info("Last message complete")
+                break
+        
+            nx = codes_get(gid, 'Ni')
+            ny = codes_get(gid, 'Nj')
+
+            #print "nx: {}".format(nx)
+            #print "ny: {}".format(ny)
+            first_lat = codes_get(gid, 'latitudeOfFirstGridPointInDegrees')
+            first_lon = codes_get(gid, 'longitudeOfFirstGridPointInDegrees')
+            north_south_step = codes_get(gid, 'jDirectionIncrementInDegrees')
+            east_west_step = codes_get(gid, 'iDirectionIncrementInDegrees')
+            
+            #print "latitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'latitudeOfFirstGridPointInDegrees'))
+            #print "longitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'longitudeOfFirstGridPointInDegrees'))
+
+            filter_north = 30
+
+            new_ny = int((first_lat - filter_north)/north_south_step) + 1
+            #print "new_ny: {}".format(new_ny)
+    
+            #print "Start reading values..."
+            values = codes_get_values(gid)
+            #print "End reading values..."
+            #print "values type: {}".format(type(values))
+            values_r = np.reshape(values,(ny,nx))
+            #print "values shape: {}".format(values.shape)
+            #print "values shape: {}".format(values_r.shape)
+        
+            new_values = values_r[:new_ny,:]
+            #print "new_values shape: {}".format(new_values.shape)
+    
+            clone_id = codes_clone(gid)
+
+            codes_set(clone_id, 'latitudeOfLastGridPointInDegrees', filter_north)
+            codes_set(clone_id, 'Nj', new_ny)
+
+            #print "Start writing values..."
+            codes_set_values(clone_id, new_values.flatten())
+            #print "End writing values..."
+
+            codes_grib_multi_append(clone_id, 0, mgid)
+            
+            codes_release(clone_id)
+ 
+            codes_release(gid)
+
+        fout = open(filename['result_file'], 'w')
+        codes_grib_multi_write(mgid, fout)
+        codes_grib_multi_release(mgid)
+ 
+        fin.close()
+        fout.close()
+        os.remove(_result_file)
         
     return
 
