@@ -36,6 +36,123 @@ from eccodes import *
 
 LOG = logging.getLogger(__name__)
 
+def scan_meta(input_file):
+    fin = open(input_file)
+
+    #no_messages = codes_count_in_file(fin)
+    #print "no_messages: {}".format(no_messages)
+
+    fields = []
+    LOG.debug("Start check metadata")
+    while 1:
+        field = {}
+        pos = fin.tell()
+        gid_meta = codes_grib_new_from_file(fin,headers_only=True)
+        if gid_meta is None:
+            LOG.debug("Last message Metadata")
+            break
+
+        try:
+            parameter = codes_get(gid_meta, 'indicatorOfParameter')
+        except:
+            parameter = codes_get(gid_meta, 'paramId')
+        level = codes_get(gid_meta, 'level')
+        try:
+            type_of_level = codes_get(gid_meta, 'indicatorOfTypeOfLevel', int)
+        except:
+            #print "indicatorOfTypeOfLevel is missing"
+            type_of_level = None
+
+        #print "parameter: {} level: {} type_of_level: {}".format(parameter, level, type_of_level)
+        field['pos'] = pos
+        field['parameter'] = parameter
+        field['level'] = level
+        field['type_of_level'] = type_of_level
+        fields.append(field)
+        codes_release(gid_meta)
+
+    #print fields
+    fin.seek(0)
+
+    return fin, fields
+
+def copy_field(fin, mgid, _result_file, pos):
+    fin.seek(pos)
+    gid = codes_grib_new_from_file(fin)
+    if gid is None:
+        LOG.debug("Last message")
+        return
+
+    nx = codes_get(gid, 'Ni')
+    ny = codes_get(gid, 'Nj')
+
+    #print "nx: {}".format(nx)
+    #print "ny: {}".format(ny)
+    first_lat = codes_get(gid, 'latitudeOfFirstGridPointInDegrees')
+    first_lon = codes_get(gid, 'longitudeOfFirstGridPointInDegrees')
+    north_south_step = codes_get(gid, 'jDirectionIncrementInDegrees')
+    east_west_step = codes_get(gid, 'iDirectionIncrementInDegrees')
+
+    try:
+        parameter = codes_get(gid, 'indicatorOfParameter')
+    except:
+        parameter = codes_get(gid, 'paramId')
+    level = codes_get(gid, 'level')
+    LOG.debug("parameter in copy: {} level: {}".format(parameter, level))
+
+    #print "latitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'latitudeOfFirstGridPointInDegrees'))
+    #print "longitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'longitudeOfFirstGridPointInDegrees'))
+
+    filter_north = 30
+
+    new_ny = int((first_lat - filter_north)/north_south_step) + 1
+    #print "new_ny: {}".format(new_ny)
+
+    #print "Start reading values..."
+    values = codes_get_values(gid)
+    #print "End reading values..."
+    #print "values type: {}".format(type(values))
+    values_r = np.reshape(values,(ny,nx))
+    #print "values shape: {}".format(values.shape)
+    #print "values shape: {}".format(values_r.shape)
+
+    new_values = values_r[:new_ny,:]
+    #print "new_values shape: {}".format(new_values.shape)
+
+    clone_id = codes_clone(gid)
+
+    codes_set(clone_id, 'latitudeOfLastGridPointInDegrees', (filter_north-north_south_step))
+    codes_set(clone_id, 'Nj', new_ny)
+
+    #print "Start writing values..."
+    codes_set_values(clone_id, new_values.flatten())
+    #codes_set_values(clone_id, values)
+    #print "End writing values..."
+
+    codes_grib_multi_append(clone_id, 0, mgid)
+
+    #fout = open(_result_file, 'a')
+    #codes_write(clone_id, fout)
+    #fout.close()
+
+    codes_release(clone_id)
+    codes_release(gid)
+
+    #codes_grib_multi_write(mgid, fout)
+    #codes_grib_multi_release(mgid)
+
+def handle_fields(fin, mgid, _result_file, fields, parameters, level=None, type_of_level=None):
+    for par in parameters:
+        for ref in fields:
+            if level != None and type_of_level != None:
+                if ref['parameter'] == par and ref['level'] == level and ref['type_of_level'] == type_of_level:
+                    LOG.debug("Doing parameter: {} level: {} type_of_level: {}".format(ref['parameter'], ref['level'], ref['type_of_level']))
+                    copy_field(fin, mgid, _result_file, ref['pos'])
+            else:
+                if ref['parameter'] == par :
+                    LOG.debug("Doing parameter: {} level:{}".format(ref['parameter'],ref['level']))
+                    copy_field(fin, mgid, _result_file, ref['pos'])
+
 def update_nwp(params):
     LOG.info("METNO update nwp")
 
@@ -150,180 +267,57 @@ def update_nwp(params):
         else:
             __tmpfile = "/tmp/__tmp"
 
+        mgid = codes_grib_multi_new()
+        codes_grib_multi_support_on()
+
         #Some parameters can be found from the first name, and some from paramID
         #Need to check the second of the first one is not found
         parameter_name_list = ["indicatorOfParameter","paramId"]
 
         #Do the static fields
         #Note: field not in the filename variable, but a configured filename for static fields
-        parameters = [172, 129]
-        level = None
-        type_of_level = None
         static_filename = params['options']['ecmwf_static_surface']
         if not os.path.exists(static_filename):
             static_filename = static_filename.replace("storeB","storeA")
             LOG.warning("Need to replace storeB with storeA")
-        for par in parameters:
-            for parameter_name in parameter_name_list:
-                cmd = ("grib_copy -f -w {}:l={} {} {}".format(parameter_name, par, static_filename, __tmpfile))
-                retv = run_command(cmd)
-                #LOG.debug("Returncode = " + str(retv))
-                if not retv and os.path.exists(__tmpfile):
-                    #LOG.debug("append ...")
-                    grib_filter = open("/tmp/rule-filter.append", 'w')
-                    grib_filter.write("append;\n")
-                    grib_filter.close()
-                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(_result_file, __tmpfile))
-                    retv = run_command(cmd)
-                    os.remove(__tmpfile)
-                    break
-                else:
-                    LOG.error("grib_copy failed and/or {} does not exist".format(__tmpfile))
+        fin, fields = scan_meta(static_filename)
+
+        parameters = [172, 129]
+        level = None
+        type_of_level = None
+        handle_fields(fin, mgid, _result_file, fields, parameters)
+        fin.close()
+
+        fin, fields = scan_meta(filename)
 
         #Need to copy parameters for surface layers
         parameters = [235, 167, 168, 134, 137]
         level = 0
         type_of_level = 1
-        for par in parameters:
-            for parameter_name in parameter_name_list:
-                cmd = ("grib_copy -f -w level:l={},indicatorOfTypeOfLevel:l={},{}:l={} {} {}".format(level, type_of_level, parameter_name, par, filename, __tmpfile))
-                retv = run_command(cmd)
-                #LOG.debug("Returncode = " + str(retv))
-                if not retv and os.path.exists(__tmpfile):
-                    #LOG.debug("append ...")
-                    grib_filter = open("/tmp/rule-filter.append", 'w')
-                    grib_filter.write("append;\n")
-                    grib_filter.close()
-                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(_result_file, __tmpfile))
-                    retv = run_command(cmd)
-                    os.remove(__tmpfile)
-                    break
-                else:
-                    LOG.error("grib_copy failed and/or {} does not exist".format(__tmpfile))
+        handle_fields(fin, mgid, _result_file, fields, parameters)
 
         #Need to copy parameters for all levels
-        parameters = [130, 131, 132, 133, 157, 129]
-        level = None
-        type_of_level = None
-        for par in parameters:
-            for parameter_name in parameter_name_list:
-                cmd = ("grib_copy -f -w {}:l={} {} {}".format(parameter_name, par, filename, __tmpfile))
-                retv = run_command(cmd)
-                #LOG.debug("Returncode = " + str(retv))
-                if not retv and os.path.exists(__tmpfile):
-                    #LOG.debug("append ...")
-                    grib_filter = open("/tmp/rule-filter.append", 'w')
-                    grib_filter.write("append;\n")
-                    grib_filter.close()
-                    cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(_result_file, __tmpfile))
-                    retv = run_command(cmd)
-                    os.remove(__tmpfile)
-                    if _result_file not in result_files:
-                        result_files[_result_file] = {'filename':filename, 'result_file':result_file}
-                    break
-                else:
-                    LOG.error("grib_copy failed and/or {} does not exist".format(__tmpfile))
+        parameters = [130, 131, 132, 133, 134, 157, 129]
+        handle_fields(fin, mgid, _result_file, fields, parameters)
+        fin.close()
 
-        #if check_nwp_content(result_file):
-        #    LOG.info('A check of the NWP file content has been attempted: %s',
-        #             result_file)
-        #    #os.rename(tmpresult, result_file)
-        #else:
-        #    LOG.warning("Missing important fields. No nwp file %s written to disk",
-        #                result_file)
-
-        #os.exit
-
-    for _result_file, filename in result_files.iteritems():
-        LOG.debug("Need to add 235 to this {} {}".format(_result_file, filename['filename']))
-        filename_base = os.path.basename(filename['filename'])
+        LOG.debug("Need to add 235 to this {}".format(_result_file))
+        filename_base = os.path.basename(filename)
         filename_base_time = filename_base[3:]
-        filename_base_new = "N1S" + filename_base_time
+        filename_base_new = os.path.join(os.path.dirname(filename),"N1S" + filename_base_time)
 
         LOG.debug("Using new filename: {}".format(filename_base_new))
-        par = 235
-        parameter_name = "indicatorOfParameter"
-        
-        cmd = ("grib_copy -f -w {}:l={} {} {}".format(parameter_name, par, os.path.join(os.path.dirname(filename['filename']),filename_base_new), __tmpfile))
-        retv = run_command(cmd)
-        if not retv and os.path.exists(__tmpfile):
-            grib_filter = open("/tmp/rule-filter.append", 'w')
-            grib_filter.write("append;\n")
-            grib_filter.close()
-            cmd = ("grib_filter /tmp/rule-filter.append -o {} {}".format(_result_file, __tmpfile))
-            retv = run_command(cmd)
-            os.remove(__tmpfile)
-        else:
-            LOG.error("grib_copy failed and/or {} does not exist".format(__tmpfile))
+        fin, fields = scan_meta(filename_base_new)
+        parameters = [235]
+        handle_fields(fin, mgid, _result_file, fields, parameters)
+        fin.close()
 
-    for _result_file, filename in result_files.iteritems():
-        fin = open(_result_file)
-        
-        codes_grib_multi_support_on()
-    
-        #no_messages = codes_count_in_file(fin)
-        #print "no_messages: {}".format(no_messages)
-    
-        #multi
-        mgid = codes_grib_multi_new()
-
-        while 1:
-            gid = codes_grib_new_from_file(fin)
-            if gid is None:
-                LOG.info("Last message complete")
-                break
-        
-            nx = codes_get(gid, 'Ni')
-            ny = codes_get(gid, 'Nj')
-
-            #print "nx: {}".format(nx)
-            #print "ny: {}".format(ny)
-            first_lat = codes_get(gid, 'latitudeOfFirstGridPointInDegrees')
-            first_lon = codes_get(gid, 'longitudeOfFirstGridPointInDegrees')
-            north_south_step = codes_get(gid, 'jDirectionIncrementInDegrees')
-            east_west_step = codes_get(gid, 'iDirectionIncrementInDegrees')
-            
-            #print "latitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'latitudeOfFirstGridPointInDegrees'))
-            #print "longitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'longitudeOfFirstGridPointInDegrees'))
-
-            filter_north = 30
-
-            new_ny = int((first_lat - filter_north)/north_south_step) + 1
-            #print "new_ny: {}".format(new_ny)
-    
-            #print "Start reading values..."
-            values = codes_get_values(gid)
-            #print "End reading values..."
-            #print "values type: {}".format(type(values))
-            values_r = np.reshape(values,(ny,nx))
-            #print "values shape: {}".format(values.shape)
-            #print "values shape: {}".format(values_r.shape)
-        
-            new_values = values_r[:new_ny,:]
-            #print "new_values shape: {}".format(new_values.shape)
-    
-            clone_id = codes_clone(gid)
-
-            codes_set(clone_id, 'latitudeOfLastGridPointInDegrees', filter_north)
-            codes_set(clone_id, 'Nj', new_ny)
-
-            #print "Start writing values..."
-            codes_set_values(clone_id, new_values.flatten())
-            #print "End writing values..."
-
-            codes_grib_multi_append(clone_id, 0, mgid)
-            
-            codes_release(clone_id)
- 
-            codes_release(gid)
-
-        fout = open(filename['result_file'], 'w')
+        fout = open(_result_file, 'w')
         codes_grib_multi_write(mgid, fout)
         codes_grib_multi_release(mgid)
  
-        fin.close()
         fout.close()
-        os.remove(_result_file)
+        os.rename(_result_file, result_file)
         
     return
 
