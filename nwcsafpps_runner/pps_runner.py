@@ -77,6 +77,12 @@ GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
 DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 
 PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis']
+REQUIRED_MW_SENSORS = {}
+REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
+REQUIRED_MW_SENSORS['NOAA-18'] = ['amsu-a', 'mhs']
+REQUIRED_MW_SENSORS['NOAA-19'] = ['amsu-a']
+REQUIRED_MW_SENSORS['Metop-A'] = ['amsu-a', 'mhs']
+REQUIRED_MW_SENSORS['Metop-B'] = ['amsu-a', 'mhs']
 NOAA_METOP_PPS_SENSORNAMES = ['avhrr/3', 'amsu-a', 'amsu-b', 'mhs']
 
 METOP_NAME_LETTER = {'metop01': 'metopb', 'metop02': 'metopa'}
@@ -459,11 +465,13 @@ def ready2run(msg, files4pps):
                 ' not required for S-NPP/VIIRS PPS processing...')
             return False
     else:
-        if msg.data['sensor'] not in ['avhrr/3', 'amsu-a', 'amsu-b', 'mhs']:
+        if msg.data['sensor'] not in NOAA_METOP_PPS_SENSORNAMES:
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) + ' not required...')
             return False
-        if (msg.data['sensor'] in ['amsu-a', 'amsu-b', 'mhs'] and
+        required_mw_sensors = REQUIRED_MW_SENSORS.get(
+            msg.data['platform_name'])
+        if (msg.data['sensor'] in required_mw_sensors and
                 msg.data['data_processing_level'] != '1C'):
             if msg.data['data_processing_level'] == '1c':
                 LOG.warning("Level should be in upper case!")
