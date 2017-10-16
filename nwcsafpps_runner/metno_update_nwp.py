@@ -103,7 +103,7 @@ def copy_field(fin, mgid, _result_file, pos):
     #print "latitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'latitudeOfFirstGridPointInDegrees'))
     #print "longitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'longitudeOfFirstGridPointInDegrees'))
 
-    filter_north = 30
+    filter_north = 20
 
     new_ny = int((first_lat - filter_north)/north_south_step) + 1
     #print "new_ny: {}".format(new_ny)
@@ -252,12 +252,37 @@ def update_nwp(params):
         try:
             result_file = os.path.join(params['options']['nwp_outdir'], compose(params['options']['nwp_output'],output_parameters))
             _result_file = os.path.join(params['options']['nwp_outdir'], compose("."+params['options']['nwp_output'],output_parameters))
+            _result_file_lock = os.path.join(params['options']['nwp_outdir'], compose("."+params['options']['nwp_output']+".lock",output_parameters))
         except Exception as e:
             LOG.error("Joining outdir with output for nwp failed with: {}".format(e))
 
         LOG.info("Result file: {}".format(result_file))
         if os.path.exists(result_file):
             LOG.info("File: " + str(result_file) + " already there...")
+            continue
+
+        import fcntl
+        import errno
+        import time
+        rfl = open(_result_file_lock,'w+')
+        #do some locking
+        while True:
+            try:
+                fcntl.flock(rfl, fcntl.LOCK_EX|fcntl.LOCK_NB)
+                LOG.debug("Got lock for NWP outfile: {}".format(result_file))
+                break;
+            except IOError as e:
+                if e.errno != errno.EAGAIN:
+                    raise
+                else:
+                    LOG.debug("Waiting for lock ... {}".format(result_file))
+                    time.sleep(1)
+            
+        if os.path.exists(result_file):
+            LOG.info("File: " + str(result_file) + " already there...")
+            #Need to release the lock
+            fcntl.flock(rfl, fcntl.LOCK_UN)
+            rfl.close()
             continue
 
         #Need to set up temporary file to copy grib fields to
@@ -318,6 +343,10 @@ def update_nwp(params):
  
         fout.close()
         os.rename(_result_file, result_file)
-        
+
+        #In the end release the lock
+        fcntl.flock(rfl, fcntl.LOCK_UN)
+        rfl.close()
+        os.remove(_result_file_lock)
     return
 
