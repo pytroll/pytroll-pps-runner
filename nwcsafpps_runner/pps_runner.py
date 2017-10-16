@@ -80,7 +80,7 @@ PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis']
 REQUIRED_MW_SENSORS = {}
 REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
 REQUIRED_MW_SENSORS['NOAA-18'] = ['amsu-a', 'mhs']
-REQUIRED_MW_SENSORS['NOAA-19'] = ['amsu-a']
+REQUIRED_MW_SENSORS['NOAA-19'] = []
 REQUIRED_MW_SENSORS['Metop-A'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['Metop-B'] = ['amsu-a', 'mhs']
 NOAA_METOP_PPS_SENSORNAMES = ['avhrr/3', 'amsu-a', 'amsu-b', 'mhs']
@@ -524,7 +524,7 @@ def ready2run(msg, files4pps):
 
     if (platform_name in SUPPORTED_METOP_SATELLITES or
             platform_name in SUPPORTED_NOAA_SATELLITES):
-        if len(files4pps[sceneid]) < 3:
+        if len(files4pps[sceneid]) < len(REQUIRED_MW_SENSORS[platform_name]) + 1:
             LOG.info(
                 "Not enough NOAA/Metop sensor data available yet...")
             return False
