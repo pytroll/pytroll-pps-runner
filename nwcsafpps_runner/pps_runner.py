@@ -36,7 +36,7 @@ LOG.debug("PPS_SCRIPT = " + str(PPS_SCRIPT))
 CONF = ConfigParser()
 CONF.read(os.path.join(CONFIG_PATH, "pps_config.cfg"))
 
-MODE = os.getenv("SMHI_MODE")
+MODE = os.getenv("MODE")
 if MODE is None:
     MODE = "offline"
 
@@ -208,17 +208,19 @@ def pps_worker(semaphore_obj, scene, job_dict, job_key, publish_q, input_msg):
         with semaphore_obj:
             LOG.debug("Acquired semaphore")
             if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
-                cmdstr = "%s %s %s %s %s" % (PPS_SCRIPT,
+                cmdstr = "%s %s %s %s %s %s" % (PPS_SCRIPT,
                                              SATELLITE_NAME[
                                                  scene['platform_name']],
                                              scene['orbit_number'], scene[
                                                  'satday'],
-                                             scene['sathour'])
+                                             scene['sathour'],
+                                             input_msg.data['antenna'])
             else:
-                cmdstr = "%s %s %s 0 0" % (PPS_SCRIPT,
+                cmdstr = "%s %s %s 0 0 %s" % (PPS_SCRIPT,
                                            SATELLITE_NAME[
                                                scene['platform_name']],
-                                           scene['orbit_number'])
+                                           scene['orbit_number'],
+                                           input_msg.data['antenna'])
 
             if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
                 cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
@@ -438,12 +440,25 @@ def ready2run(msg, files4pps, job_register, sceneid):
 
     LOG.info("Sat and Sensor: " + str(msg.data['platform_name'])
              + " " + str(msg.data['sensor']))
-    if msg.data['sensor'] not in PPS_SENSORS:
-        LOG.info("Data from sensor " + str(msg.data['sensor']) +
-                 " not needed by PPS " +
-                 "Continue...")
-        return False
 
+    LOG.debug("sensor type: {}".format(type(msg.data['sensor'])))
+    if type(msg.data['sensor']) not in (list,):
+        LOG.debug("sensor not list")        
+        if msg.data['sensor'] not in PPS_SENSORS:
+            LOG.info("Data from sensor " + str(msg.data['sensor']) +
+                     " not needed by PPS " +
+                     "Continue...")
+            return False
+    else:
+        LOG.debug("sensor IS list")
+        for sensor in msg.data['sensor']:
+            LOG.debug("Checking sensor: {}".format(sensor))
+            if sensor not in PPS_SENSORS:
+                LOG.info("Data from sensor " + str(sensor) +
+                         " not needed by PPS " +
+                         "Continue...")
+                return False
+        
     if msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES:
         if msg.data['sensor'] not in ['modis', ]:
             LOG.info(
@@ -451,11 +466,24 @@ def ready2run(msg, files4pps, job_register, sceneid):
                 ' not required for MODIS PPS processing...')
             return False
     elif msg.data['platform_name'] in SUPPORTED_JPSS_SATELLITES:
-        if msg.data['sensor'] not in ['viirs', ]:
-            LOG.info(
-                'Sensor ' + str(msg.data['sensor']) +
-                ' not required for S-NPP/VIIRS PPS processing...')
-            return False
+        LOG.debug("sensor type: {}".format(type(msg.data['sensor'])))
+        if type(msg.data['sensor']) not in (list,):
+            LOG.debug("sensor not list")
+            if msg.data['sensor'] not in ['viirs', ]:
+                LOG.info(
+                    'Sensor ' + str(msg.data['sensor']) +
+                    ' not required for S-NPP/VIIRS PPS processing...')
+                return False
+        else:
+            LOG.debug("sensor IS list")        
+            for sensor in msg.data['sensor']:
+                LOG.debug("Checking sensor: {}".format(sensor))
+                if sensor not in ['viirs', ]:
+                    LOG.info(
+                        'Sensor ' + str(msg.data['sensor']) +
+                        ' not required for S-NPP/VIIRS PPS processing...')
+                    return False
+            
     else:
         if msg.data['sensor'] not in ['avhrr/3', 'amsu-a', 'amsu-b', 'mhs']:
             LOG.info(
@@ -537,7 +565,10 @@ def ready2run(msg, files4pps, job_register, sceneid):
             if msg.data['antenna'] == "ears" or msg.data['antenna'] == "global":
                 LOG.debug("is ears or global")
                 number_of_sensors = 1
+    elif platform_name in SUPPORTED_JPSS_SATELLITES:
+        number_of_sensors = 1
 
+                
     if (platform_name in SUPPORTED_METOP_SATELLITES or
             platform_name in SUPPORTED_NOAA_SATELLITES):
         if len(files4pps[sceneid]) < number_of_sensors:
@@ -563,7 +594,7 @@ def ready2run(msg, files4pps, job_register, sceneid):
                  str(platform_name) + ' ' + str(orbit_number))
 
         #Will need to prepare the Data for PPS processing
-        prepare_data4pps(files4pps[sceneid])
+        #prepare_data4pps(files4pps[sceneid])
         
         job_register[sceneid] = datetime.utcnow()
         return True
@@ -835,7 +866,11 @@ def pps():
         orbit_number = int(msg.data['orbit_number'])
         platform_name = msg.data['platform_name']
         starttime = msg.data['start_time']
-        endtime = msg.data['end_time']
+        try:
+            endtime = msg.data['end_time']
+        except KeyError:
+            LOG.warning("end_time missing, set to start time + 15 minutes")
+            endtime = starttime + timedelta(minutes=15)
 
         keyname = (str(platform_name) + '_' +
                    str(orbit_number) + '_' +
