@@ -40,7 +40,7 @@ ppsconf_path = os.path.join(CONFIG_PATH, "pps_config.cfg")
 LOG.debug("Path to config file = " + str(ppsconf_path))
 CONF.read(ppsconf_path)
 
-MODE = os.getenv("SMHI_MODE")
+MODE = os.getenv("MODE")
 if MODE is None:
     MODE = "offline"
 
