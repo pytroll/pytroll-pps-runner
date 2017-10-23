@@ -24,6 +24,19 @@
 """
 import os
 import ConfigParser
+import sys
+import socket
+from glob import glob
+import stat
+from urlparse import urlparse
+import posttroll.subscriber
+from posttroll.publisher import Publish
+from posttroll.message import Message
+
+from subprocess import Popen, PIPE
+import threading
+import Queue
+from datetime import datetime, timedelta
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -54,7 +67,6 @@ LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 
 servername = None
-import socket
 servername = socket.gethostname()
 SERVERNAME = OPTIONS.get('servername', servername)
 
@@ -121,17 +133,6 @@ _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
 _PPS_LOG_FILE = os.environ.get('PPSRUNNER_LOG_FILE', None)
 _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
 
-import sys
-from glob import glob
-from urlparse import urlparse
-import posttroll.subscriber
-from posttroll.publisher import Publish
-from posttroll.message import Message
-
-from subprocess import Popen, PIPE
-import threading
-import Queue
-from datetime import datetime, timedelta
 
 LOG.debug("PYTHONPATH: " + str(sys.path))
 from nwcsafpps_runner.prepare_nwp import update_nwp
@@ -211,9 +212,14 @@ def logreader(stream, log_func):
 
 
 def get_outputfiles(path, platform_name, orb):
-    """From the directory path and satellite id and orbit number scan the
-    directory and find all pps output files matching that scene and return the
-    full filenames"""
+    """From the directory path and satellite id and orbit number scan the directory
+    and find all pps output files matching that scene and return the full
+    filenames. Since the orbit number is unstable there might be more than one
+    scene with the same orbit number and platform name. In order to avoid
+    picking up an older scene we check the file modifcation time, and if the
+    file is too old we discard it!
+
+    """
 
     h5_output = (os.path.join(path, 'S_NWC') + '*' +
                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
@@ -230,7 +236,15 @@ def get_outputfiles(path, platform_name, orb):
                   '_' + '%.5d' % int(orb) + '_*.xml')
     LOG.info(
         "Match string to do a file globbing on xml output files: " + str(xml_output))
-    return glob(h5_output) + glob(nc_output) + glob(xml_output)
+    filelist = glob(h5_output) + glob(nc_output) + glob(xml_output)
+    now = datetime.utcnow()
+    time_threshold = timedelta(minutes=90.)
+    filtered_flist = []
+    for fname in filelist:
+        mtime = datetime.utcfromtimestamp(os.stat(fname)[stat.ST_MTIME])
+        if (now - mtime) < time_threshold:
+            filtered_flist.append(fname)
+    return filtered_flist
 
 
 def terminate_process(popen_obj, scene):
