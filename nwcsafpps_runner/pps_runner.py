@@ -37,6 +37,7 @@ from subprocess import Popen, PIPE
 import threading
 import Queue
 from datetime import datetime, timedelta
+from trollsift.parser import parse
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -123,6 +124,8 @@ METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
 METOP_NUMBER = {'b': '01', 'a': '02'}
 
+PPS_OUT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
+PPS_STAT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml"
 
 #: Default time format
 _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -244,6 +247,9 @@ def get_outputfiles(path, platform_name, orb):
         mtime = datetime.utcfromtimestamp(os.stat(fname)[stat.ST_MTIME])
         if (now - mtime) < time_threshold:
             filtered_flist.append(fname)
+        else:
+            LOG.info("Found old PPS result: %s", fname)
+
     return filtered_flist
 
 
@@ -372,8 +378,17 @@ def pps_worker(scene, publish_q, input_msg):
 
         # Now publish:
         for result_file in result_files + xml_files:
-            filename = os.path.split(result_file)[1]
+            # Get true start and end time from filenames and adjust the end time in
+            # the publish message:
+            filename = os.path.basename(result_files)
             LOG.info("file to publish = " + str(filename))
+            try:
+                metadata = parse(PPS_OUT_PATTERN, filename)
+            except ValueError:
+                metadata = parse(PPS_STAT_PATTERN, filename)
+
+            endtime = metadata['end_time']
+            starttime = metadata['start_time']
 
             to_send = input_msg.data.copy()
             to_send.pop('dataset', None)
@@ -399,8 +414,7 @@ def pps_worker(scene, publish_q, input_msg):
             to_send['data_processing_level'] = '2'
 
             environment = MODE
-            to_send['start_time'], to_send['end_time'] = scene[
-                'starttime'], scene['endtime']
+            to_send['start_time'], to_send['end_time'] = starttime, endtime
             pubmsg = Message('/' + to_send['format'] + '/' +
                              to_send['data_processing_level'] +
                              '/norrköping/' + environment +
