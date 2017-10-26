@@ -380,7 +380,7 @@ def pps_worker(scene, publish_q, input_msg):
         for result_file in result_files + xml_files:
             # Get true start and end time from filenames and adjust the end time in
             # the publish message:
-            filename = os.path.basename(result_files)
+            filename = os.path.basename(result_file)
             LOG.info("file to publish = " + str(filename))
             try:
                 metadata = parse(PPS_OUT_PATTERN, filename)
