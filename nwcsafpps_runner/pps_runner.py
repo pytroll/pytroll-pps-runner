@@ -125,6 +125,7 @@ METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
 METOP_NUMBER = {'b': '01', 'a': '02'}
 
 PPS_OUT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
+PPS_OUT_PATTERN_MULTIPLE = "S_NWC_{segment1}_{segment2}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
 PPS_STAT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml"
 
 #: Default time format
@@ -383,7 +384,13 @@ def pps_worker(scene, publish_q, input_msg):
             filename = os.path.basename(result_file)
             LOG.info("file to publish = " + str(filename))
             try:
-                metadata = parse(PPS_OUT_PATTERN, filename)
+                try:
+                    metadata = parse(PPS_OUT_PATTERN, filename)
+                except ValueError:
+                    metadata = parse(PPS_OUT_PATTERN_MULTIPLE, filename)
+                    metadata['segment'] = '_'.join([metadata['segment1'],
+                                                    metadata['segment2']])
+                    del metadata['segment1'], metadata['segment2']
             except ValueError:
                 metadata = parse(PPS_STAT_PATTERN, filename)
 
