@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015, 2016 Adam.Dybbroe
+# Copyright (c) 2015, 2016, 2017 Adam.Dybbroe
 
 # Author(s):
 
@@ -104,7 +104,7 @@ def run_command(cmdstr):
     out_reader.join()
     err_reader.join()
 
-    return proc.returncode
+    return proc.wait()
 
 
 def update_nwp(starttime, nlengths):
@@ -122,6 +122,7 @@ def update_nwp(starttime, nlengths):
         return
 
     LOG.debug('NHSF NWP files found = ' + str(filelist))
+    nfiles_error = 0
     for filename in filelist:
         timeinfo = filename.rsplit("_", 1)[-1]
         timestamp, step = timeinfo.split("+")
@@ -150,6 +151,14 @@ def update_nwp(starttime, nlengths):
                nhsp_file + " " + tmp_file)
         retv = run_command(cmd)
         LOG.debug("Returncode = " + str(retv))
+        if retv != 0:
+            LOG.error(
+                "Failed doing the grib-copy! Will continue with the next file")
+            nfiles_error = nfiles_error + 1
+            if nfiles_error > len(filelist) / 2:
+                LOG.error(
+                    "More than half of the Grib files failed upon grib_copy!")
+                raise IOError('Failed running grib_copy on many Grib files')
 
         if not os.path.exists(nwp_lsmz_filename):
             LOG.exception("No static grib file with land-sea mask and " +
