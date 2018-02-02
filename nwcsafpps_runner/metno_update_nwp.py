@@ -103,7 +103,7 @@ def copy_field(fin, mgid, _result_file, pos):
     #print "latitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'latitudeOfFirstGridPointInDegrees'))
     #print "longitudeOfFirstGridPointInDegrees: {}".format(codes_get(gid, 'longitudeOfFirstGridPointInDegrees'))
 
-    filter_north = 20
+    filter_north = 0
 
     new_ny = int((first_lat - filter_north)/north_south_step) + 1
     #print "new_ny: {}".format(new_ny)
@@ -121,9 +121,17 @@ def copy_field(fin, mgid, _result_file, pos):
 
     clone_id = codes_clone(gid)
 
-    codes_set(clone_id, 'latitudeOfLastGridPointInDegrees', (filter_north-north_south_step))
+    #codes_set(clone_id, 'latitudeOfLastGridPointInDegrees', (filter_north-north_south_step))
+    codes_set(clone_id, 'latitudeOfLastGridPointInDegrees', (filter_north))
     codes_set(clone_id, 'Nj', new_ny)
 
+    #LOG.info("First_lon type: {}".format(type(first_lon)))
+    #LOG.info("first_lon: {}".format(first_lon))
+    #if (first_lon > 180.099) and (first_lon < 180.101):
+    #    new_first_lon = float(-179.9)
+    #    LOG.info("setting to new first lon; {}".format(new_first_lon))
+    #    codes_set(clone_id, 'longitudeOfFirstGridPointInDegrees', new_first_lon)
+        
     #print "Start writing values..."
     codes_set_values(clone_id, new_values.flatten())
     #codes_set_values(clone_id, values)
