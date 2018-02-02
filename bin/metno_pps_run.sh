@@ -52,8 +52,8 @@ fi
 
 if [ "x$3" == "x0" ] && [ "x$4" == "x0" ]; then
     echo "USING: python /opt/acpg/scr/ppsRunAllParallel.py -p $1 $2 --cpp 0 --precip 0"
-    python /opt/acpg/scr/ppsRunAllParallel.py -p $1 $2 --cpp 0 --precip 0
+    python /opt/acpg/scr/ppsRunAllParallel.py -p $1 $2 --cpp 0 --precip 0 --ctth 0
 else
     echo "USING: python /opt/acpg/scr/ppsRunAllParallel.py -p $1 $2 --satday $3 --sathour $4 --cpp 0 --precip 0"
-    python /opt/acpg/scr/ppsRunAllParallel.py -p $1 $2 --satday $3 --sathour $4 --cpp 0 --precip 0
+    python /opt/acpg/scr/ppsRunAllParallel.py -p $1 $2 --satday $3 --sathour $4 --cpp 0 --precip 0 --ctth 0
 fi
