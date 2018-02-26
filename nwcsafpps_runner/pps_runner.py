@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2017 Adam.Dybbroe
+# Copyright (c) 2014 - 2018 Adam.Dybbroe
 
 # Author(s):
 
@@ -77,15 +77,13 @@ NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19']
 SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A']
 SUPPORTED_EOS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
-SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'JPSS-1', 'JPSS-2']
+SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21']
 
 SUPPORTED_PPS_SATELLITES = (SUPPORTED_NOAA_SATELLITES +
                             SUPPORTED_METOP_SATELLITES +
                             SUPPORTED_EOS_SATELLITES +
                             SUPPORTED_JPSS_SATELLITES)
 
-JPSS_NAME = {'Suomi-NPP': 'npp'}
-EOS_NAME = {'EOS-Aqua': 'eos2', "EOS-Terra": 'eos1'}
 GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
 DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 
@@ -107,6 +105,7 @@ SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
                   'Metop-A': 'metop02', 'Metop-B': 'metop01',
                   'Metop-C': 'metop03',
                   'Suomi-NPP': 'npp',
+                  'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21',
                   'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1'}
 SENSOR_LIST = {}
 for sat in SATELLITE_NAME:
@@ -114,7 +113,7 @@ for sat in SATELLITE_NAME:
         SENSOR_LIST[sat] = ['avhrr/3', 'amsu-b', 'amsu-a']
     elif sat in ['EOS-Aqua', 'EOS-Terra']:
         SENSOR_LIST[sat] = 'modis'
-    elif sat in ['Suomi-NPP', 'JPSS-1', 'JPSS-2']:
+    elif sat in ['Suomi-NPP', 'NOAA-20', 'NOAA-21']:
         SENSOR_LIST[sat] = 'viirs'
     else:
         SENSOR_LIST[sat] = ['avhrr/3', 'mhs', 'amsu-a']
