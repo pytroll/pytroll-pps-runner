@@ -443,7 +443,7 @@ def pps_worker(scene, publish_q, input_msg):
 
 def ready2run(msg, files4pps):
     """Check wether pps is ready to run or not"""
-    #"""Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
+    # """Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
 
     from trollduction.producer import check_uri
@@ -555,12 +555,13 @@ def ready2run(msg, files4pps):
             files4pps[sceneid].append(fname)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
+    if (msg['variant'] in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES):
+        LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
 
-    if (platform_name in SUPPORTED_METOP_SATELLITES or
+    elif (msg['variant'] not in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES or
             platform_name in SUPPORTED_NOAA_SATELLITES):
         if len(files4pps[sceneid]) < len(REQUIRED_MW_SENSORS[platform_name]) + 1:
-            LOG.info(
-                "Not enough NOAA/Metop sensor data available yet...")
+            LOG.info("Not enough NOAA/Metop sensor data available yet...")
             return False
     elif platform_name in SUPPORTED_EOS_SATELLITES:
         if len(files4pps[sceneid]) < 2:
