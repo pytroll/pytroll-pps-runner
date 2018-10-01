@@ -555,11 +555,10 @@ def ready2run(msg, files4pps):
             files4pps[sceneid].append(fname)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if (msg['variant'] in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES):
+    if (msg.data['variant'] in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES):
         LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
-
-    elif (msg['variant'] not in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES or
-            platform_name in SUPPORTED_NOAA_SATELLITES):
+    elif (platform_name in SUPPORTED_METOP_SATELLITES or
+          platform_name in SUPPORTED_NOAA_SATELLITES):
         if len(files4pps[sceneid]) < len(REQUIRED_MW_SENSORS[platform_name]) + 1:
             LOG.info("Not enough NOAA/Metop sensor data available yet...")
             return False
