@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015, 2016, 2017 Adam.Dybbroe
+# Copyright (c) 2015, 2016, 2017, 2018 Adam.Dybbroe
 
 # Author(s):
 
@@ -139,7 +139,8 @@ def update_nwp(starttime, nlengths):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        tmp_file = os.path.join(nwp_outdir, "tmp." + timestamp + "+" + step)
+        tmp_file = tempfile.mktemp(suffix="_" + timestamp + "+" + step, dir=nwp_outdir)
+        #tmp_file = os.path.join(nwp_outdir, "tmp." + timestamp + "+" + step)
         LOG.info("result and tmp files: " +
                  str(result_file) + " " + str(tmp_file))
         nhsp_file = os.path.join(nhsp_path, nhsp_prefix + timeinfo)
@@ -176,7 +177,11 @@ def update_nwp(starttime, nlengths):
         if retv != 0:
             raise IOError("Failed adding topography and land-sea " +
                           "mask data to grib file")
-        os.remove(tmp_file)
+
+        if os.path.exists(tmp_file):
+            os.remove(tmp_file)
+        else:
+            LOG.warning("tmp file %s gone! Cannot clean it...", tmp_file)
 
         if check_nwp_content(tmpresult):
             LOG.info('A check of the NWP file content has been attempted: %s',
@@ -225,6 +230,7 @@ def check_nwp_content(gribfile):
 
     LOG.info("NWP file has all required fields for PPS: %s", gribfile)
     return file_ok
+
 
 if __name__ == "__main__":
 
