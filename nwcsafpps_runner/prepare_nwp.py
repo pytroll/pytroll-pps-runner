@@ -164,7 +164,7 @@ def update_nwp(starttime, nlengths):
         if not os.path.exists(nwp_lsmz_filename):
             LOG.exception("No static grib file with land-sea mask and " +
                           "topography available. Can't prepare NWP data")
-            raise
+            raise IOError('Failed getting static land-sea mask and topography')
 
         tmpresult = tempfile.mktemp()
         cmd = ('cat ' + tmp_file + " " +
