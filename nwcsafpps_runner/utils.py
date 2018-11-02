@@ -26,7 +26,9 @@
 import os
 import socket
 import netifaces
-from urlparse import urlparse
+from trollduction.producer import check_uri
+#from socket import gethostbyaddr, gaierror
+from socket import gaierror
 import logging
 LOG = logging.getLogger(__name__)
 
@@ -111,19 +113,8 @@ def ready2run(msg, files4pps):
     # """Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
 
-    from trollduction.producer import check_uri
-    from socket import gethostbyaddr, gaierror
-
     LOG.debug("Ready to run...")
     LOG.info("Got message: " + str(msg))
-
-    urlobj = urlparse(msg.data['uri'])
-    url_ip = socket.gethostbyname(urlobj.netloc)
-    if urlobj.netloc and (url_ip not in get_local_ips()):
-        LOG.warning("Server %s not the current one: %s",
-                    str(urlobj.netloc),
-                    socket.gethostname())
-        return False
 
     uris = []
     if (msg.type == 'dataset' and
@@ -150,6 +141,15 @@ def ready2run(msg, files4pps):
     except IOError:
         LOG.info('One or more files not present on this host!')
         return False
+
+    try:
+        url_ip = socket.gethostbyname(msg.host)
+        if url_ip not in get_local_ips():
+            LOG.warning("Server %s not the current one: %s", str(url_ip), socket.gethostname())
+            return False
+    except (AttributeError, gaierror) as err:
+        LOG.error("Failed checking host! Hostname = %s", socket.gethostname())
+        LOG.exception(err)
 
     LOG.info("Sat and Sensor: " + str(msg.data['platform_name'])
              + " " + str(msg.data['sensor']))
