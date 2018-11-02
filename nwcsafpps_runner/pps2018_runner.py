@@ -501,7 +501,7 @@ def ready2run(msg, files4pps):
         LOG.warning("Satellite not supported: " + str(platform_name))
         return False
 
-    starttime = msg.data.get('starttime')
+    starttime = msg.data.get('start_time')
     sceneid = get_sceneid(platform_name, orbit_number, starttime)
 
     if sceneid not in files4pps:
@@ -539,15 +539,6 @@ def ready2run(msg, files4pps):
         LOG.info("Scene = " + str(sceneid))
     else:
         LOG.info("Level 1 files ready: " + str(files4pps[sceneid]))
-
-    # Clean the files4pps dict:
-    LOG.debug("files4pps: " + str(files4pps))
-    try:
-        files4pps.pop(sceneid)
-    except KeyError:
-        LOG.warning("Failed trying to remove key " + str(sceneid) +
-                    " from dictionary files4pps")
-    LOG.debug("After cleaning: files4pps = " + str(files4pps))
 
     if msg.data['platform_name'] in SUPPORTED_PPS_SATELLITES:
         LOG.info(
@@ -730,6 +721,16 @@ def pps():
 
             LOG.debug(
                 "Number of threads currently alive: " + str(threading.active_count()))
+
+            # Clean the files4pps dict:
+            LOG.debug("files4pps: " + str(files4pps))
+            try:
+                files4pps.pop(sceneid)
+            except KeyError:
+                LOG.warning("Failed trying to remove key " + str(sceneid) +
+                            " from dictionary files4pps")
+
+            LOG.debug("After cleaning: files4pps = " + str(files4pps))
 
     LOG.info("Wait till all threads are dead...")
     while True:
