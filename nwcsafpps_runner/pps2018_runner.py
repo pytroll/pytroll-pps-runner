@@ -662,6 +662,16 @@ def prepare_nwp4pps(flens):
         raise
 
 
+def get_pps_inputfile(platform_name, ppsfiles):
+
+    if platform_name in SUPPORTED_EOS_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('021km') > 0:
+                return ppsfile
+
+    return None
+
+
 def pps():
     """The PPS runner. Triggers processing of PPS main script once AAPP or CSPP
     is ready with a level-1 file"""
@@ -711,7 +721,7 @@ def pps():
         status = ready2run(msg, files4pps)
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
-            scene['file4pps'] = files4pps[sceneid][0]
+            scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
 
             LOG.info('Start a thread preparing the nwp data and run pps...')
             thread_pool.new_thread(message_uid(msg),
