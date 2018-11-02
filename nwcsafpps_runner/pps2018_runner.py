@@ -278,7 +278,7 @@ def pps_worker(scene, publish_q, input_msg):
         LOG.debug("Starting pps runner for scene %s", str(scene))
         job_start_time = datetime.utcnow()
 
-        args = prepare_pps_arguments(scene['platform_name'],
+        args = prepare_pps_arguments(SATELLITE_NAME.get(scene['platform_name']),
                                      scene['file4pps'],
                                      orbit_number=scene['platform_name'])
         from ppsRunAll import main as pps_run_all
