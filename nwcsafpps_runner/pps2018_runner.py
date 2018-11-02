@@ -278,9 +278,9 @@ def pps_worker(scene, publish_q, input_msg):
         LOG.debug("Starting pps runner for scene %s", str(scene))
         job_start_time = datetime.utcnow()
 
-        args = prepare_pps_arguments(SATELLITE_NAME.get(scene['platform_name']),
+        args = prepare_pps_arguments(scene['platform_name'],
                                      scene['file4pps'],
-                                     orbit_number=scene['platform_name'])
+                                     orbit_number=scene['orbit_number'])
         from ppsRunAll import main as pps_run_all
         pps_run_all(None, args)
 
@@ -790,16 +790,15 @@ def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
         pps_args.modisfile = level1_filepath
 
     elif platform_name in SUPPORTED_JPSS_SATELLITES:
-        pps_args.orbit_number = orbit_number
         pps_args.csppfile = level1_filepath
 
     elif platform_name in SUPPORTED_METOP_SATELLITES:
-        pps_args.orbit_number = orbit_number
         pps_args.hrptfile = level1_filepath
 
     elif platform_name in SUPPORTED_NOAA_SATELLITES:
-        pps_args.orbit_number = orbit_number
         pps_args.hrptfile = level1_filepath
+
+    # pps_args.platform_orbit = (SATELLITE_NAME.get(platform_name), orbit_number)
 
     return pps_args
 
