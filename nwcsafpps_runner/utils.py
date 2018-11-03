@@ -215,8 +215,8 @@ def ready2run(msg, files4pps):
                 files4pps[sceneid].append(item)
     else:
         for item in level1_files:
-            fname = os.path.basename(item)
-            files4pps[sceneid].append(fname)
+            #fname = os.path.basename(item)
+            files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
     if (msg.data['variant'] in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES):
