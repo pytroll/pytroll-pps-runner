@@ -592,6 +592,7 @@ def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
     pps_args.csppfile = None
     pps_args.endline = None
     pps_args.hrptfile = None
+    pps_args.modisfile = None
     pps_args.modisorbit = None
     pps_args.no_cmask = None
     pps_args.no_control = None
