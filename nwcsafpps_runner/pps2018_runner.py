@@ -56,6 +56,8 @@ from nwcsafpps_runner.utils import (METOP_NUMBER,
                                     SUPPORTED_METOP_SATELLITES,
                                     SUPPORTED_NOAA_SATELLITES)
 
+from ppsRunAll import pps_run_all_serial
+from ppsCmaskProb import pps_cmask_prob
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -251,8 +253,13 @@ def pps_worker(scene, publish_q, input_msg):
                                        scene['file4pps'],
                                        orbit_number=scene['orbit_number'])
 
-        from ppsRunAll import pps_run_all_serial
+        # Run core PPS PGEs in a serial fashion
+        LOG.info("Run PPS module: pps_run_all_serial")
         pps_run_all_serial(**kwargs)
+
+        # Run the PPS CmaskProb (probabilistic Cloudmask):
+        LOG.info("Run PPS module: pps_cmask_prob")
+        pps_cmask_prob(**kwargs)
 
         my_env = os.environ.copy()
         for envkey in my_env:
@@ -261,8 +268,7 @@ def pps_worker(scene, publish_q, input_msg):
         LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
         LOG.debug("...from config file = " + str(OPTIONS['pps_outdir']))
 
-        LOG.info(
-            "Ready with PPS level-2 processing on scene: " + str(scene))
+        LOG.info("Ready with PPS level-2 processing on scene: " + str(scene))
 
         # Now try perform som time statistics editing with ppsTimeControl.py from
         # pps:
