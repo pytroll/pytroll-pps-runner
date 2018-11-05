@@ -247,11 +247,12 @@ def pps_worker(scene, publish_q, input_msg):
         LOG.debug("Starting pps runner for scene %s", str(scene))
         job_start_time = datetime.utcnow()
 
-        args = prepare_pps_arguments(scene['platform_name'],
-                                     scene['file4pps'],
-                                     orbit_number=scene['orbit_number'])
-        from ppsRunAll import main as pps_run_all
-        pps_run_all(None, args)
+        kwargs = prepare_pps_arguments(scene['platform_name'],
+                                       scene['file4pps'],
+                                       orbit_number=scene['orbit_number'])
+
+        from ppsRunAll import pps_run_all_serial
+        pps_run_all_serial(**kwargs)
 
         my_env = os.environ.copy()
         for envkey in my_env:
@@ -588,46 +589,21 @@ def pps():
 
 def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
 
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    pps_args = parser.parse_args()
-
     orbit_number = kwargs.get('orbit_number')
-
-    pps_args.anglesfile = None
-    pps_args.areaid = None
-    pps_args.csppfile = None
-    pps_args.endline = None
-    pps_args.hrptfile = None
-    pps_args.modisfile = None
-    pps_args.modisorbit = None
-    pps_args.no_cmask = None
-    pps_args.no_control = None
-    pps_args.no_cpp = None
-    pps_args.no_ctth = None
-    pps_args.no_ctype = None
-    pps_args.no_precip = None
-    pps_args.pfsfile = None
-    pps_args.platform_orbit = None
-    pps_args.satday = None
-    pps_args.sathour = None
-    pps_args.startline = None
+    pps_args = {}
 
     if platform_name in SUPPORTED_EOS_SATELLITES:
-        pps_args.modisorbit = orbit_number
-        pps_args.modisfile = level1_filepath
+        pps_args['modisorbit'] = orbit_number
+        pps_args['modisfile'] = level1_filepath
 
     elif platform_name in SUPPORTED_JPSS_SATELLITES:
-        pps_args.csppfile = level1_filepath
+        pps_args['csppfile'] = level1_filepath
 
     elif platform_name in SUPPORTED_METOP_SATELLITES:
-        pps_args.hrptfile = level1_filepath
+        pps_args['hrptfile'] = level1_filepath
 
     elif platform_name in SUPPORTED_NOAA_SATELLITES:
-        pps_args.hrptfile = level1_filepath
-
-    # pps_args.platform_orbit = (SATELLITE_NAME.get(platform_name), orbit_number)
+        pps_args['hrptfile'] = level1_filepath
 
     return pps_args
 
