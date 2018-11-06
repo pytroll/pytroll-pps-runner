@@ -508,6 +508,10 @@ def get_pps_inputfile(platform_name, ppsfiles):
         for ppsfile in ppsfiles:
             if os.path.basename(ppsfile).find('hrpt_') >= 0:
                 return ppsfile
+    elif platform_name in SUPPORTED_JPSS_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('SVM01') >= 0:
+                return ppsfile
 
     return None
 
