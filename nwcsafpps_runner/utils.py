@@ -137,7 +137,7 @@ def ready2run(msg, files4pps, **kwargs):
                 uris.append(obj['uri'])
         else:
             for obj in msg.data['dataset']:
-                uris.append(os.path.join(destination, msg.data['uid']))
+                uris.append(os.path.join(destination, obj['uid']))
 
     elif msg.type == 'collection' and not sdr_granule_processing:
         if 'dataset' in msg.data['collection'][0]:
