@@ -79,6 +79,13 @@ OPTIONS = {}
 for option, value in CONF.items(MODE, raw=True):
     OPTIONS[option] = value
 
+PUBLISH_TOPIC = OPTIONS.get('publish_topic')
+SUBSCRIBE_TOPICS = OPTIONS.get('subscribe_topics').split(',')
+for item in SUBSCRIBE_TOPICS:
+    if len(item) == 0:
+        SUBSCRIBE_TOPICS.remove(item)
+
+
 # PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
 PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
 STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
@@ -394,7 +401,7 @@ class FilePublisher(threading.Thread):
 
     def run(self):
 
-        with Publish('pps_runner', 0, ['PPS', ]) as publisher:
+        with Publish('pps_runner', 0, PUBLISH_TOPIC) as publisher:
 
             while self.loop:
                 retv = self.queue.get()
@@ -418,9 +425,8 @@ class FileListener(threading.Thread):
 
     def run(self):
 
-        with posttroll.subscriber.Subscribe("", ['AAPP-HRPT', 'AAPP-PPS',
-                                                 'EOS/1B', 'SDR/1B'],
-                                            True) as subscr:
+        LOG.debug("Subscribe topics = %s", str(SUBSCRIBE_TOPICS))
+        with posttroll.subscriber.Subscribe("", SUBSCRIBE_TOPICS, True) as subscr:
 
             for msg in subscr.recv(timeout=90):
                 if not self.loop:
