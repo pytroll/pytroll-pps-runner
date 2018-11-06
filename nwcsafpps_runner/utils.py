@@ -108,13 +108,16 @@ def get_sceneid(platform_name, orbit_number, starttime):
     return sceneid
 
 
-def ready2run(msg, files4pps):
-    """Check wether pps is ready to run or not"""
+def ready2run(msg, files4pps, **kwargs):
+    """Check whether pps is ready to run or not"""
     # """Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
 
     LOG.debug("Ready to run...")
     LOG.info("Got message: " + str(msg))
+
+    sdr_granule_processing = kwargs.get('sdr_granule_processing')
+    destination = msg.data.get('destination')
 
     uris = []
     if (msg.type == 'dataset' and
@@ -124,13 +127,24 @@ def ready2run(msg, files4pps):
         LOG.info('\t ...thus we can assume we have everything we need for PPS')
         for obj in msg.data['dataset']:
             uris.append(obj['uri'])
-    elif msg.type == 'collection':
+
+    elif (sdr_granule_processing and msg.type == 'dataset' and
+            msg.data['platform_name'] in SUPPORTED_JPSS_SATELLITES):
+        LOG.info('Dataset: ' + str(msg.data['dataset']))
+        LOG.info('Got a dataset on a JPSS/SNPP satellite')
+        if destination == None:
+            for obj in msg.data['dataset']:
+                uris.append(obj['uri'])
+        else:
+            for obj in msg.data['dataset']:
+                uris.append(os.path.join(destination, msg.data['uid']))
+
+    elif msg.type == 'collection' and not sdr_granule_processing:
         if 'dataset' in msg.data['collection'][0]:
             for dataset in msg.data['collection']:
                 uris.extend([mda['uri'] for mda in dataset['dataset']])
 
     elif msg.type == 'file':
-        destination = msg.data.get('destination')
         if destination == None:
             uris = [(msg.data['uri'])]
         else:

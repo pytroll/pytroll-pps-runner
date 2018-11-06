@@ -63,12 +63,9 @@ import logging
 LOG = logging.getLogger(__name__)
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-PPS_SCRIPT = os.environ['PPS_SCRIPT']
-
-LOG.debug("PPS_SCRIPT = " + str(PPS_SCRIPT))
 
 CONF = ConfigParser.ConfigParser()
-CONF.read(os.path.join(CONFIG_PATH, "pps_config.cfg"))
+CONF.read(os.path.join(CONFIG_PATH, "pps2018_config.ini"))
 
 MODE = os.getenv("SMHI_MODE")
 if MODE is None:
@@ -84,6 +81,8 @@ SUBSCRIBE_TOPICS = OPTIONS.get('subscribe_topics').split(',')
 for item in SUBSCRIBE_TOPICS:
     if len(item) == 0:
         SUBSCRIBE_TOPICS.remove(item)
+
+SDR_GRANULE_PROCESSING = (OPTIONS.get('sdr_processing') == 'granules')
 
 
 # PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
@@ -559,7 +558,7 @@ def pps():
                  'sensor': sensors
                  }
 
-        status = ready2run(msg, files4pps)
+        status = ready2run(msg, files4pps, sdr_granule_processing=SDR_GRANULE_PROCESSING)
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
             scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
