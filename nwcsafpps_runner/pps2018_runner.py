@@ -83,8 +83,8 @@ for option, value in CONF.items(MODE, raw=True):
 PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
 STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
 
-LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
-LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
+#LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
+#LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 
 servername = None
