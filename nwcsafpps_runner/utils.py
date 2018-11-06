@@ -130,7 +130,11 @@ def ready2run(msg, files4pps):
                 uris.extend([mda['uri'] for mda in dataset['dataset']])
 
     elif msg.type == 'file':
-        uris = [(msg.data['uri'])]
+        destination = msg.data.get('destination')
+        if destination == None:
+            uris = [(msg.data['uri'])]
+        else:
+            uris = [os.path.join(destination, msg.data['uid'])]
     else:
         LOG.debug(
             "Ignoring this type of message data: type = " + str(msg.type))
