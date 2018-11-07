@@ -252,12 +252,18 @@ def pps_worker(scene, publish_q, input_msg):
     """
 
     try:
-        LOG.debug("Starting pps runner for scene %s", str(scene))
+        LOG.info("Starting pps runner for scene %s", str(scene))
         job_start_time = datetime.utcnow()
+
+        LOG.debug("Level-1 file: %s", scene['file4pps'])
+        LOG.debug("Platform name: %s", scene['platform_name'])
+        LOG.debug("Orbit number: %s", str(scene['orbit_number']))
 
         kwargs = prepare_pps_arguments(scene['platform_name'],
                                        scene['file4pps'],
                                        orbit_number=scene['orbit_number'])
+
+        LOG.debug("pps-arguments: %s", str(kwargs))
 
         # Run core PPS PGEs in a serial fashion
         LOG.info("Run PPS module: pps_run_all_serial")
