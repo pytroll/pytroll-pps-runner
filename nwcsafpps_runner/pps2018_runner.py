@@ -83,7 +83,7 @@ for item in SUBSCRIBE_TOPICS:
         SUBSCRIBE_TOPICS.remove(item)
 
 SDR_GRANULE_PROCESSING = (OPTIONS.get('sdr_processing') == 'granules')
-
+CMA_PROB = (OPTIONS.get('run_cmask_prob') == 'yes')
 
 # PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
 PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
@@ -264,8 +264,11 @@ def pps_worker(scene, publish_q, input_msg):
         pps_run_all_serial(**kwargs)
 
         # Run the PPS CmaskProb (probabilistic Cloudmask):
-        LOG.info("Run PPS module: pps_cmask_prob")
-        pps_cmask_prob(**kwargs)
+        if CMA_PROB:
+            LOG.info("Run PPS module: pps_cmask_prob")
+            pps_cmask_prob(**kwargs)
+        else:
+            LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
 
         my_env = os.environ.copy()
         for envkey in my_env:
