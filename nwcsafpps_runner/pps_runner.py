@@ -38,23 +38,13 @@ from datetime import datetime, timedelta
 from trollsift.parser import parse
 
 from nwcsafpps_runner.config import get_config
-
 from nwcsafpps_runner.utils import ready2run
-from nwcsafpps_runner.utils import (METOP_SENSOR,
-                                    SENSOR_LIST,
+from nwcsafpps_runner.utils import (SENSOR_LIST,
                                     SATELLITE_NAME,
-                                    METOP_NAME_INV,
-                                    METOP_NAME,
                                     METOP_NAME_LETTER,
-                                    NOAA_METOP_PPS_SENSORNAMES,
-                                    REQUIRED_MW_SENSORS, PPS_SENSORS,
-                                    DATA1KM_PREFIX,
-                                    GEOLOC_PREFIX,
                                     SUPPORTED_PPS_SATELLITES,
                                     SUPPORTED_JPSS_SATELLITES,
-                                    SUPPORTED_EOS_SATELLITES,
-                                    SUPPORTED_METOP_SATELLITES,
-                                    SUPPORTED_NOAA_SATELLITES)
+                                    SUPPORTED_EOS_SATELLITES)
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -388,16 +378,17 @@ def pps_worker(scene, publish_q, input_msg):
         raise
 
 
-class FilePublisher(threading.Thread, publish_topic):
+class FilePublisher(threading.Thread):
 
     """A publisher for the PPS result files. Picks up the return value from the
     pps_worker when ready, and publishes the files via posttroll"""
 
-    def __init__(self, queue):
+    def __init__(self, queue, publish_topic):
         threading.Thread.__init__(self)
         self.loop = True
         self.queue = queue
         self.jobs = {}
+        self.publish_topic = publish_topic
 
     def stop(self):
         """Stops the file publisher"""
@@ -406,7 +397,7 @@ class FilePublisher(threading.Thread, publish_topic):
 
     def run(self):
 
-        with Publish('pps_runner', 0, publish_topic) as publisher:
+        with Publish('pps_runner', 0, self.publish_topic) as publisher:
 
             while self.loop:
                 retv = self.queue.get()
@@ -416,12 +407,13 @@ class FilePublisher(threading.Thread, publish_topic):
                     publisher.send(retv)
 
 
-class FileListener(threading.Thread, subscribe_topics):
+class FileListener(threading.Thread):
 
-    def __init__(self, queue):
+    def __init__(self, queue, subscribe_topics):
         threading.Thread.__init__(self)
         self.loop = True
         self.queue = queue
+        self.subscribe_topics = subscribe_topics
 
     def stop(self):
         """Stops the file listener"""
@@ -430,8 +422,8 @@ class FileListener(threading.Thread, subscribe_topics):
 
     def run(self):
 
-        LOG.debug("Subscribe topics = %s", str(subscribe_topics))
-        with posttroll.subscriber.Subscribe("", subscribe_topics, True) as subscr:
+        LOG.debug("Subscribe topics = %s", str(self.subscribe_topics))
+        with posttroll.subscriber.Subscribe("", self.subscribe_topics, True) as subscr:
 
             for msg in subscr.recv(timeout=90):
                 if not self.loop:
@@ -504,7 +496,7 @@ def pps(options):
     listen_thread.start()
 
     files4pps = {}
-    thread_pool = ThreadPool(5)
+    thread_pool = ThreadPool(options['number_of_threads'])
     while True:
 
         try:

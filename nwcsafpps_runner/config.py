@@ -49,5 +49,6 @@ def get_config(configfile):
             subscribe_topics.remove(item)
 
     options['subscribe_topics'] = subscribe_topics
+    options['number_of_threads'] = int(options.get('number_of_threads', 5))
 
     return options
