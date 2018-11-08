@@ -37,8 +37,7 @@ import Queue
 from datetime import datetime, timedelta
 from trollsift.parser import parse
 from nwcsafpps_runner.utils import (ready2run, get_sceneid)
-from nwcsafpps_runner.utils import (METOP_NUMBER,
-                                    METOP_SENSOR,
+from nwcsafpps_runner.utils import (METOP_SENSOR,
                                     SENSOR_LIST,
                                     SATELLITE_NAME,
                                     METOP_NAME_INV,

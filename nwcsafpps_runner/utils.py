@@ -81,7 +81,7 @@ for sat in SATELLITE_NAME:
 
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
-METOP_NUMBER = {'b': '01', 'a': '02'}
+#METOP_NUMBER = {'b': '01', 'a': '02'}
 
 
 def get_local_ips():

@@ -23,12 +23,10 @@
 """Posttroll runner for PPS
 """
 import os
-import ConfigParser
 import sys
 import socket
 from glob import glob
 import stat
-from urlparse import urlparse
 import posttroll.subscriber
 from posttroll.publisher import Publish
 from posttroll.message import Message
@@ -38,9 +36,11 @@ import threading
 import Queue
 from datetime import datetime, timedelta
 from trollsift.parser import parse
-from nwcsafpps_runner.utils import (ready2run, get_sceneid)
-from nwcsafpps_runner.utils import (METOP_NUMBER,
-                                    METOP_SENSOR,
+
+from nwcsafpps_runner.config import get_config
+
+from nwcsafpps_runner.utils import ready2run
+from nwcsafpps_runner.utils import (METOP_SENSOR,
                                     SENSOR_LIST,
                                     SATELLITE_NAME,
                                     METOP_NAME_INV,
@@ -59,40 +59,14 @@ from nwcsafpps_runner.utils import (METOP_NUMBER,
 import logging
 LOG = logging.getLogger(__name__)
 
-CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-PPS_SCRIPT = os.environ['PPS_SCRIPT']
 
+PPS_SCRIPT = os.environ['PPS_SCRIPT']
 LOG.debug("PPS_SCRIPT = " + str(PPS_SCRIPT))
 
-CONF = ConfigParser.ConfigParser()
-CONF.read(os.path.join(CONFIG_PATH, "pps_config.cfg"))
-
-MODE = os.getenv("SMHI_MODE")
-if MODE is None:
-    MODE = "offline"
-
-
-OPTIONS = {}
-for option, value in CONF.items(MODE, raw=True):
-    OPTIONS[option] = value
-
-    PUBLISH_TOPIC = OPTIONS.get('publish_topic')
-SUBSCRIBE_TOPICS = OPTIONS.get('subscribe_topics').split(',')
-for item in SUBSCRIBE_TOPICS:
-    if len(item) == 0:
-        SUBSCRIBE_TOPICS.remove(item)
-
-# PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
-PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
-STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
 
 LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
 LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
-
-servername = None
-servername = socket.gethostname()
-SERVERNAME = OPTIONS.get('servername', servername)
 
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
@@ -108,7 +82,6 @@ _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
 
 _PPS_LOG_FILE = os.environ.get('PPSRUNNER_LOG_FILE', None)
-_PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
 
 
 LOG.debug("PYTHONPATH: " + str(sys.path))
@@ -415,7 +388,7 @@ def pps_worker(scene, publish_q, input_msg):
         raise
 
 
-class FilePublisher(threading.Thread):
+class FilePublisher(threading.Thread, publish_topic):
 
     """A publisher for the PPS result files. Picks up the return value from the
     pps_worker when ready, and publishes the files via posttroll"""
@@ -433,7 +406,7 @@ class FilePublisher(threading.Thread):
 
     def run(self):
 
-        with Publish('pps_runner', 0, PUBLISH_TOPIC) as publisher:
+        with Publish('pps_runner', 0, publish_topic) as publisher:
 
             while self.loop:
                 retv = self.queue.get()
@@ -443,7 +416,7 @@ class FilePublisher(threading.Thread):
                     publisher.send(retv)
 
 
-class FileListener(threading.Thread):
+class FileListener(threading.Thread, subscribe_topics):
 
     def __init__(self, queue):
         threading.Thread.__init__(self)
@@ -457,8 +430,8 @@ class FileListener(threading.Thread):
 
     def run(self):
 
-        LOG.debug("Subscribe topics = %s", str(SUBSCRIBE_TOPICS))
-        with posttroll.subscriber.Subscribe("", SUBSCRIBE_TOPICS, True) as subscr:
+        LOG.debug("Subscribe topics = %s", str(subscribe_topics))
+        with posttroll.subscriber.Subscribe("", subscribe_topics, True) as subscr:
 
             for msg in subscr.recv(timeout=90):
                 if not self.loop:
@@ -489,22 +462,6 @@ class FileListener(threading.Thread):
         return True
 
 
-def check_threads(threads):
-    """Scan all threads and join those that are finished (dead)"""
-
-    # LOG.debug(str(threading.enumerate()))
-    for i, thread in enumerate(threads):
-        if thread.is_alive():
-            LOG.info("Thread " + str(i) + " alive...")
-        else:
-            LOG.info(
-                "Thread " + str(i) + " is no more alive...")
-            thread.join()
-            threads.remove(thread)
-
-    return
-
-
 def run_nwp_and_pps(scene, flens, publish_q, input_msg):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
@@ -527,7 +484,7 @@ def prepare_nwp4pps(flens):
         raise
 
 
-def pps():
+def pps(options):
     """The PPS runner. Triggers processing of PPS main script once AAPP or CSPP
     is ready with a level-1 file"""
 
@@ -541,9 +498,9 @@ def pps():
     listener_q = Queue.Queue()
     publisher_q = Queue.Queue()
 
-    pub_thread = FilePublisher(publisher_q)
+    pub_thread = FilePublisher(publisher_q, options['publish_topic'])
     pub_thread.start()
-    listen_thread = FileListener(listener_q)
+    listen_thread = FileListener(listener_q, options['subscribe_topics'])
     listen_thread.start()
 
     files4pps = {}
@@ -584,16 +541,6 @@ def pps():
             LOG.debug(
                 "Number of threads currently alive: " + str(threading.active_count()))
 
-    LOG.info("Wait till all threads are dead...")
-    while True:
-        workers_ready = True
-        for thread in threads:
-            if thread.is_alive():
-                workers_ready = False
-
-        if workers_ready:
-            break
-
     pub_thread.stop()
     listen_thread.stop()
 
@@ -603,6 +550,17 @@ def pps():
 if __name__ == "__main__":
 
     from logging import handlers
+
+    OPTIONS = get_config("pps_config.cfg")
+    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
+
+    # PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
+    PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
+    STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
+
+    servername = None
+    servername = socket.gethostname()
+    SERVERNAME = OPTIONS.get('servername', servername)
 
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])
@@ -629,4 +587,4 @@ if __name__ == "__main__":
 
     LOG = logging.getLogger('pps_runner')
 
-    pps()
+    pps(OPTIONS)
