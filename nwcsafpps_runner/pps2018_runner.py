@@ -80,7 +80,7 @@ for item in SUBSCRIBE_TOPICS:
     if len(item) == 0:
         SUBSCRIBE_TOPICS.remove(item)
 
-NUMBER_OF_THREADS = OPTIONS.get('number_of_threads', 5)
+NUMBER_OF_THREADS = int(OPTIONS.get('number_of_threads', 5))
 
 SDR_GRANULE_PROCESSING = (OPTIONS.get('sdr_processing') == 'granules')
 CMA_PROB = (OPTIONS.get('run_cmask_prob') == 'yes')
