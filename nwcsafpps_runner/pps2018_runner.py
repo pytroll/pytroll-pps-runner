@@ -35,6 +35,7 @@ from posttroll.message import Message
 
 from subprocess import Popen, PIPE
 import threading
+import multiprocessing
 import Queue
 from datetime import datetime, timedelta
 from trollsift.parser import parse
@@ -150,47 +151,6 @@ def message_uid(msg):
     return SceneId(platform_name, orbit_number, starttime)
 
 
-class ThreadPool(object):
-
-    def __init__(self, max_nthreads=None):
-
-        self.jobs = set()
-        self.sema = threading.Semaphore(max_nthreads)
-        self.lock = threading.Lock()
-
-    def new_thread(self, job_id, group=None, target=None, name=None, args=(), kwargs={}):
-
-        def new_target(*args, **kwargs):
-            with self.sema:
-                result = target(*args, **kwargs)
-
-            self.jobs.remove(job_id)
-            return result
-
-        with self.lock:
-            if job_id in self.jobs:
-                LOG.info("Job with id %s already running!", str(job_id))
-                return
-
-            self.jobs.add(job_id)
-
-        thread = threading.Thread(group, new_target, name, args, kwargs)
-        thread.start()
-
-
-class PpsRunError(Exception):
-    pass
-
-
-def logreader(stream, log_func):
-    while True:
-        s = stream.readline()
-        if not s:
-            break
-        log_func(s.strip())
-    stream.close()
-
-
 def get_outputfiles(path, platform_name, orb):
     """From the directory path and satellite id and orbit number scan the directory
     and find all pps output files matching that scene and return the full
@@ -228,18 +188,6 @@ def get_outputfiles(path, platform_name, orb):
             LOG.info("Found old PPS result: %s", fname)
 
     return filtered_flist
-
-
-def terminate_process(popen_obj, scene):
-    """Terminate a Popen process"""
-    if popen_obj.returncode == None:
-        popen_obj.kill()
-        LOG.info(
-            "Process timed out and pre-maturely terminated. Scene: " + str(scene))
-    else:
-        LOG.info(
-            "Process finished before time out - workerScene: " + str(scene))
-    return
 
 
 def pps_worker(scene, publish_q, input_msg):
@@ -465,22 +413,6 @@ class FileListener(threading.Thread):
         return True
 
 
-def check_threads(threads):
-    """Scan all threads and join those that are finished (dead)"""
-
-    # LOG.debug(str(threading.enumerate()))
-    for i, thread in enumerate(threads):
-        if thread.is_alive():
-            LOG.info("Thread " + str(i) + " alive...")
-        else:
-            LOG.info(
-                "Thread " + str(i) + " is no more alive...")
-            thread.join()
-            threads.remove(thread)
-
-    return
-
-
 def run_nwp_and_pps(scene, flens, publish_q, input_msg):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
@@ -545,7 +477,7 @@ def pps():
     listen_thread.start()
 
     files4pps = {}
-    thread_pool = ThreadPool(5)
+    mpool = multiprocessing.Pool(processes=5)
     while True:
 
         try:
@@ -577,13 +509,9 @@ def pps():
             scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
 
             LOG.info('Start a thread preparing the nwp data and run pps...')
-            thread_pool.new_thread(message_uid(msg),
-                                   target=run_nwp_and_pps, args=(scene, NWP_FLENS,
-                                                                 publisher_q,
-                                                                 msg))
-
-            LOG.debug(
-                "Number of threads currently alive: " + str(threading.active_count()))
+            mpool.apply_async(run_nwp_and_pps, args=(scene, NWP_FLENS,
+                                                     publisher_q,
+                                                     msg))
 
             # Clean the files4pps dict:
             LOG.debug("files4pps: " + str(files4pps))
@@ -595,15 +523,8 @@ def pps():
 
             LOG.debug("After cleaning: files4pps = " + str(files4pps))
 
-    LOG.info("Wait till all threads are dead...")
-    while True:
-        workers_ready = True
-        for thread in threads:
-            if thread.is_alive():
-                workers_ready = False
-
-        if workers_ready:
-            break
+    mpool.close()
+    mpool.join()
 
     pub_thread.stop()
     listen_thread.stop()
