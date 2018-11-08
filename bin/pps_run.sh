@@ -5,8 +5,10 @@
 # $3 = yyyymmdd
 # $4 = hhmm
 # $5 = lvl1_dir
+# $6 = the limit in minutes how old aapp level1-files are accepted
 
 . /local_disk/opt/acpg/cfg/.profile_pps
+AAPP_LEVEL1FILES_MAX_MINUTES_OLD=$6
 
 if [ "x$5" != "x" ]; then
     SM_AAPP_DATA_DIR=$5

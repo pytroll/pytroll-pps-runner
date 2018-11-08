@@ -202,7 +202,7 @@ def terminate_process(popen_obj, scene):
     return
 
 
-def pps_worker(scene, publish_q, input_msg):
+def pps_worker(scene, publish_q, input_msg, options):
     """Start PPS on a scene
 
         scene = {'platform_name': platform_name,
@@ -216,17 +216,18 @@ def pps_worker(scene, publish_q, input_msg):
         job_start_time = datetime.utcnow()
 
         if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
-            cmdstr = "%s %s %s %s %s" % (PPS_SCRIPT,
-                                         SATELLITE_NAME[
-                                             scene['platform_name']],
-                                         scene['orbit_number'], scene[
-                                             'satday'],
-                                         scene['sathour'])
+            cmdstr = "%s %s %s %s %s 0" % (PPS_SCRIPT,
+                                           SATELLITE_NAME[
+                                               scene['platform_name']],
+                                           scene['orbit_number'], scene[
+                                               'satday'],
+                                           scene['sathour'])
         else:
-            cmdstr = "%s %s %s 0 0" % (PPS_SCRIPT,
-                                       SATELLITE_NAME[
-                                           scene['platform_name']],
-                                       scene['orbit_number'])
+            cmdstr = "%s %s %s 0 0 %s" % (PPS_SCRIPT,
+                                          SATELLITE_NAME[
+                                              scene['platform_name']],
+                                          scene['orbit_number'],
+                                          options['aapp_level1files_max_minutes_old'])
 
         if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
             cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
@@ -454,11 +455,11 @@ class FileListener(threading.Thread):
         return True
 
 
-def run_nwp_and_pps(scene, flens, publish_q, input_msg):
+def run_nwp_and_pps(scene, flens, publish_q, input_msg, options):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
     prepare_nwp4pps(flens)
-    pps_worker(scene, publish_q, input_msg)
+    pps_worker(scene, publish_q, input_msg, options)
 
     return
 
@@ -528,7 +529,7 @@ def pps(options):
             thread_pool.new_thread(message_uid(msg),
                                    target=run_nwp_and_pps, args=(scene, NWP_FLENS,
                                                                  publisher_q,
-                                                                 msg))
+                                                                 msg, options))
 
             LOG.debug(
                 "Number of threads currently alive: " + str(threading.active_count()))
