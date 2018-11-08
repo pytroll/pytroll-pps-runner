@@ -80,6 +80,8 @@ for item in SUBSCRIBE_TOPICS:
     if len(item) == 0:
         SUBSCRIBE_TOPICS.remove(item)
 
+NUMBER_OF_THREADS = OPTIONS.get('number_of_threads', 5)
+
 SDR_GRANULE_PROCESSING = (OPTIONS.get('sdr_processing') == 'granules')
 CMA_PROB = (OPTIONS.get('run_cmask_prob') == 'yes')
 
@@ -530,7 +532,8 @@ def pps():
     listen_thread.start()
 
     files4pps = {}
-    thread_pool = ThreadPool(5)
+    LOG.info("Number of threads: %d", NUMBER_OF_THREADS)
+    thread_pool = ThreadPool(NUMBER_OF_THREADS)
     while True:
 
         try:
