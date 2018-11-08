@@ -8,12 +8,17 @@
 # $6 = the limit in minutes how old aapp level1-files are accepted
 
 . /local_disk/opt/acpg/cfg/.profile_pps
-AAPP_LEVEL1FILES_MAX_MINUTES_OLD=$6
 
 if [ "x$5" != "x" ]; then
     SM_AAPP_DATA_DIR=$5
     export SM_AAPP_DATA_DIR
     echo "Level 1 dir = $SM_AAPP_DATA_DIR"
+fi
+
+if [ "x$6" != "x" ]; then
+    AAPP_LEVEL1FILES_MAX_MINUTES_OLD=$6
+    export AAPP_LEVEL1FILES_MAX_MINUTES_OLD
+    echo "Max minutes old AAPP l1 files = $AAPP_LEVEL1FILES_MAX_MINUTES_OLD"
 fi
 
 if [ "x$3" == "x0" ] && [ "x$4" == "x0" ]; then

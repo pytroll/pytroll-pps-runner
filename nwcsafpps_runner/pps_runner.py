@@ -24,6 +24,7 @@
 """
 import os
 import sys
+import shlex
 import socket
 from glob import glob
 import stat
@@ -53,10 +54,8 @@ LOG = logging.getLogger(__name__)
 PPS_SCRIPT = os.environ['PPS_SCRIPT']
 LOG.debug("PPS_SCRIPT = " + str(PPS_SCRIPT))
 
-
 LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
 LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
-
 
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
@@ -216,25 +215,27 @@ def pps_worker(scene, publish_q, input_msg, options):
         job_start_time = datetime.utcnow()
 
         if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
-            cmdstr = "%s %s %s %s %s 0" % (PPS_SCRIPT,
-                                           SATELLITE_NAME[
-                                               scene['platform_name']],
-                                           scene['orbit_number'], scene[
-                                               'satday'],
-                                           scene['sathour'])
+            cmdstr = "%s %s %s %s %s" % (PPS_SCRIPT,
+                                         SATELLITE_NAME[
+                                             scene['platform_name']],
+                                         scene['orbit_number'], scene[
+                                             'satday'],
+                                         scene['sathour'])
         else:
-            cmdstr = "%s %s %s 0 0 %s" % (PPS_SCRIPT,
-                                          SATELLITE_NAME[
-                                              scene['platform_name']],
-                                          scene['orbit_number'],
-                                          options['aapp_level1files_max_minutes_old'])
+            cmdstr = "%s %s %s 0 0" % (PPS_SCRIPT,
+                                       SATELLITE_NAME[
+                                           scene['platform_name']],
+                                       scene['orbit_number'])
+
+        # options['aapp_level1files_max_minutes_old'])
 
         if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
-            cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
+            cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH) + ' 0'
         elif scene['platform_name'] in SUPPORTED_EOS_SATELLITES and LVL1_EOS_PATH:
-            cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH)
+            cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH) + ' 0'
+        else:
+            cmdstr = cmdstr + ' ' + str(options['aapp_level1files_max_minutes_old'])
 
-        import shlex
         myargs = shlex.split(str(cmdstr))
         LOG.info("Command " + str(myargs))
         my_env = os.environ.copy()
