@@ -33,7 +33,6 @@ import posttroll.subscriber
 from posttroll.publisher import Publish
 from posttroll.message import Message
 
-from subprocess import Popen, PIPE
 import threading
 import multiprocessing
 import Queue
@@ -468,8 +467,8 @@ def pps():
     update_nwp(now - timedelta(days=1), NWP_FLENS)
     LOG.info("Ready with nwp preparation...")
 
-    listener_q = Queue.Queue()
-    publisher_q = Queue.Queue()
+    listener_q = multiprocessing.Queue()
+    publisher_q = multiprocessing.Queue()
 
     pub_thread = FilePublisher(publisher_q)
     pub_thread.start()
@@ -484,9 +483,6 @@ def pps():
             msg = listener_q.get()
         except Queue.Empty:
             continue
-
-        LOG.debug(
-            "Number of threads currently alive: " + str(threading.active_count()))
 
         orbit_number = int(msg.data['orbit_number'])
         platform_name = msg.data['platform_name']
@@ -508,7 +504,7 @@ def pps():
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
             scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
 
-            LOG.info('Start a thread preparing the nwp data and run pps...')
+            LOG.info('Start a multiprocessing thread preparing the nwp data and run pps...')
             mpool.apply_async(run_nwp_and_pps, args=(scene, NWP_FLENS,
                                                      publisher_q,
                                                      msg))
