@@ -227,14 +227,12 @@ def pps_worker(scene, publish_q, input_msg, options):
                                            scene['platform_name']],
                                        scene['orbit_number'])
 
-        # options['aapp_level1files_max_minutes_old'])
+        cmdstr = cmdstr + ' ' + str(options['aapp_level1files_max_minutes_old'])
 
         if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
-            cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH) + ' 0'
+            cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
         elif scene['platform_name'] in SUPPORTED_EOS_SATELLITES and LVL1_EOS_PATH:
-            cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH) + ' 0'
-        else:
-            cmdstr = cmdstr + ' ' + str(options['aapp_level1files_max_minutes_old'])
+            cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH)
 
         myargs = shlex.split(str(cmdstr))
         LOG.info("Command " + str(myargs))
