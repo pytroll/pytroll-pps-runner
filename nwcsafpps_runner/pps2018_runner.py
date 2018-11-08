@@ -467,8 +467,10 @@ def pps():
     update_nwp(now - timedelta(days=1), NWP_FLENS)
     LOG.info("Ready with nwp preparation...")
 
-    listener_q = multiprocessing.Queue()
-    publisher_q = multiprocessing.Queue()
+    pps_manager = multiprocessing.Manager()
+
+    listener_q = pps_manager.Queue()
+    publisher_q = pps_manager.Queue()
 
     pub_thread = FilePublisher(publisher_q)
     pub_thread.start()
