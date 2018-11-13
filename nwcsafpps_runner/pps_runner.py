@@ -39,6 +39,7 @@ from datetime import datetime, timedelta
 from trollsift.parser import parse
 
 from nwcsafpps_runner.config import get_config
+from nwcsafpps_runner.config import MODE
 from nwcsafpps_runner.utils import ready2run
 from nwcsafpps_runner.utils import (SENSOR_LIST,
                                     SATELLITE_NAME,
