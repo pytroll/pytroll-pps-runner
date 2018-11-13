@@ -187,16 +187,6 @@ def get_outputfiles(path, platform_name, orb):
 
     """
 
-    h5_output = (os.path.join(path, 'S_NWC') + '*' +
-                 str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + '%.5d' % int(orb) + '_*.h5')
-    LOG.info(
-        "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
-    nc_output = (os.path.join(path, 'S_NWC') + '*' +
-                 str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + '%.5d' % int(orb) + '_*.nc')
-    LOG.info(
-        "Match string to do a file globbing on netcdf output files: " + str(nc_output))
     xml_output = (os.path.join(path, 'S_NWC') + '*' +
                   str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
                   '_' + '%.5d' % int(orb) + '_*.xml')
@@ -211,7 +201,7 @@ def get_outputfiles(path, platform_name, orb):
         if (now - mtime) < time_threshold:
             filtered_flist.append(fname)
         else:
-            LOG.info("Found old PPS result: %s", fname)
+            LOG.warning("Found old PPS result: %s", fname)
 
     return filtered_flist
 
@@ -304,18 +294,18 @@ def pps_worker(scene, publish_q, input_msg):
                 ppstime_con.sum_up_processing_times()
                 ppstime_con.write_xml()
 
-        # Now check what netCDF/hdf5 output was produced and publish
-        # them:
-        pps_path = my_env.get('SM_PRODUCT_DIR', PPS_OUTPUT_DIR)
-        result_files = get_outputfiles(
-            pps_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
-        LOG.info("PPS Output files: " + str(result_files))
+        # The PPS post-hooks takes care of publishing the PPS PGEs
+        # For the XML files we keep the publishing from here:
         xml_files = get_outputfiles(
             pps_control_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
         # Now publish:
-        for result_file in result_files + xml_files:
+        for result_file in xml_files:
+            if not result_file.endswith("xml"):
+                LOG.debug("Publish only the XML files. This was not such a file: %s", result_file)
+                continue
+
             # Get true start and end time from filenames and adjust the end time in
             # the publish message:
             filename = os.path.basename(result_file)
@@ -346,15 +336,8 @@ def pps_worker(scene, publish_q, input_msg):
 
             to_send['platform_name'] = scene['platform_name']
             to_send['orbit_number'] = scene['orbit_number']
-            if result_file.endswith("xml"):
-                to_send['format'] = 'PPS-XML'
-                to_send['type'] = 'XML'
-            if result_file.endswith("nc"):
-                to_send['format'] = 'CF'
-                to_send['type'] = 'netCDF4'
-            if result_file.endswith("h5"):
-                to_send['format'] = 'PPS'
-                to_send['type'] = 'HDF5'
+            to_send['format'] = 'PPS-XML'
+            to_send['type'] = 'XML'
             to_send['data_processing_level'] = '2'
 
             environment = MODE
@@ -369,8 +352,7 @@ def pps_worker(scene, publish_q, input_msg):
             publish_q.put(pubmsg)
 
             dt_ = datetime.utcnow() - job_start_time
-            LOG.info("PPS on scene " + str(scene) +
-                     " finished. It took: " + str(dt_))
+            LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
 
     except:
         LOG.exception('Failed in pps_worker...')
