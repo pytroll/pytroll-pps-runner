@@ -167,10 +167,15 @@ def update_nwp(params):
     result_files = dict()
     tempfile.tempdir = params['options']['nwp_outdir']
 
-    filelist = glob(os.path.join(params['options']['ecmwf_path'],  params['options']['ecmwf_prefix'] + "*"))
+    ecmwf_path = os.path.join(params['options']['ecmwf_path']
+    if not os.path.exists(ecmwf_path):
+        ecmwf_path = ecmwf_path.replace("storeB","storeA")
+        LOG.warning("Need to replace storeB with storeA for ecmwf_path: ", ecmwf_path)
+
+    filelist = glob(os.path.join(ecmwf_path,  params['options']['ecmwf_prefix'] + "*"))
 
     if len(filelist) == 0:
-        LOG.info("Found no input files! dir = " + str(os.path.join(params['options']['ecmwf_path'],  params['options']['ecmwf_prefix'] + "*")))
+        LOG.info("Found no input files! dir = " + str(os.path.join(ecmwf_path,  params['options']['ecmwf_prefix'] + "*")))
         return
 
     from trollsift import Parser, compose

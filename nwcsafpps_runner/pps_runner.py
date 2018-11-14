@@ -93,7 +93,8 @@ SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
 SENSOR_LIST = {}
 for sat in SATELLITE_NAME:
     if sat in ['NOAA-15']:
-        SENSOR_LIST[sat] = ['avhrr/3', 'amsu-b', 'amsu-a']
+        #SENSOR_LIST[sat] = ['avhrr/3', 'amsu-b', 'amsu-a']
+        SENSOR_LIST[sat] = ['avhrr/3']
     elif sat in ['EOS-Aqua', 'EOS-Terra']:
         SENSOR_LIST[sat] = 'modis'
     elif sat in ['Suomi-NPP', 'JPSS-1', 'JPSS-2']:
@@ -207,7 +208,7 @@ def pps_worker(semaphore_obj, scene, job_dict, job_key, publish_q, input_msg):
         LOG.debug("Waiting for acquired semaphore...")
         with semaphore_obj:
             LOG.debug("Acquired semaphore")
-            if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
+            if scene['platform_name'] in SUPPORTED_EOS_SATELLITES or input_msg.data['antenna'] == "global-segments":
                 cmdstr = "%s %s %s %s %s %s" % (PPS_SCRIPT,
                                              SATELLITE_NAME[
                                                  scene['platform_name']],
@@ -557,15 +558,18 @@ def ready2run(msg, files4pps, job_register, sceneid):
             files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-
+    LOG.debug("platform_name: {}".format(platform_name))
+    
     number_of_sensors = 3
     if platform_name in SUPPORTED_METOP_SATELLITES:
         if 'antenna' in msg.data:
             LOG.debug("antenna in msg.data {}".format(msg.data['antenna']))
-            if msg.data['antenna'] == "ears" or msg.data['antenna'] == "global":
+            if msg.data['antenna'] == "ears" or msg.data['antenna'] == "global" or msg.data['antenna'] == "global-segments":
                 LOG.debug("is ears or global")
                 number_of_sensors = 1
     elif platform_name in SUPPORTED_JPSS_SATELLITES:
+        number_of_sensors = 1
+    elif platform_name in 'NOAA-15':
         number_of_sensors = 1
 
                 
@@ -841,7 +845,7 @@ def pps():
     LOG.info("Ready with nwp preparation...")
 
     nwp_pp_sema = threading.Semaphore(1)
-    sema = threading.Semaphore(5)
+    sema = threading.Semaphore(1)
     listener_q = Queue.Queue()
     publisher_q = Queue.Queue()
 

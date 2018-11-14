@@ -21,6 +21,8 @@ if [ "$5" == "L-BAND" ]; then
     source_file=/home/ubuntu/pytroll/etc/source_me_MET-pps-v2014-xenial-l
 elif [ "$5" == "XL-BAND" ]; then
     source_file=/home/ubuntu/pytroll/etc/source_me_MET-pps-v2014-xenial-xl
+elif [ "$5" == "global-segments" ]; then
+    source_file=/home/ubuntu/pytroll/etc/source_me_MET-pps-v2014-xenial-global
 else
     source_file=/home/ubuntu/pytroll/etc/source_me_MET-pps-v2014-xenial-$5
 fi
