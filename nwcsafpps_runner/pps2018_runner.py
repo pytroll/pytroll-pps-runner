@@ -455,27 +455,27 @@ def pps(options):
     listen_thread.start()
 
     files4pps = {}
-    LOG.info("Number of threads: %d", options['number_of_threads']))
-    thread_pool=ThreadPool(options['number_of_threads'])
+    LOG.info("Number of threads: %d", options['number_of_threads'])
+    thread_pool = ThreadPool(options['number_of_threads'])
     while True:
 
         try:
-            msg=listener_q.get()
+            msg = listener_q.get()
         except Queue.Empty:
             continue
 
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
 
-        orbit_number=int(msg.data['orbit_number'])
-        platform_name=msg.data['platform_name']
-        starttime=msg.data['start_time']
-        endtime=msg.data['end_time']
+        orbit_number = int(msg.data['orbit_number'])
+        platform_name = msg.data['platform_name']
+        starttime = msg.data['start_time']
+        endtime = msg.data['end_time']
 
-        satday=starttime.strftime('%Y%m%d')
-        sathour=starttime.strftime('%H%M')
-        sensors=SENSOR_LIST.get(platform_name, None)
-        scene={'platform_name': platform_name,
+        satday = starttime.strftime('%Y%m%d')
+        sathour = starttime.strftime('%H%M')
+        sensors = SENSOR_LIST.get(platform_name, None)
+        scene = {'platform_name': platform_name,
                  'orbit_number': orbit_number,
                  'satday': satday, 'sathour': sathour,
                  'starttime': starttime, 'endtime': endtime,
@@ -483,14 +483,14 @@ def pps(options):
                  }
 
         status = ready2run(msg, files4pps,
-                           sdr_granule_processing = options.get('sdr_processing') == 'granules')
+                           sdr_granule_processing=options.get('sdr_processing') == 'granules')
         if status:
-            sceneid=get_sceneid(platform_name, orbit_number, starttime)
-            scene['file4pps']=get_pps_inputfile(platform_name, files4pps[sceneid])
+            sceneid = get_sceneid(platform_name, orbit_number, starttime)
+            scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
 
             LOG.info('Start a thread preparing the nwp data and run pps...')
             thread_pool.new_thread(message_uid(msg),
-                                   target = run_nwp_and_pps, args = (scene, NWP_FLENS,
+                                   target=run_nwp_and_pps, args=(scene, NWP_FLENS,
                                                                  publisher_q,
                                                                  msg, options))
 
@@ -520,9 +520,8 @@ if __name__ == "__main__":
     from logging import handlers
 
     OPTIONS = get_config("pps2018_config.ini")
-xs    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
+    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
 
-    # PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
     PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
     STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
 
