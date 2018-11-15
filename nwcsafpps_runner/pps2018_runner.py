@@ -74,9 +74,6 @@ LOG = logging.getLogger(__name__)
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
 
-PPS_OUT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
-PPS_OUT_PATTERN_MULTIPLE = "S_NWC_{segment1}_{segment2}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
-PPS_STAT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml"
 #: Default time format
 _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
@@ -84,7 +81,6 @@ _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
 
 _PPS_LOG_FILE = os.environ.get('PPSRUNNER_LOG_FILE', None)
-_PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
 
 
 LOG.debug("PYTHONPATH: " + str(sys.path))

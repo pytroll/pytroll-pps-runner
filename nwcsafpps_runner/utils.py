@@ -29,6 +29,7 @@ import netifaces
 import shlex
 from posttroll.message import Message
 from trollduction.producer import check_uri
+from trollsift.parser import parse
 #from socket import gethostbyaddr, gaierror
 from socket import gaierror
 
@@ -37,6 +38,10 @@ from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
 import logging
 LOG = logging.getLogger(__name__)
 
+
+PPS_OUT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
+PPS_OUT_PATTERN_MULTIPLE = "S_NWC_{segment1}_{segment2}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
+PPS_STAT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml"
 
 SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19']
 SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A']

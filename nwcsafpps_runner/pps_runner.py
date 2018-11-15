@@ -35,7 +35,6 @@ from subprocess import Popen, PIPE
 import threading
 import Queue
 from datetime import datetime, timedelta
-from trollsift.parser import parse
 
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
@@ -56,10 +55,6 @@ LOG.debug("PPS_SCRIPT = " + str(PPS_SCRIPT))
 
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
-
-PPS_OUT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
-PPS_OUT_PATTERN_MULTIPLE = "S_NWC_{segment1}_{segment2}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
-PPS_STAT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml"
 
 #: Default time format
 _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
