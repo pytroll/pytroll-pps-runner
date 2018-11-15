@@ -26,9 +26,14 @@
 import os
 import socket
 import netifaces
+import shlex
+from posttroll.message import Message
 from trollduction.producer import check_uri
 #from socket import gethostbyaddr, gaierror
 from socket import gaierror
+
+from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
+
 import logging
 LOG = logging.getLogger(__name__)
 
@@ -82,6 +87,10 @@ for sat in SATELLITE_NAME:
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
 #METOP_NUMBER = {'b': '01', 'a': '02'}
+
+
+class PpsRunError(Exception):
+    pass
 
 
 def get_local_ips():
@@ -264,3 +273,170 @@ def ready2run(msg, files4pps, **kwargs):
                  str(platform_name) + ' ' + str(orbit_number))
 
         return True
+
+
+def terminate_process(popen_obj, scene):
+    """Terminate a Popen process"""
+    if popen_obj.returncode == None:
+        popen_obj.kill()
+        LOG.info(
+            "Process timed out and pre-maturely terminated. Scene: " + str(scene))
+    else:
+        LOG.info(
+            "Process finished before time out - workerScene: " + str(scene))
+    return
+
+
+def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
+    """Prepare the platform specific arguments to be passed to the PPS scripts/modules"""
+
+    orbit_number = kwargs.get('orbit_number')
+    pps_args = {}
+
+    if platform_name in SUPPORTED_EOS_SATELLITES:
+        pps_args['modisorbit'] = orbit_number
+        pps_args['modisfile'] = level1_filepath
+
+    elif platform_name in SUPPORTED_JPSS_SATELLITES:
+        pps_args['csppfile'] = level1_filepath
+
+    elif platform_name in SUPPORTED_METOP_SATELLITES:
+        pps_args['hrptfile'] = level1_filepath
+
+    elif platform_name in SUPPORTED_NOAA_SATELLITES:
+        pps_args['hrptfile'] = level1_filepath
+
+    return pps_args
+
+
+def create_pps_call_command_sequence(pps_script_name, scene, options):
+
+    if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
+        cmdstr = "%s %s %s %s %s" % (pps_script_name,
+                                     SATELLITE_NAME[
+                                         scene['platform_name']],
+                                     scene['orbit_number'], scene[
+                                         'satday'],
+                                     scene['sathour'])
+    else:
+        cmdstr = "%s %s %s 0 0" % (pps_script_name,
+                                   SATELLITE_NAME[
+                                       scene['platform_name']],
+                                   scene['orbit_number'])
+
+    cmdstr = cmdstr + ' ' + str(options['aapp_level1files_max_minutes_old'])
+
+    if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
+        cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
+    elif scene['platform_name'] in SUPPORTED_EOS_SATELLITES and LVL1_EOS_PATH:
+        cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH)
+
+    return shlex.split(str(cmdstr))
+
+
+def create_pps2018_call_command_sequence(python_exec, pps_script_name, scene):
+
+    if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
+        cmdl = ["%s " % python_exec,
+                "%s " % pps_script_name,
+                "--modisfile %s" % scene['file4pps']
+                ]
+    elif scene['platform_name'] in SUPPORTED_JPSS_SATELLITES:
+        cmdl = ["%s " % python_exec,
+                "%s " % pps_script_name,
+                "--csppfile %s" % scene['file4pps']
+                ]
+    else:
+        cmdl = ["%s " % python_exec,
+                "%s " % pps_script_name,
+                "--hrptfile %s" % scene['file4pps']
+                ]
+
+    return cmdl
+
+
+def get_pps_inputfile(platform_name, ppsfiles):
+    """From the set of files picked up in the PostTroll messages decide the input
+       file used in the PPS call
+    """
+
+    if platform_name in SUPPORTED_EOS_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('021km') > 0:
+                return ppsfile
+    elif platform_name in SUPPORTED_NOAA_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('hrpt_') >= 0:
+                return ppsfile
+    elif platform_name in SUPPORTED_METOP_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('hrpt_') >= 0:
+                return ppsfile
+    elif platform_name in SUPPORTED_JPSS_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('SVM01') >= 0:
+                return ppsfile
+
+    return None
+
+
+def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
+    """
+    Publish messages for the files provided
+    """
+
+    environment = kwargs.get('environment')
+
+    for result_file in result_files:
+        # Get true start and end time from filenames and adjust the end time in
+        # the publish message:
+        filename = os.path.basename(result_file)
+        LOG.info("file to publish = " + str(filename))
+        try:
+            try:
+                metadata = parse(PPS_OUT_PATTERN, filename)
+            except ValueError:
+                metadata = parse(PPS_OUT_PATTERN_MULTIPLE, filename)
+                metadata['segment'] = '_'.join([metadata['segment1'],
+                                                metadata['segment2']])
+                del metadata['segment1'], metadata['segment2']
+        except ValueError:
+            metadata = parse(PPS_STAT_PATTERN, filename)
+
+        endtime = metadata['end_time']
+        starttime = metadata['start_time']
+
+        to_send = input_msg.data.copy()
+        to_send.pop('dataset', None)
+        to_send.pop('collection', None)
+        to_send['uri'] = (
+            'ssh://%s/%s' % (SERVERNAME, result_file))
+        to_send['uid'] = filename
+        to_send['sensor'] = scene.get('instrument', None)
+        if not to_send['sensor']:
+            to_send['sensor'] = scene.get('sensor', None)
+
+        to_send['platform_name'] = scene['platform_name']
+        to_send['orbit_number'] = scene['orbit_number']
+        if result_file.endswith("xml"):
+            to_send['format'] = 'PPS-XML'
+            to_send['type'] = 'XML'
+        if result_file.endswith("nc"):
+            to_send['format'] = 'CF'
+            to_send['type'] = 'netCDF4'
+        if result_file.endswith("h5"):
+            to_send['format'] = 'PPS'
+            to_send['type'] = 'HDF5'
+        to_send['data_processing_level'] = '2'
+
+        to_send['start_time'], to_send['end_time'] = starttime, endtime
+        pubmsg = Message('/' + to_send['format'] + '/' +
+                         to_send['data_processing_level'] +
+                         '/norrköping/' + environment +
+                         '/polar/direct_readout/',
+                         "file", to_send).encode()
+        LOG.debug("sending: " + str(pubmsg))
+        LOG.info("Sending: " + str(pubmsg))
+        publish_q.put(pubmsg)
+
+    return

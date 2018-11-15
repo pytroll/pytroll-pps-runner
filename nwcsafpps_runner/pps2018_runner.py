@@ -20,8 +20,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Posttroll runner for PPS
+"""Posttroll runner for PPS v2018
 """
+
 import os
 import ConfigParser
 import sys
@@ -32,11 +33,19 @@ import posttroll.subscriber
 from posttroll.publisher import Publish
 from posttroll.message import Message
 
+from subprocess import Popen, PIPE
 import threading
 import Queue
 from datetime import datetime, timedelta
 from trollsift.parser import parse
-from nwcsafpps_runner.utils import (ready2run, get_sceneid)
+#
+from nwcsafpps_runner.config import get_config
+from nwcsafpps_runner.config import MODE
+
+from nwcsafpps_runner.utils import ready2run, publish_pps_files
+from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,
+                                    create_pps2018_call_command_sequence, get_pps_inputfile)
+from nwcsafpps_runner.utils import PpsRunError
 from nwcsafpps_runner.utils import (METOP_SENSOR,
                                     SENSOR_LIST,
                                     SATELLITE_NAME,
@@ -53,48 +62,14 @@ from nwcsafpps_runner.utils import (METOP_SENSOR,
                                     SUPPORTED_METOP_SATELLITES,
                                     SUPPORTED_NOAA_SATELLITES)
 
-from ppsRunAll import pps_run_all_serial
-from ppsCmaskProb import pps_cmask_prob
+# from ppsRunAll import pps_run_all_serial
+# from ppsCmaskProb import pps_cmask_prob
 
 import logging
 LOG = logging.getLogger(__name__)
 
-CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-
-CONF = ConfigParser.ConfigParser()
-CONF.read(os.path.join(CONFIG_PATH, "pps2018_config.ini"))
-
-MODE = os.getenv("SMHI_MODE")
-if MODE is None:
-    MODE = "offline"
-
-
-OPTIONS = {}
-for option, value in CONF.items(MODE, raw=True):
-    OPTIONS[option] = value
-
-PUBLISH_TOPIC = OPTIONS.get('publish_topic')
-SUBSCRIBE_TOPICS = OPTIONS.get('subscribe_topics').split(',')
-for item in SUBSCRIBE_TOPICS:
-    if len(item) == 0:
-        SUBSCRIBE_TOPICS.remove(item)
-
-NUMBER_OF_THREADS = int(OPTIONS.get('number_of_threads', 5))
-
-SDR_GRANULE_PROCESSING = (OPTIONS.get('sdr_processing') == 'granules')
-CMA_PROB = (OPTIONS.get('run_cmask_prob') == 'yes')
-
-# PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
-PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
-STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
-
-#LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
-#LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
-
-
-servername = None
-servername = socket.gethostname()
-SERVERNAME = OPTIONS.get('servername', servername)
+# LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
+# LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
@@ -102,7 +77,6 @@ NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 PPS_OUT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
 PPS_OUT_PATTERN_MULTIPLE = "S_NWC_{segment1}_{segment2}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
 PPS_STAT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml"
-
 #: Default time format
 _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
@@ -206,19 +180,7 @@ def get_outputfiles(path, platform_name, orb):
     return filtered_flist
 
 
-def terminate_process(popen_obj, scene):
-    """Terminate a Popen process"""
-    if popen_obj.returncode == None:
-        popen_obj.kill()
-        LOG.info(
-            "Process timed out and pre-maturely terminated. Scene: " + str(scene))
-    else:
-        LOG.info(
-            "Process finished before time out - workerScene: " + str(scene))
-    return
-
-
-def pps_worker(scene, publish_q, input_msg):
+def pps_worker(scene, publish_q, input_msg, options):
     """Start PPS on a scene
 
         scene = {'platform_name': platform_name,
@@ -238,28 +200,74 @@ def pps_worker(scene, publish_q, input_msg):
         kwargs = prepare_pps_arguments(scene['platform_name'],
                                        scene['file4pps'],
                                        orbit_number=scene['orbit_number'])
-
         LOG.debug("pps-arguments: %s", str(kwargs))
 
-        # Run core PPS PGEs in a serial fashion
-        LOG.info("Run PPS module: pps_run_all_serial")
-        pps_run_all_serial(**kwargs)
+        # # Run core PPS PGEs in a serial fashion
+        # LOG.info("Run PPS module: pps_run_all_serial")
+        # pps_run_all_serial(**kwargs)
 
-        # Run the PPS CmaskProb (probabilistic Cloudmask):
-        if CMA_PROB:
-            LOG.info("Run PPS module: pps_cmask_prob")
-            pps_cmask_prob(**kwargs)
-        else:
-            LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
+        # # Run the PPS CmaskProb (probabilistic Cloudmask):
+        # if CMA_PROB:
+        #     LOG.info("Run PPS module: pps_cmask_prob")
+        #     pps_cmask_prob(**kwargs)
+        # else:
+        #     LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
+
+        py_exec = options.get('python', '/bin/python')
+        pps_script = options.get('run_all_script')
+        cmdl = create_pps2018_call_command_sequence(py_exec, pps_script, scene)
 
         my_env = os.environ.copy()
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
 
         LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
-        LOG.debug("...from config file = " + str(OPTIONS['pps_outdir']))
+        LOG.debug("...from config file = " + str(options['pps_outdir']))
+
+        LOG.debug("Run command: " + str(cmdl))
+        try:
+            pps_all_proc = Popen(cmdl, shell=False, stderr=PIPE, stdout=PIPE)
+        except PpsRunError:
+            LOG.exception("Failed in PPS...")
+
+        min_thr = options['maximum_pps_processing_time_in_minutes']
+        LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
+        t__ = threading.Timer(min_thr * 60.0, terminate_process, args=(pps_all_proc, scene, ))
+        t__.start()
+
+        out_reader = threading.Thread(
+            target=logreader, args=(pps_all_proc.stdout, LOG.info))
+        err_reader = threading.Thread(
+            target=logreader, args=(pps_all_proc.stderr, LOG.info))
+        out_reader.start()
+        err_reader.start()
+        out_reader.join()
+        err_reader.join()
 
         LOG.info("Ready with PPS level-2 processing on scene: " + str(scene))
+
+        run_cma_prob = (options.get('run_cmask_prob') == 'yes')
+        if run_cma_prob:
+            pps_script = options.get('run_cmaprob_script')
+            cmdl = create_pps2018_call_command_sequence(py_exec, pps_script, scene)
+
+            LOG.debug("Run command: " + str(cmdl))
+            try:
+                pps_cmaprob_proc = Popen(cmdl, shell=False, stderr=PIPE, stdout=PIPE)
+            except PpsRunError:
+                LOG.exception("Failed when trying to run the PPS Cma-prob")
+
+            timer_cmaprob = threading.Timer(min_thr * 60.0, terminate_process, args=(pps_cmaprob_proc, scene, ))
+            timer_cmaprob.start()
+
+            out_reader2 = threading.Thread(
+                target=logreader, args=(pps_cmaprob_proc.stdout, LOG.info))
+            err_reader2 = threading.Thread(
+                target=logreader, args=(pps_cmaprob_proc.stderr, LOG.info))
+            out_reader2.start()
+            err_reader2.start()
+            out_reader2.join()
+            err_reader2.join()
 
         # Now try perform som time statistics editing with ppsTimeControl.py from
         # pps:
@@ -301,58 +309,14 @@ def pps_worker(scene, publish_q, input_msg):
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
         # Now publish:
-        for result_file in xml_files:
-            if not result_file.endswith("xml"):
-                LOG.debug("Publish only the XML files. This was not such a file: %s", result_file)
-                continue
+        publish_pps_files(input_msg, publish_q, scene, xml_files, environment=MODE)
 
-            # Get true start and end time from filenames and adjust the end time in
-            # the publish message:
-            filename = os.path.basename(result_file)
-            LOG.info("file to publish = " + str(filename))
-            try:
-                try:
-                    metadata = parse(PPS_OUT_PATTERN, filename)
-                except ValueError:
-                    metadata = parse(PPS_OUT_PATTERN_MULTIPLE, filename)
-                    metadata['segment'] = '_'.join([metadata['segment1'],
-                                                    metadata['segment2']])
-                    del metadata['segment1'], metadata['segment2']
-            except ValueError:
-                metadata = parse(PPS_STAT_PATTERN, filename)
+        dt_ = datetime.utcnow() - job_start_time
+        LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
 
-            endtime = metadata['end_time']
-            starttime = metadata['start_time']
-
-            to_send = input_msg.data.copy()
-            to_send.pop('dataset', None)
-            to_send.pop('collection', None)
-            to_send['uri'] = (
-                'ssh://%s/%s' % (SERVERNAME, result_file))
-            to_send['uid'] = filename
-            to_send['sensor'] = scene.get('instrument', None)
-            if not to_send['sensor']:
-                to_send['sensor'] = scene.get('sensor', None)
-
-            to_send['platform_name'] = scene['platform_name']
-            to_send['orbit_number'] = scene['orbit_number']
-            to_send['format'] = 'PPS-XML'
-            to_send['type'] = 'XML'
-            to_send['data_processing_level'] = '2'
-
-            environment = MODE
-            to_send['start_time'], to_send['end_time'] = starttime, endtime
-            pubmsg = Message('/' + to_send['format'] + '/' +
-                             to_send['data_processing_level'] +
-                             '/norrköping/' + environment +
-                             '/polar/direct_readout/',
-                             "file", to_send).encode()
-            LOG.debug("sending: " + str(pubmsg))
-            LOG.info("Sending: " + str(pubmsg))
-            publish_q.put(pubmsg)
-
-            dt_ = datetime.utcnow() - job_start_time
-            LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
+        t__.cancel()
+        if run_cma_prob:
+            timer_cmaprob.cancel()
 
     except:
         LOG.exception('Failed in pps_worker...')
@@ -449,11 +413,11 @@ def check_threads(threads):
     return
 
 
-def run_nwp_and_pps(scene, flens, publish_q, input_msg):
+def run_nwp_and_pps(scene, flens, publish_q, input_msg, options):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
     prepare_nwp4pps(flens)
-    pps_worker(scene, publish_q, input_msg)
+    pps_worker(scene, publish_q, input_msg, options)
 
     return
 
@@ -471,29 +435,7 @@ def prepare_nwp4pps(flens):
         raise
 
 
-def get_pps_inputfile(platform_name, ppsfiles):
-
-    if platform_name in SUPPORTED_EOS_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('021km') > 0:
-                return ppsfile
-    elif platform_name in SUPPORTED_NOAA_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('hrpt_') >= 0:
-                return ppsfile
-    elif platform_name in SUPPORTED_METOP_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('hrpt_') >= 0:
-                return ppsfile
-    elif platform_name in SUPPORTED_JPSS_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('SVM01') >= 0:
-                return ppsfile
-
-    return None
-
-
-def pps():
+def pps(options):
     """The PPS runner. Triggers processing of PPS main script once AAPP or CSPP
     is ready with a level-1 file"""
 
@@ -513,43 +455,44 @@ def pps():
     listen_thread.start()
 
     files4pps = {}
-    LOG.info("Number of threads: %d", NUMBER_OF_THREADS)
-    thread_pool = ThreadPool(NUMBER_OF_THREADS)
+    LOG.info("Number of threads: %d", options['number_of_threads']))
+    thread_pool=ThreadPool(options['number_of_threads'])
     while True:
 
         try:
-            msg = listener_q.get()
+            msg=listener_q.get()
         except Queue.Empty:
             continue
 
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
 
-        orbit_number = int(msg.data['orbit_number'])
-        platform_name = msg.data['platform_name']
-        starttime = msg.data['start_time']
-        endtime = msg.data['end_time']
+        orbit_number=int(msg.data['orbit_number'])
+        platform_name=msg.data['platform_name']
+        starttime=msg.data['start_time']
+        endtime=msg.data['end_time']
 
-        satday = starttime.strftime('%Y%m%d')
-        sathour = starttime.strftime('%H%M')
-        sensors = SENSOR_LIST.get(platform_name, None)
-        scene = {'platform_name': platform_name,
+        satday=starttime.strftime('%Y%m%d')
+        sathour=starttime.strftime('%H%M')
+        sensors=SENSOR_LIST.get(platform_name, None)
+        scene={'platform_name': platform_name,
                  'orbit_number': orbit_number,
                  'satday': satday, 'sathour': sathour,
                  'starttime': starttime, 'endtime': endtime,
                  'sensor': sensors
                  }
 
-        status = ready2run(msg, files4pps, sdr_granule_processing=SDR_GRANULE_PROCESSING)
+        status = ready2run(msg, files4pps,
+                           sdr_granule_processing = options.get('sdr_processing') == 'granules')
         if status:
-            sceneid = get_sceneid(platform_name, orbit_number, starttime)
-            scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
+            sceneid=get_sceneid(platform_name, orbit_number, starttime)
+            scene['file4pps']=get_pps_inputfile(platform_name, files4pps[sceneid])
 
             LOG.info('Start a thread preparing the nwp data and run pps...')
             thread_pool.new_thread(message_uid(msg),
-                                   target=run_nwp_and_pps, args=(scene, NWP_FLENS,
+                                   target = run_nwp_and_pps, args = (scene, NWP_FLENS,
                                                                  publisher_q,
-                                                                 msg))
+                                                                 msg, options))
 
             LOG.debug(
                 "Number of threads currently alive: " + str(threading.active_count()))
@@ -572,30 +515,20 @@ def pps():
     return
 
 
-def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
-
-    orbit_number = kwargs.get('orbit_number')
-    pps_args = {}
-
-    if platform_name in SUPPORTED_EOS_SATELLITES:
-        pps_args['modisorbit'] = orbit_number
-        pps_args['modisfile'] = level1_filepath
-
-    elif platform_name in SUPPORTED_JPSS_SATELLITES:
-        pps_args['csppfile'] = level1_filepath
-
-    elif platform_name in SUPPORTED_METOP_SATELLITES:
-        pps_args['hrptfile'] = level1_filepath
-
-    elif platform_name in SUPPORTED_NOAA_SATELLITES:
-        pps_args['hrptfile'] = level1_filepath
-
-    return pps_args
-
-
 if __name__ == "__main__":
 
     from logging import handlers
+
+    OPTIONS = get_config("pps2018_config.ini")
+xs    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
+
+    # PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
+    PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
+    STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
+
+    servername = None
+    servername = socket.gethostname()
+    SERVERNAME = OPTIONS.get('servername', servername)
 
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])
@@ -622,4 +555,4 @@ if __name__ == "__main__":
 
     LOG = logging.getLogger('pps_runner')
 
-    pps()
+    pps(OPTIONS)

@@ -24,7 +24,6 @@
 """
 import os
 import sys
-import shlex
 import socket
 from glob import glob
 import stat
@@ -40,13 +39,13 @@ from trollsift.parser import parse
 
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
-from nwcsafpps_runner.utils import ready2run
+from nwcsafpps_runner.utils import ready2run, publish_pps_files
+from nwcsafpps_runner.utils import (terminate_process, create_pps_call_command_sequence,
+                                    PpsRunError)
 from nwcsafpps_runner.utils import (SENSOR_LIST,
                                     SATELLITE_NAME,
                                     METOP_NAME_LETTER,
-                                    SUPPORTED_PPS_SATELLITES,
-                                    SUPPORTED_JPSS_SATELLITES,
-                                    SUPPORTED_EOS_SATELLITES)
+                                    SUPPORTED_PPS_SATELLITES)
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -54,9 +53,6 @@ LOG = logging.getLogger(__name__)
 
 PPS_SCRIPT = os.environ['PPS_SCRIPT']
 LOG.debug("PPS_SCRIPT = " + str(PPS_SCRIPT))
-
-LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
-LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
@@ -72,7 +68,6 @@ _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
 
 _PPS_LOG_FILE = os.environ.get('PPSRUNNER_LOG_FILE', None)
-
 
 LOG.debug("PYTHONPATH: " + str(sys.path))
 from nwcsafpps_runner.prepare_nwp import update_nwp
@@ -138,10 +133,6 @@ class ThreadPool(object):
         thread.start()
 
 
-class PpsRunError(Exception):
-    pass
-
-
 def logreader(stream, log_func):
     while True:
         s = stream.readline()
@@ -190,18 +181,6 @@ def get_outputfiles(path, platform_name, orb):
     return filtered_flist
 
 
-def terminate_process(popen_obj, scene):
-    """Terminate a Popen process"""
-    if popen_obj.returncode == None:
-        popen_obj.kill()
-        LOG.info(
-            "Process timed out and pre-maturely terminated. Scene: " + str(scene))
-    else:
-        LOG.info(
-            "Process finished before time out - workerScene: " + str(scene))
-    return
-
-
 def pps_worker(scene, publish_q, input_msg, options):
     """Start PPS on a scene
 
@@ -215,34 +194,14 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("Starting pps runner for scene %s", str(scene))
         job_start_time = datetime.utcnow()
 
-        if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
-            cmdstr = "%s %s %s %s %s" % (PPS_SCRIPT,
-                                         SATELLITE_NAME[
-                                             scene['platform_name']],
-                                         scene['orbit_number'], scene[
-                                             'satday'],
-                                         scene['sathour'])
-        else:
-            cmdstr = "%s %s %s 0 0" % (PPS_SCRIPT,
-                                       SATELLITE_NAME[
-                                           scene['platform_name']],
-                                       scene['orbit_number'])
+        pps_call_args = create_pps_call_command_sequence(PPS_SCRIPT, scene, options)
+        LOG.info("Command " + str(pps_call_args))
 
-        cmdstr = cmdstr + ' ' + str(options['aapp_level1files_max_minutes_old'])
-
-        if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
-            cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
-        elif scene['platform_name'] in SUPPORTED_EOS_SATELLITES and LVL1_EOS_PATH:
-            cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH)
-
-        myargs = shlex.split(str(cmdstr))
-        LOG.info("Command " + str(myargs))
         my_env = os.environ.copy()
         # for envkey in my_env:
         # LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
         LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
-        LOG.debug(
-            "...from config file = " + str(OPTIONS['pps_outdir']))
+        LOG.debug("...from config file = " + str(options['pps_outdir']))
         if not os.path.isfile(PPS_SCRIPT):
             raise IOError("PPS script" + PPS_SCRIPT + " is not there!")
         elif not os.access(PPS_SCRIPT, os.X_OK):
@@ -250,13 +209,12 @@ def pps_worker(scene, publish_q, input_msg, options):
                 "PPS script" + PPS_SCRIPT + " cannot be executed!")
 
         try:
-            pps_proc = Popen(
-                myargs, shell=False, stderr=PIPE, stdout=PIPE)
+            pps_proc = Popen(pps_call_args, shell=False, stderr=PIPE, stdout=PIPE)
         except PpsRunError:
             LOG.exception("Failed in PPS...")
 
-        t__ = threading.Timer(
-            20 * 60.0, terminate_process, args=(pps_proc, scene, ))
+        min_thr = options.get('maximum_pps_processing_time_in_minutes', 20)
+        t__ = threading.Timer(min_thr * 60.0, terminate_process, args=(pps_proc, scene, ))
         t__.start()
 
         out_reader = threading.Thread(
@@ -315,62 +273,11 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
         # Now publish:
-        for result_file in result_files + xml_files:
-            # Get true start and end time from filenames and adjust the end time in
-            # the publish message:
-            filename = os.path.basename(result_file)
-            LOG.info("file to publish = " + str(filename))
-            try:
-                try:
-                    metadata = parse(PPS_OUT_PATTERN, filename)
-                except ValueError:
-                    metadata = parse(PPS_OUT_PATTERN_MULTIPLE, filename)
-                    metadata['segment'] = '_'.join([metadata['segment1'],
-                                                    metadata['segment2']])
-                    del metadata['segment1'], metadata['segment2']
-            except ValueError:
-                metadata = parse(PPS_STAT_PATTERN, filename)
+        publish_pps_files(input_msg, publish_q, scene,
+                          result_files + xml_files, environment=MODE)
 
-            endtime = metadata['end_time']
-            starttime = metadata['start_time']
-
-            to_send = input_msg.data.copy()
-            to_send.pop('dataset', None)
-            to_send.pop('collection', None)
-            to_send['uri'] = (
-                'ssh://%s/%s' % (SERVERNAME, result_file))
-            to_send['uid'] = filename
-            to_send['sensor'] = scene.get('instrument', None)
-            if not to_send['sensor']:
-                to_send['sensor'] = scene.get('sensor', None)
-
-            to_send['platform_name'] = scene['platform_name']
-            to_send['orbit_number'] = scene['orbit_number']
-            if result_file.endswith("xml"):
-                to_send['format'] = 'PPS-XML'
-                to_send['type'] = 'XML'
-            if result_file.endswith("nc"):
-                to_send['format'] = 'CF'
-                to_send['type'] = 'netCDF4'
-            if result_file.endswith("h5"):
-                to_send['format'] = 'PPS'
-                to_send['type'] = 'HDF5'
-            to_send['data_processing_level'] = '2'
-
-            environment = MODE
-            to_send['start_time'], to_send['end_time'] = starttime, endtime
-            pubmsg = Message('/' + to_send['format'] + '/' +
-                             to_send['data_processing_level'] +
-                             '/norrköping/' + environment +
-                             '/polar/direct_readout/',
-                             "file", to_send).encode()
-            LOG.debug("sending: " + str(pubmsg))
-            LOG.info("Sending: " + str(pubmsg))
-            publish_q.put(pubmsg)
-
-            dt_ = datetime.utcnow() - job_start_time
-            LOG.info("PPS on scene " + str(scene) +
-                     " finished. It took: " + str(dt_))
+        dt_ = datetime.utcnow() - job_start_time
+        LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
 
         t__.cancel()
 

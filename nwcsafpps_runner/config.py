@@ -33,6 +33,9 @@ if MODE is None:
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 
+LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
+LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
+
 
 def get_config(configfile):
 
@@ -50,5 +53,6 @@ def get_config(configfile):
 
     options['subscribe_topics'] = subscribe_topics
     options['number_of_threads'] = int(options.get('number_of_threads', 5))
+    options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
 
     return options
