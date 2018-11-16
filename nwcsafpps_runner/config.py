@@ -55,5 +55,6 @@ def get_config(configfile):
     options['number_of_threads'] = int(options.get('number_of_threads', 5))
     options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
     options['servername'] = options.get('servername', socket.gethostname())
+    options['station'] = options.get('station', 'unknown')
 
     return options

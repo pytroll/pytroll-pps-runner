@@ -24,13 +24,7 @@
 """
 import os
 import sys
-import socket
 from glob import glob
-import stat
-import posttroll.subscriber
-from posttroll.publisher import Publish
-from posttroll.message import Message
-
 from subprocess import Popen, PIPE
 import threading
 import Queue
@@ -39,12 +33,16 @@ from datetime import datetime, timedelta
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
 from nwcsafpps_runner.utils import ready2run, publish_pps_files
-from nwcsafpps_runner.utils import (terminate_process, create_pps_call_command_sequence,
-                                    PpsRunError, logreader)
+from nwcsafpps_runner.utils import (terminate_process,
+                                    create_pps_call_command_sequence,
+                                    PpsRunError, logreader, get_outputfiles,
+                                    message_uid)
 from nwcsafpps_runner.utils import (SENSOR_LIST,
                                     SATELLITE_NAME,
                                     METOP_NAME_LETTER)
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
+
+from nwcsafpps_runner.prepare_nwp import update_nwp
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -65,39 +63,6 @@ _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
 _PPS_LOG_FILE = os.environ.get('PPSRUNNER_LOG_FILE', None)
 
 LOG.debug("PYTHONPATH: " + str(sys.path))
-from nwcsafpps_runner.prepare_nwp import update_nwp
-SATNAME = {'Aqua': 'EOS-Aqua'}
-
-
-class SceneId(object):
-
-    def __init__(self, platform_name, orbit_number, starttime, threshold=5):
-        self.platform_name = platform_name
-        self.orbit_number = orbit_number
-        self.starttime = starttime
-        self.threshold = threshold
-
-    def __str__(self):
-
-        return (str(self.platform_name) + '_' +
-                str(self.orbit_number) + '_' +
-                str(self.starttime.strftime('%Y%m%d%H%M')))
-
-    def __eq__(self, other):
-
-        return (self.platform_name == other.platform_name and
-                self.orbit_number == other.orbit_number and
-                abs(self.starttime - other.starttime) < timedelta(minutes=self.threshold))
-
-
-def message_uid(msg):
-    """Create a unique id/key-name for the scene."""
-
-    orbit_number = int(msg.data['orbit_number'])
-    platform_name = msg.data['platform_name']
-    starttime = msg.data['start_time']
-
-    return SceneId(platform_name, orbit_number, starttime)
 
 
 class ThreadPool(object):
@@ -126,45 +91,6 @@ class ThreadPool(object):
 
         thread = threading.Thread(group, new_target, name, args, kwargs)
         thread.start()
-
-
-def get_outputfiles(path, platform_name, orb):
-    """From the directory path and satellite id and orbit number scan the directory
-    and find all pps output files matching that scene and return the full
-    filenames. Since the orbit number is unstable there might be more than one
-    scene with the same orbit number and platform name. In order to avoid
-    picking up an older scene we check the file modifcation time, and if the
-    file is too old we discard it!
-
-    """
-
-    h5_output = (os.path.join(path, 'S_NWC') + '*' +
-                 str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + '%.5d' % int(orb) + '_*.h5')
-    LOG.info(
-        "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
-    nc_output = (os.path.join(path, 'S_NWC') + '*' +
-                 str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + '%.5d' % int(orb) + '_*.nc')
-    LOG.info(
-        "Match string to do a file globbing on netcdf output files: " + str(nc_output))
-    xml_output = (os.path.join(path, 'S_NWC') + '*' +
-                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                  '_' + '%.5d' % int(orb) + '_*.xml')
-    LOG.info(
-        "Match string to do a file globbing on xml output files: " + str(xml_output))
-    filelist = glob(h5_output) + glob(nc_output) + glob(xml_output)
-    now = datetime.utcnow()
-    time_threshold = timedelta(minutes=90.)
-    filtered_flist = []
-    for fname in filelist:
-        mtime = datetime.utcfromtimestamp(os.stat(fname)[stat.ST_MTIME])
-        if (now - mtime) < time_threshold:
-            filtered_flist.append(fname)
-        else:
-            LOG.info("Found old PPS result: %s", fname)
-
-    return filtered_flist
 
 
 def pps_worker(scene, publish_q, input_msg, options):
@@ -251,11 +177,16 @@ def pps_worker(scene, publish_q, input_msg, options):
         # Now check what netCDF/hdf5 output was produced and publish
         # them:
         pps_path = my_env.get('SM_PRODUCT_DIR', PPS_OUTPUT_DIR)
-        result_files = get_outputfiles(
-            pps_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
+        result_files = get_outputfiles(pps_path,
+                                       SATELLITE_NAME[scene['platform_name']],
+                                       scene['orbit_number'],
+                                       h5_output=True,
+                                       nc_output=True)
         LOG.info("PPS Output files: " + str(result_files))
-        xml_files = get_outputfiles(
-            pps_control_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
+        xml_files = get_outputfiles(pps_control_path,
+                                    SATELLITE_NAME[scene['platform_name']],
+                                    scene['orbit_number'],
+                                    nc_output=True)
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
         # Now publish:
