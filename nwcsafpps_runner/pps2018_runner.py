@@ -138,22 +138,27 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.info("Run PPS module: pps_run_all_serial")
         multiprocessing_logging.install_mp_handler()
 
-        p_all = Process(target=pps_run_all_serial, kwargs=ppsargs)
-        p_all.start()
-        p_all.join()
-
-        LOG.info("Ready with PPS level-2 processing on scene: " + str(scene))
-
-        # Run the PPS CmaskProb (probabilistic Cloudmask):
-        run_cma_prob = (options.get('run_cmask_prob') == 'yes')
-        if run_cma_prob:
-            LOG.info("Run PPS module: pps_cmask_prob")
-            p_cmaprob = Process(target=pps_cmask_prob, kwargs=ppsargs)
-            p_cmaprob.start()
-            p_cmaprob.join()
-            LOG.info("Ready with PPS Cloud Mask Prob on scene: %s", str(scene))
+        if not ppsargs:
+            p_all = Process(target=pps_run_all_serial, kwargs=ppsargs)
+            p_all.start()
+            p_all.join()
+            LOG.info("Ready with PPS level-2 processing on scene: " + str(scene))
         else:
-            LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
+            LOG.error("pps arguments empty! Scene = %s", str(scene))
+
+        if not ppsargs:
+            # Run the PPS CmaskProb (probabilistic Cloudmask):
+            run_cma_prob = (options.get('run_cmask_prob') == 'yes')
+            if run_cma_prob:
+                LOG.info("Run PPS module: pps_cmask_prob")
+                p_cmaprob = Process(target=pps_cmask_prob, kwargs=ppsargs)
+                p_cmaprob.start()
+                p_cmaprob.join()
+                LOG.info("Ready with PPS Cloud Mask Prob on scene: %s", str(scene))
+            else:
+                LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
+        else:
+            LOG.error("Cma-Prob: pps arguments empty! Scene = %s", str(scene))
 
         # Now try perform som time statistics editing with ppsTimeControl.py from
         # pps:
