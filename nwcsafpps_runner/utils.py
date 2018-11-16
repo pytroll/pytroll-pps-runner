@@ -433,7 +433,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         to_send['data_processing_level'] = '2'
 
         to_send['start_time'], to_send['end_time'] = starttime, endtime
-        pubmsg = Message('/' + to_send['format'] + '/' +
+        pubmsg = Message(u'/' + to_send['format'] + '/' +
                          to_send['data_processing_level'] +
                          '/norrköping/' + environment +
                          '/polar/direct_readout/',
