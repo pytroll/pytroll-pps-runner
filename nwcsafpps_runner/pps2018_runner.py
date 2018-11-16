@@ -29,6 +29,8 @@ from glob import glob
 from subprocess import Popen, PIPE
 import threading
 import Queue
+import multiprocessing_logging
+from multiprocessing import Process
 from datetime import datetime, timedelta
 #
 from nwcsafpps_runner.config import get_config
@@ -47,8 +49,8 @@ from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 
 from nwcsafpps_runner.prepare_nwp import update_nwp
 
-# from ppsRunAll import pps_run_all_serial
-# from ppsCmaskProb import pps_cmask_prob
+from ppsRunAll import pps_run_all_serial
+from ppsCmaskProb import pps_cmask_prob
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -110,6 +112,8 @@ def pps_worker(scene, publish_q, input_msg, options):
     """
 
     try:
+        multiprocessing_logging.install_mp_handler()
+
         LOG.info("Starting pps runner for scene %s", str(scene))
         job_start_time = datetime.utcnow()
 
@@ -125,21 +129,6 @@ def pps_worker(scene, publish_q, input_msg, options):
         min_thr = options['maximum_pps_processing_time_in_minutes']
         LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
 
-        # # Run core PPS PGEs in a serial fashion
-        # LOG.info("Run PPS module: pps_run_all_serial")
-        # pps_run_all_serial(**kwargs)
-
-        # # Run the PPS CmaskProb (probabilistic Cloudmask):
-        # if CMA_PROB:
-        #     LOG.info("Run PPS module: pps_cmask_prob")
-        #     pps_cmask_prob(**kwargs)
-        # else:
-        #     LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
-
-        py_exec = options.get('python', '/bin/python')
-        pps_script = options.get('run_all_script')
-        cmd_str = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
-
         my_env = os.environ.copy()
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
@@ -147,48 +136,24 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
         LOG.debug("...from config file = " + str(options['pps_outdir']))
 
-        LOG.debug("Run command: " + str(cmd_str))
-        try:
-            pps_all_proc = Popen(cmd_str, shell=True, stderr=PIPE, stdout=PIPE)
-        except PpsRunError:
-            LOG.exception("Failed in PPS...")
-
-        t__ = threading.Timer(min_thr * 60.0, terminate_process, args=(pps_all_proc, scene, ))
-        t__.start()
-
-        out_reader = threading.Thread(
-            target=logreader, args=(pps_all_proc.stdout, LOG.info))
-        err_reader = threading.Thread(
-            target=logreader, args=(pps_all_proc.stderr, LOG.info))
-        out_reader.start()
-        err_reader.start()
-        out_reader.join()
-        err_reader.join()
+        # Run core PPS PGEs in a serial fashion
+        LOG.info("Run PPS module: pps_run_all_serial")
+        p_all = Process(target=pps_run_all_serial, kwargs=kwargs)
+        p_all.start()
+        p_all.join()
 
         LOG.info("Ready with PPS level-2 processing on scene: " + str(scene))
 
+        # Run the PPS CmaskProb (probabilistic Cloudmask):
         run_cma_prob = (options.get('run_cmask_prob') == 'yes')
         if run_cma_prob:
-            pps_script = options.get('run_cmaprob_script')
-            cmdl = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
-
-            LOG.debug("Run command: " + str(cmdl))
-            try:
-                pps_cmaprob_proc = Popen(cmdl, shell=True, stderr=PIPE, stdout=PIPE)
-            except PpsRunError:
-                LOG.exception("Failed when trying to run the PPS Cma-prob")
-
-            timer_cmaprob = threading.Timer(min_thr * 60.0, terminate_process, args=(pps_cmaprob_proc, scene, ))
-            timer_cmaprob.start()
-
-            out_reader2 = threading.Thread(
-                target=logreader, args=(pps_cmaprob_proc.stdout, LOG.info))
-            err_reader2 = threading.Thread(
-                target=logreader, args=(pps_cmaprob_proc.stderr, LOG.info))
-            out_reader2.start()
-            err_reader2.start()
-            out_reader2.join()
-            err_reader2.join()
+            LOG.info("Run PPS module: pps_cmask_prob")
+            p_cmaprob = Process(target=pps_cmask_prob, kwargs=kwargs)
+            p_cmaprob.start()
+            p_cmaprob.join()
+            LOG.info("Ready with PPS Cloud Mask Prob on scene: %s", str(scene))
+        else:
+            LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
 
         # Now try perform som time statistics editing with ppsTimeControl.py from
         # pps:
@@ -238,10 +203,6 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         dt_ = datetime.utcnow() - job_start_time
         LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
-
-        t__.cancel()
-        if run_cma_prob:
-            timer_cmaprob.cancel()
 
     except:
         LOG.exception('Failed in pps_worker...')

@@ -25,6 +25,7 @@
 from setuptools import setup
 import imp
 
+
 version = imp.load_source(
     'nwcsafpps_runner.version', 'nwcsafpps_runner/version.py')
 
@@ -47,7 +48,7 @@ setup(name="pps_runner",
                'bin/pps_run.sh', ],
       data_files=[],
       zip_safe=False,
-      install_requires=['posttroll', ],
+      install_requires=['posttroll', 'multiprocessing_logging'],
       # test_requires=['mock'],
       # test_suite='pps_runner.tests.suite',
       )
