@@ -45,6 +45,7 @@ from nwcsafpps_runner.utils import (SENSOR_LIST,
                                     SATELLITE_NAME,
                                     METOP_NAME_LETTER,
                                     SUPPORTED_PPS_SATELLITES)
+from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -281,82 +282,6 @@ def pps_worker(scene, publish_q, input_msg, options):
         raise
 
 
-class FilePublisher(threading.Thread):
-
-    """A publisher for the PPS result files. Picks up the return value from the
-    pps_worker when ready, and publishes the files via posttroll"""
-
-    def __init__(self, queue, publish_topic):
-        threading.Thread.__init__(self)
-        self.loop = True
-        self.queue = queue
-        self.jobs = {}
-        self.publish_topic = publish_topic
-
-    def stop(self):
-        """Stops the file publisher"""
-        self.loop = False
-        self.queue.put(None)
-
-    def run(self):
-
-        with Publish('pps_runner', 0, self.publish_topic) as publisher:
-
-            while self.loop:
-                retv = self.queue.get()
-
-                if retv != None:
-                    LOG.info("Publish the files...")
-                    publisher.send(retv)
-
-
-class FileListener(threading.Thread):
-
-    def __init__(self, queue, subscribe_topics):
-        threading.Thread.__init__(self)
-        self.loop = True
-        self.queue = queue
-        self.subscribe_topics = subscribe_topics
-
-    def stop(self):
-        """Stops the file listener"""
-        self.loop = False
-        self.queue.put(None)
-
-    def run(self):
-
-        LOG.debug("Subscribe topics = %s", str(self.subscribe_topics))
-        with posttroll.subscriber.Subscribe("", self.subscribe_topics, True) as subscr:
-
-            for msg in subscr.recv(timeout=90):
-                if not self.loop:
-                    break
-
-                # Check if it is a relevant message:
-                if self.check_message(msg):
-                    LOG.info("Put the message on the queue...")
-                    LOG.debug("Message = " + str(msg))
-                    self.queue.put(msg)
-
-    def check_message(self, msg):
-
-        if not msg:
-            return False
-
-        if ('platform_name' not in msg.data or
-                'orbit_number' not in msg.data or
-                'start_time' not in msg.data):
-            LOG.warning("Message is lacking crucial fields...")
-            return False
-
-        if (msg.data['platform_name'] not in SUPPORTED_PPS_SATELLITES):
-            LOG.info(str(msg.data['platform_name']) + ": " +
-                     "Not a NOAA/Metop/S-NPP/Terra/Aqua scene. Continue...")
-            return False
-
-        return True
-
-
 def run_nwp_and_pps(scene, flens, publish_q, input_msg, options):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
@@ -393,7 +318,7 @@ def pps(options):
     listener_q = Queue.Queue()
     publisher_q = Queue.Queue()
 
-    pub_thread = FilePublisher(publisher_q, options['publish_topic'])
+    pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps_runner')
     pub_thread.start()
     listen_thread = FileListener(listener_q, options['subscribe_topics'])
     listen_thread.start()
