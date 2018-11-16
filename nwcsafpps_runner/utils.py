@@ -388,6 +388,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
     """
 
     environment = kwargs.get('environment')
+    servername = kwargs.get('servername')
 
     for result_file in result_files:
         # Get true start and end time from filenames and adjust the end time in
@@ -412,7 +413,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         to_send.pop('dataset', None)
         to_send.pop('collection', None)
         to_send['uri'] = (
-            'ssh://%s/%s' % (SERVERNAME, result_file))
+            'ssh://%s/%s' % (servername, result_file))
         to_send['uid'] = filename
         to_send['sensor'] = scene.get('instrument', None)
         if not to_send['sensor']:
