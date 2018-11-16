@@ -389,6 +389,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
 
     environment = kwargs.get('environment')
     servername = kwargs.get('servername')
+    station = kwargs.get('station', 'unknown')
 
     for result_file in result_files:
         # Get true start and end time from filenames and adjust the end time in
@@ -433,9 +434,9 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         to_send['data_processing_level'] = '2'
 
         to_send['start_time'], to_send['end_time'] = starttime, endtime
-        pubmsg = Message(u'/' + to_send['format'] + '/' +
+        pubmsg = Message('/' + to_send['format'] + '/' +
                          to_send['data_processing_level'] +
-                         '/norrköping/' + environment +
+                         '/' + station + '/' + environment +
                          '/polar/direct_readout/',
                          "file", to_send).encode()
         LOG.debug("sending: " + str(pubmsg))

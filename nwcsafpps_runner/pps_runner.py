@@ -262,7 +262,8 @@ def pps_worker(scene, publish_q, input_msg, options):
         publish_pps_files(input_msg, publish_q, scene,
                           result_files + xml_files,
                           environment=MODE,
-                          servername=options['servername'])
+                          servername=options['servername'],
+                          station=options['station'])
 
         dt_ = datetime.utcnow() - job_start_time
         LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
