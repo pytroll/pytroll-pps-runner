@@ -38,8 +38,8 @@ from nwcsafpps_runner.config import MODE
 
 from nwcsafpps_runner.utils import ready2run, publish_pps_files
 from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,
-                                    create_pps2018_call_command_sequence, get_pps_inputfile,
-                                    logreader)
+                                    create_pps2018_call_command, get_pps_inputfile,
+                                    logreader, terminate_process)
 from nwcsafpps_runner.utils import PpsRunError
 from nwcsafpps_runner.utils import (METOP_SENSOR,
                                     SENSOR_LIST,
@@ -241,11 +241,11 @@ def pps_worker(scene, publish_q, input_msg, options):
         run_cma_prob = (options.get('run_cmask_prob') == 'yes')
         if run_cma_prob:
             pps_script = options.get('run_cmaprob_script')
-            cmdl = create_pps2018_call_command_sequence(py_exec, pps_script, scene)
+            cmdl = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
 
             LOG.debug("Run command: " + str(cmdl))
             try:
-                pps_cmaprob_proc = Popen(cmdl, shell=False, stderr=PIPE, stdout=PIPE)
+                pps_cmaprob_proc = Popen(cmdl, shell=True, stderr=PIPE, stdout=PIPE)
             except PpsRunError:
                 LOG.exception("Failed when trying to run the PPS Cma-prob")
 
