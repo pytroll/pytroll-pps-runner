@@ -118,18 +118,12 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("Level-1 file: %s", scene['file4pps'])
         LOG.debug("Platform name: %s", scene['platform_name'])
         LOG.debug("Orbit number: %s", str(scene['orbit_number']))
-
-        ppsargs = prepare_pps_arguments(scene['platform_name'],
-                                        scene['file4pps'],
-                                        orbit_number=scene['orbit_number'])
-        LOG.debug("pps-arguments: %s", str(ppsargs))
-
         min_thr = options['maximum_pps_processing_time_in_minutes']
         LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
 
-        my_env = os.environ.copy()
-        for envkey in my_env:
-            LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
+        # my_env = os.environ.copy()
+        # for envkey in my_env:
+        #     LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
 
         LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
         LOG.debug("...from config file = " + str(options['pps_outdir']))
@@ -137,6 +131,11 @@ def pps_worker(scene, publish_q, input_msg, options):
         # Run core PPS PGEs in a serial fashion
         LOG.info("Run PPS module: pps_run_all_serial")
         multiprocessing_logging.install_mp_handler()
+
+        ppsargs = prepare_pps_arguments(scene['platform_name'],
+                                        scene['file4pps'],
+                                        orbit_number=scene['orbit_number'])
+        LOG.debug("pps-arguments: %s", str(ppsargs))
 
         if not ppsargs:
             p_all = Process(target=pps_run_all_serial, kwargs=ppsargs)
