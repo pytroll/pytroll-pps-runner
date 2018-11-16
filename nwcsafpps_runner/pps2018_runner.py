@@ -137,15 +137,17 @@ def pps_worker(scene, publish_q, input_msg, options):
                                         orbit_number=scene['orbit_number'])
         LOG.debug("pps-arguments: %s", str(ppsargs))
 
-        if not ppsargs:
+        if ppsargs is not None:
             p_all = Process(target=pps_run_all_serial, kwargs=ppsargs)
             p_all.start()
             p_all.join()
             LOG.info("Ready with PPS level-2 processing on scene: " + str(scene))
+            LOG.debug("...pps-arguments: %s", str(ppsargs))
         else:
             LOG.error("pps arguments empty! Scene = %s", str(scene))
+            LOG.debug("pps-arguments: %s", str(ppsargs))
 
-        if not ppsargs:
+        if ppsargs is not None:
             # Run the PPS CmaskProb (probabilistic Cloudmask):
             run_cma_prob = (options.get('run_cmask_prob') == 'yes')
             if run_cma_prob:
@@ -154,10 +156,12 @@ def pps_worker(scene, publish_q, input_msg, options):
                 p_cmaprob.start()
                 p_cmaprob.join()
                 LOG.info("Ready with PPS Cloud Mask Prob on scene: %s", str(scene))
+                LOG.debug("...pps-arguments: %s", str(ppsargs))
             else:
                 LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
         else:
             LOG.error("Cma-Prob: pps arguments empty! Scene = %s", str(scene))
+            LOG.debug("pps-arguments: %s", str(ppsargs))
 
         # Now try perform som time statistics editing with ppsTimeControl.py from
         # pps:
@@ -317,6 +321,7 @@ def pps(options):
             LOG.debug("files4pps: " + str(files4pps))
             try:
                 files4pps.pop(sceneid)
+                LOG.debug("Clean files4pps dict for scene id %s", str(sceneid))
             except KeyError:
                 LOG.warning("Failed trying to remove key " + str(sceneid) +
                             " from dictionary files4pps")
