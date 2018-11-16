@@ -40,11 +40,10 @@ from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
 from nwcsafpps_runner.utils import ready2run, publish_pps_files
 from nwcsafpps_runner.utils import (terminate_process, create_pps_call_command_sequence,
-                                    PpsRunError)
+                                    PpsRunError, logreader)
 from nwcsafpps_runner.utils import (SENSOR_LIST,
                                     SATELLITE_NAME,
-                                    METOP_NAME_LETTER,
-                                    SUPPORTED_PPS_SATELLITES)
+                                    METOP_NAME_LETTER)
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 
 import logging
@@ -127,15 +126,6 @@ class ThreadPool(object):
 
         thread = threading.Thread(group, new_target, name, args, kwargs)
         thread.start()
-
-
-def logreader(stream, log_func):
-    while True:
-        s = stream.readline()
-        if not s:
-            break
-        log_func(s.strip())
-    stream.close()
 
 
 def get_outputfiles(path, platform_name, orb):

@@ -30,7 +30,7 @@ import shlex
 from posttroll.message import Message
 from trollduction.producer import check_uri
 from trollsift.parser import parse
-#from socket import gethostbyaddr, gaierror
+# from socket import gethostbyaddr, gaierror
 from socket import gaierror
 
 from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
@@ -59,7 +59,7 @@ DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis']
 REQUIRED_MW_SENSORS = {}
 REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
-#REQUIRED_MW_SENSORS['NOAA-18'] = ['amsu-a', 'mhs']
+# REQUIRED_MW_SENSORS['NOAA-18'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['NOAA-18'] = []
 REQUIRED_MW_SENSORS['NOAA-19'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['Metop-A'] = ['amsu-a', 'mhs']
@@ -91,7 +91,7 @@ for sat in SATELLITE_NAME:
 
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
-#METOP_NUMBER = {'b': '01', 'a': '02'}
+# METOP_NUMBER = {'b': '01', 'a': '02'}
 
 
 class PpsRunError(Exception):
@@ -248,7 +248,7 @@ def ready2run(msg, files4pps, **kwargs):
                 files4pps[sceneid].append(item)
     else:
         for item in level1_files:
-            #fname = os.path.basename(item)
+            # fname = os.path.basename(item)
             files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
@@ -339,25 +339,22 @@ def create_pps_call_command_sequence(pps_script_name, scene, options):
     return shlex.split(str(cmdstr))
 
 
-def create_pps2018_call_command_sequence(python_exec, pps_script_name, scene):
+def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=True):
 
     if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
-        cmdl = ["%s " % python_exec,
-                "%s " % pps_script_name,
-                "--modisfile %s" % scene['file4pps']
-                ]
+        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
+                  " --modisfile %s" % scene['file4pps'])
     elif scene['platform_name'] in SUPPORTED_JPSS_SATELLITES:
-        cmdl = ["%s " % python_exec,
-                "%s " % pps_script_name,
-                "--csppfile %s" % scene['file4pps']
-                ]
+        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
+                  " --csppfile %s" % scene['file4pps'])
     else:
-        cmdl = ["%s " % python_exec,
-                "%s " % pps_script_name,
-                "--hrptfile %s" % scene['file4pps']
-                ]
+        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
+                  " --hrptfile %s" % scene['file4pps'])
 
-    return cmdl
+    if sequence:
+        return shlex.split(str(cmdstr))
+    else:
+        return cmdstr
 
 
 def get_pps_inputfile(platform_name, ppsfiles):
@@ -445,3 +442,12 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         publish_q.put(pubmsg)
 
     return
+
+
+def logreader(stream, log_func):
+    while True:
+        s = stream.readline()
+        if not s:
+            break
+        log_func(s.strip())
+    stream.close()

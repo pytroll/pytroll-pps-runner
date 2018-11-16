@@ -38,7 +38,8 @@ from nwcsafpps_runner.config import MODE
 
 from nwcsafpps_runner.utils import ready2run, publish_pps_files
 from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,
-                                    create_pps2018_call_command_sequence, get_pps_inputfile)
+                                    create_pps2018_call_command_sequence, get_pps_inputfile,
+                                    logreader)
 from nwcsafpps_runner.utils import PpsRunError
 from nwcsafpps_runner.utils import (METOP_SENSOR,
                                     SENSOR_LIST,
@@ -50,7 +51,6 @@ from nwcsafpps_runner.utils import (METOP_SENSOR,
                                     REQUIRED_MW_SENSORS, PPS_SENSORS,
                                     DATA1KM_PREFIX,
                                     GEOLOC_PREFIX,
-                                    SUPPORTED_PPS_SATELLITES,
                                     SUPPORTED_JPSS_SATELLITES,
                                     SUPPORTED_EOS_SATELLITES,
                                     SUPPORTED_METOP_SATELLITES,
@@ -193,6 +193,9 @@ def pps_worker(scene, publish_q, input_msg, options):
                                        orbit_number=scene['orbit_number'])
         LOG.debug("pps-arguments: %s", str(kwargs))
 
+        min_thr = options['maximum_pps_processing_time_in_minutes']
+        LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
+
         # # Run core PPS PGEs in a serial fashion
         # LOG.info("Run PPS module: pps_run_all_serial")
         # pps_run_all_serial(**kwargs)
@@ -206,7 +209,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         py_exec = options.get('python', '/bin/python')
         pps_script = options.get('run_all_script')
-        cmdl = create_pps2018_call_command_sequence(py_exec, pps_script, scene)
+        cmd_str = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
 
         my_env = os.environ.copy()
         for envkey in my_env:
@@ -215,14 +218,12 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
         LOG.debug("...from config file = " + str(options['pps_outdir']))
 
-        LOG.debug("Run command: " + str(cmdl))
+        LOG.debug("Run command: " + str(cmd_str))
         try:
-            pps_all_proc = Popen(cmdl, shell=False, stderr=PIPE, stdout=PIPE)
+            pps_all_proc = Popen(cmd_str, shell=True, stderr=PIPE, stdout=PIPE)
         except PpsRunError:
             LOG.exception("Failed in PPS...")
 
-        min_thr = options['maximum_pps_processing_time_in_minutes']
-        LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
         t__ = threading.Timer(min_thr * 60.0, terminate_process, args=(pps_all_proc, scene, ))
         t__.start()
 
