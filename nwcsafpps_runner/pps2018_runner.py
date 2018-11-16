@@ -122,7 +122,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         ppsargs = prepare_pps_arguments(scene['platform_name'],
                                         scene['file4pps'],
                                         orbit_number=scene['orbit_number'])
-        LOG.debug("pps-arguments: %s", str(kwargs))
+        LOG.debug("pps-arguments: %s", str(ppsargs))
 
         min_thr = options['maximum_pps_processing_time_in_minutes']
         LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
