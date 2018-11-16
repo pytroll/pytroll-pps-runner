@@ -370,10 +370,6 @@ if __name__ == "__main__":
     PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
     STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
 
-    servername = None
-    servername = socket.gethostname()
-    SERVERNAME = OPTIONS.get('servername', servername)
-
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])
         ncount = int(OPTIONS["log_rotation_backup"])
