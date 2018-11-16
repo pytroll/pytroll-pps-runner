@@ -157,7 +157,7 @@ def get_outputfiles(path, platform_name, orb):
                   '_' + '%.5d' % int(orb) + '_*.xml')
     LOG.info(
         "Match string to do a file globbing on xml output files: " + str(xml_output))
-    filelist = glob(h5_output) + glob(nc_output) + glob(xml_output)
+    filelist = glob(xml_output)
     now = datetime.utcnow()
     time_threshold = timedelta(minutes=90.)
     filtered_flist = []
