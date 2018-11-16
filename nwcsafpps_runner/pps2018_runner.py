@@ -129,7 +129,6 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("...from config file = " + str(options['pps_outdir']))
 
         # Run core PPS PGEs in a serial fashion
-        LOG.info("Run PPS module: pps_run_all_serial")
         multiprocessing_logging.install_mp_handler()
 
         ppsargs = prepare_pps_arguments(scene['platform_name'],
@@ -138,6 +137,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("pps-arguments: %s", str(ppsargs))
 
         if ppsargs is not None:
+            LOG.info("Run PPS module: pps_run_all_serial")
             p_all = Process(target=pps_run_all_serial, kwargs=ppsargs)
             p_all.start()
             p_all.join()
@@ -276,7 +276,8 @@ def pps(options):
 
     files4pps = {}
     LOG.info("Number of threads: %d", options['number_of_threads'])
-    thread_pool = ThreadPool(options['number_of_threads'])
+    #thread_pool = ThreadPool(options['number_of_threads'])
+    thread_pool = ThreadPool(1)
     while True:
 
         try:
@@ -317,16 +318,16 @@ def pps(options):
             LOG.debug(
                 "Number of threads currently alive: " + str(threading.active_count()))
 
-            # Clean the files4pps dict:
-            LOG.debug("files4pps: " + str(files4pps))
-            try:
-                files4pps.pop(sceneid)
-                LOG.debug("Clean files4pps dict for scene id %s", str(sceneid))
-            except KeyError:
-                LOG.warning("Failed trying to remove key " + str(sceneid) +
-                            " from dictionary files4pps")
+            # # Clean the files4pps dict:
+            # LOG.debug("files4pps: " + str(files4pps))
+            # try:
+            #     files4pps.pop(sceneid)
+            #     LOG.debug("Clean files4pps dict for scene id %s", str(sceneid))
+            # except KeyError:
+            #     LOG.warning("Failed trying to remove key " + str(sceneid) +
+            #                 " from dictionary files4pps")
 
-            LOG.debug("After cleaning: files4pps = " + str(files4pps))
+            # LOG.debug("After cleaning: files4pps = " + str(files4pps))
 
     # FIXME! Should I clean up the thread_pool (open threads?) here at the end!?
 
