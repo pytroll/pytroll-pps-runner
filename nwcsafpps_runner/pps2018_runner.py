@@ -112,8 +112,6 @@ def pps_worker(scene, publish_q, input_msg, options):
     """
 
     try:
-        multiprocessing_logging.install_mp_handler()
-
         LOG.info("Starting pps runner for scene %s", str(scene))
         job_start_time = datetime.utcnow()
 
@@ -121,9 +119,9 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("Platform name: %s", scene['platform_name'])
         LOG.debug("Orbit number: %s", str(scene['orbit_number']))
 
-        kwargs = prepare_pps_arguments(scene['platform_name'],
-                                       scene['file4pps'],
-                                       orbit_number=scene['orbit_number'])
+        ppsargs = prepare_pps_arguments(scene['platform_name'],
+                                        scene['file4pps'],
+                                        orbit_number=scene['orbit_number'])
         LOG.debug("pps-arguments: %s", str(kwargs))
 
         min_thr = options['maximum_pps_processing_time_in_minutes']
@@ -138,7 +136,9 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         # Run core PPS PGEs in a serial fashion
         LOG.info("Run PPS module: pps_run_all_serial")
-        p_all = Process(target=pps_run_all_serial, kwargs=kwargs)
+        multiprocessing_logging.install_mp_handler()
+
+        p_all = Process(target=pps_run_all_serial, kwargs=ppsargs)
         p_all.start()
         p_all.join()
 
@@ -148,7 +148,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         run_cma_prob = (options.get('run_cmask_prob') == 'yes')
         if run_cma_prob:
             LOG.info("Run PPS module: pps_cmask_prob")
-            p_cmaprob = Process(target=pps_cmask_prob, kwargs=kwargs)
+            p_cmaprob = Process(target=pps_cmask_prob, kwargs=ppsargs)
             p_cmaprob.start()
             p_cmaprob.join()
             LOG.info("Ready with PPS Cloud Mask Prob on scene: %s", str(scene))
