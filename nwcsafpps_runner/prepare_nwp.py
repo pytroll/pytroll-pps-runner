@@ -190,6 +190,8 @@ def update_nwp(starttime, nlengths):
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
+            if os.path.exists(tmpresult):
+                os.remove(tmpresult)
 
     return
 
@@ -228,7 +230,9 @@ def check_nwp_content(gribfile):
             LOG.warning("Mandatory field missing in NWP file: %s", str(item))
             file_ok = False
 
-    LOG.info("NWP file has all required fields for PPS: %s", gribfile)
+    if file_ok:
+        LOG.info("NWP file has all required fields for PPS: %s", gribfile)
+
     return file_ok
 
 
