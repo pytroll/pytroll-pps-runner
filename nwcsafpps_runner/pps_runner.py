@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2018 Adam.Dybbroe
+# Copyright (c) 2014 - 2019 Adam.Dybbroe
 
 # Author(s):
 
@@ -186,7 +186,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         xml_files = get_outputfiles(pps_control_path,
                                     SATELLITE_NAME[scene['platform_name']],
                                     scene['orbit_number'],
-                                    nc_output=True)
+                                    xml_output=True)
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
         # Now publish:
