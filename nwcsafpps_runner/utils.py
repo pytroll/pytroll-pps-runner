@@ -148,7 +148,7 @@ def get_sceneid(platform_name, orbit_number, starttime):
     if starttime:
         sceneid = (str(platform_name) + '_' +
                    str(orbit_number) + '_' +
-                   str(starttime.strftime('%Y%m%d%H%M')))
+                   str(starttime.strftime('%Y%m%d%H%M%S')))
     else:
         sceneid = (str(platform_name) + '_' +
                    str(orbit_number))
