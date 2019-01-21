@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 Adam.Dybbroe
+# Copyright (c) 2018 - 2019 PyTroll
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c20671.ad.smhi.se>
+#   Adam.Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,20 +24,16 @@
 """
 
 import os
-import socket
 import stat
 import netifaces
 import shlex
 from glob import glob
 from posttroll.message import Message
-from trollduction.producer import check_uri
 from trollsift.parser import parse
-# from socket import gethostbyaddr, gaierror
-from socket import gaierror
+import socket
+from urlparse import urlparse
 from datetime import datetime, timedelta
-
 from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
-
 import logging
 LOG = logging.getLogger(__name__)
 
@@ -95,6 +91,31 @@ for sat in SATELLITE_NAME:
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
 # METOP_NUMBER = {'b': '01', 'a': '02'}
+
+
+def check_uri(uri):
+    """Check that the provided *uri* is on the local host and return the
+    file path.
+    """
+    if isinstance(uri, (list, set, tuple)):
+        paths = [check_uri(ressource) for ressource in uri]
+        return paths
+    url = urlparse(uri)
+    try:
+        if url.hostname:
+            url_ip = socket.gethostbyname(url.hostname)
+
+            if url_ip not in get_local_ips():
+                try:
+                    os.stat(url.path)
+                except OSError:
+                    raise IOError(
+                        "Data file %s unaccessible from this host" % uri)
+
+    except socket.gaierror:
+        LOGGER.warning("Couldn't check file location, running anyway")
+
+    return url.path
 
 
 class PpsRunError(Exception):
@@ -214,7 +235,7 @@ def ready2run(msg, files4pps, **kwargs):
         if url_ip not in get_local_ips():
             LOG.warning("Server %s not the current one: %s", str(url_ip), socket.gethostname())
             return False
-    except (AttributeError, gaierror) as err:
+    except (AttributeError, socket.gaierror) as err:
         LOG.error("Failed checking host! Hostname = %s", socket.gethostname())
         LOG.exception(err)
 
