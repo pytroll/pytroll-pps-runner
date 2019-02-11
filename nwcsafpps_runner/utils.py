@@ -43,7 +43,7 @@ PPS_OUT_PATTERN_MULTIPLE = "S_NWC_{segment1}_{segment2}_{orig_platform_name}_{or
 PPS_STAT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml"
 
 SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19']
-SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A']
+SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A', 'Metop-C']
 SUPPORTED_EOS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
 SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21']
 
@@ -63,11 +63,12 @@ REQUIRED_MW_SENSORS['NOAA-18'] = []
 REQUIRED_MW_SENSORS['NOAA-19'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['Metop-A'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['Metop-B'] = ['amsu-a', 'mhs']
+REQUIRED_MW_SENSORS['Metop-C'] = ['amsu-a', 'mhs']
 NOAA_METOP_PPS_SENSORNAMES = ['avhrr/3', 'amsu-a', 'amsu-b', 'mhs']
 
 METOP_NAME_LETTER = {'metop01': 'metopb', 'metop02': 'metopa'}
-METOP_NAME = {'metop01': 'Metop-B', 'metop02': 'Metop-A'}
-METOP_NAME_INV = {'metopb': 'metop01', 'metopa': 'metop02'}
+METOP_NAME = {'metop01': 'Metop-B', 'metop02': 'Metop-A', 'metop03': 'Metop-C'}
+METOP_NAME_INV = {'metopb': 'metop01', 'metopa': 'metop02', 'metopc': 'metop03'}
 
 SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
                   'NOAA-15': 'noaa15',
