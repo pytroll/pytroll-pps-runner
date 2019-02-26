@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015, 2016, 2017, 2018 Adam.Dybbroe
+# Copyright (c) 2015 - 2019 Adam.Dybbroe
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c20671.ad.smhi.se>
+#   Adam.Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -175,6 +175,9 @@ def update_nwp(starttime, nlengths):
         retv = os.system(cmd)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
+            LOG.warning("Failed generating nwp file %s ...", result_file)
+            if os.path.exists(tmpresult):
+                os.remove(tmpresult)
             raise IOError("Failed adding topography and land-sea " +
                           "mask data to grib file")
 
