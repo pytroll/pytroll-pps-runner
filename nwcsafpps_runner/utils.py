@@ -66,7 +66,7 @@ REQUIRED_MW_SENSORS['Metop-B'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['Metop-C'] = ['amsu-a', 'mhs']
 NOAA_METOP_PPS_SENSORNAMES = ['avhrr/3', 'amsu-a', 'amsu-b', 'mhs']
 
-METOP_NAME_LETTER = {'metop01': 'metopb', 'metop02': 'metopa'}
+METOP_NAME_LETTER = {'metop01': 'metopb', 'metop02': 'metopa', 'metop03': 'metopc'}
 METOP_NAME = {'metop01': 'Metop-B', 'metop02': 'Metop-A', 'metop03': 'Metop-C'}
 METOP_NAME_INV = {'metopb': 'metop01', 'metopa': 'metop02', 'metopc': 'metop03'}
 
