@@ -162,7 +162,7 @@ def pps_worker(scene, publish_q, input_msg, options):
             LOG.info("pps platform_id = " + str(platform_id))
             txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
                              str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
-                             '_' + str(scene['orbit_number']) + '*.txt')
+                             '_' + '%.5d' % scene['orbit_number'] + '*.txt')
             LOG.info("glob string = " + str(txt_time_file))
             infiles = glob(txt_time_file)
             LOG.info(
