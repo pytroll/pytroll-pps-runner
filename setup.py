@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013, 2014, 2015, 2016, 2017 Martin Raspaud
+# Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018 Martin Raspaud
 
 # Author(s):
 
@@ -42,7 +42,9 @@ setup(name="pps_runner",
                    "Topic :: Scientific/Engineering"],
       url="https://github.com/pytroll/pytroll-pps-runner",
       packages=['nwcsafpps_runner', ],
-      scripts=['nwcsafpps_runner/pps_runner.py', 'bin/pps_run.sh', ],
+      scripts=['nwcsafpps_runner/pps_runner.py',
+               'nwcsafpps_runner/pps2018_runner.py',
+               'bin/pps_run.sh', ],
       data_files=[],
       zip_safe=False,
       install_requires=['posttroll', ],

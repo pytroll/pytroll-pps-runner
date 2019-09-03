@@ -9,13 +9,17 @@ nwp_outdir = /san1/pps/import/NWP_data/source
 pps_nwp_requirements = /san1/pps/import/NWP_data/pps_nwp_list_of_required_fields.txt
 
 publish_topic=PPS
-subscribe_topics=AAPP-HRPT,AAPP-PPS,EOS/1B,SDR/1B
-sdr_processing=aggregated
-number_of_threads=5
-aapp_level1files_max_minutes_old=9000
+subscribe_topics=AAPP-HRPT,AAPP-PPS,EOS/1B,segment/SDR/1B
+sdr_processing=granules
+run_cmask_prob=yes
+number_of_threads=10
 
+run_all_script=/local_disk/opt/acpg/v2018/scr/ppsRunAll.py
+run_cmaprob_script=/local_disk/opt/acpg/v2018/scr/ppsCmaskProb.py
+python=/bin/python
 maximum_pps_processing_time_in_minutes=20
 station=norrkoping
+
 
 [offline]
 level1_dir = /local_disk/data/pps/import/PPS_data/source
@@ -38,8 +42,6 @@ log_rotation_days = 1
 log_rotation_backup = 10
 
 ncpus = 4
-aapp_level1files_max_minutes_old=90
-
 
 [test]
 level1_dir = /san1/pps/import/PPS_data/source
@@ -54,7 +56,6 @@ log_rotation_days = 1
 log_rotation_backup = 10
 
 ncpus = 4
-aapp_level1files_max_minutes_old=90
 
 [utv]
 level1_dir = /san1/pps/import/PPS_data/source
