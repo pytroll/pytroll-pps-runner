@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015, 2016 Adam.Dybbroe
+# Copyright (c) 2015 - 2019 Adam.Dybbroe
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c20671.ad.smhi.se>
+#   Adam.Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ def run_command(cmdstr):
     out_reader.join()
     err_reader.join()
 
-    return proc.returncode
+    return proc.wait()
 
 
 def update_nwp(starttime, nlengths):
@@ -122,6 +122,7 @@ def update_nwp(starttime, nlengths):
         return
 
     LOG.debug('NHSF NWP files found = ' + str(filelist))
+    nfiles_error = 0
     for filename in filelist:
         timeinfo = filename.rsplit("_", 1)[-1]
         timestamp, step = timeinfo.split("+")
@@ -138,7 +139,8 @@ def update_nwp(starttime, nlengths):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        tmp_file = os.path.join(nwp_outdir, "tmp." + timestamp + "+" + step)
+        tmp_file = tempfile.mktemp(suffix="_" + timestamp + "+" + step, dir=nwp_outdir)
+        #tmp_file = os.path.join(nwp_outdir, "tmp." + timestamp + "+" + step)
         LOG.info("result and tmp files: " +
                  str(result_file) + " " + str(tmp_file))
         nhsp_file = os.path.join(nhsp_path, nhsp_prefix + timeinfo)
@@ -150,11 +152,19 @@ def update_nwp(starttime, nlengths):
                nhsp_file + " " + tmp_file)
         retv = run_command(cmd)
         LOG.debug("Returncode = " + str(retv))
+        if retv != 0:
+            LOG.error(
+                "Failed doing the grib-copy! Will continue with the next file")
+            nfiles_error = nfiles_error + 1
+            if nfiles_error > len(filelist) / 2:
+                LOG.error(
+                    "More than half of the Grib files failed upon grib_copy!")
+                raise IOError('Failed running grib_copy on many Grib files')
 
         if not os.path.exists(nwp_lsmz_filename):
-            LOG.exception("No static grib file with land-sea mask and " +
-                          "topography available. Can't prepare NWP data")
-            raise
+            LOG.error("No static grib file with land-sea mask and " +
+                      "topography available. Can't prepare NWP data")
+            raise IOError('Failed getting static land-sea mask and topography')
 
         tmpresult = tempfile.mktemp()
         cmd = ('cat ' + tmp_file + " " +
@@ -165,9 +175,16 @@ def update_nwp(starttime, nlengths):
         retv = os.system(cmd)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
+            LOG.warning("Failed generating nwp file %s ...", result_file)
+            if os.path.exists(tmpresult):
+                os.remove(tmpresult)
             raise IOError("Failed adding topography and land-sea " +
                           "mask data to grib file")
-        os.remove(tmp_file)
+
+        if os.path.exists(tmp_file):
+            os.remove(tmp_file)
+        else:
+            LOG.warning("tmp file %s gone! Cannot clean it...", tmp_file)
 
         if check_nwp_content(tmpresult):
             LOG.info('A check of the NWP file content has been attempted: %s',
@@ -176,6 +193,8 @@ def update_nwp(starttime, nlengths):
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
+            if os.path.exists(tmpresult):
+                os.remove(tmpresult)
 
     return
 
@@ -214,8 +233,11 @@ def check_nwp_content(gribfile):
             LOG.warning("Mandatory field missing in NWP file: %s", str(item))
             file_ok = False
 
-    LOG.info("NWP file has all required fields for PPS: %s", gribfile)
+    if file_ok:
+        LOG.info("NWP file has all required fields for PPS: %s", gribfile)
+
     return file_ok
+
 
 if __name__ == "__main__":
 
