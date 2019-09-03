@@ -27,15 +27,15 @@ import logging
 from glob import glob
 import os
 from datetime import datetime
-import ConfigParser
+from six.moves.configparser import ConfigParser
 import tempfile
 from subprocess import Popen, PIPE
-from helper_functions import run_command
+from nwcsafpps_runner.helper_functions import run_command
 
 LOG = logging.getLogger(__name__)
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-CONF = ConfigParser.ConfigParser()
+CONF = ConfigParser()
 ppsconf_path = os.path.join(CONFIG_PATH, "pps_config.cfg")
 LOG.debug("Path to config file = " + str(ppsconf_path))
 CONF.read(ppsconf_path)
@@ -117,7 +117,6 @@ def update_nwp(starttime, nlengths):
     """
 
     tempfile.tempdir = nwp_outdir
-
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
         LOG.info("No input files! dir = " + str(nhsf_path))
@@ -165,12 +164,12 @@ def update_nwp(starttime, nlengths):
             timestamp, step = timeinfo.split("+")
             analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
 
-        print analysis_time, starttime
+        print(analysis_time, starttime)
         if analysis_time < starttime:
-            print "skip analysis"
+            print("skip analysis")
             continue
         if int(step[:3]) not in nlengths:
-            print "skip step",int(step[:3]), nlengths
+            print("skip step",int(step[:3]), nlengths)
             continue
 
         LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(step))

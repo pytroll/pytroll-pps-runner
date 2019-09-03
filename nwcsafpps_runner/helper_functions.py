@@ -1,4 +1,4 @@
-from urlparse import urlparse, urlunsplit
+from six.moves.urllib.parse import urlparse, urlunsplit
 import socket
 import netifaces
 import os
