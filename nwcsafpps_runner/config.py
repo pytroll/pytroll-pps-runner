@@ -24,7 +24,7 @@
 """
 
 import os
-import ConfigParser
+from six.moves.configparser import ConfigParser
 import socket
 
 MODE = os.getenv("SMHI_MODE")
@@ -39,7 +39,7 @@ LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 def get_config(configfile):
 
-    conf = ConfigParser.ConfigParser()
+    conf = ConfigParser()
     conf.read(os.path.join(CONFIG_PATH, configfile))
 
     options = {}

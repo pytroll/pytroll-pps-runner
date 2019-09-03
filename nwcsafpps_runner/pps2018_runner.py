@@ -28,7 +28,7 @@ import sys
 from glob import glob
 from subprocess import Popen, PIPE
 import threading
-import Queue
+from six.moves.queue import Queue, Empty
 from datetime import datetime, timedelta
 #
 from nwcsafpps_runner.config import get_config
@@ -297,8 +297,8 @@ def pps(options):
     update_nwp(now - timedelta(days=1), NWP_FLENS)
     LOG.info("Ready with nwp preparation...")
 
-    listener_q = Queue.Queue()
-    publisher_q = Queue.Queue()
+    listener_q = Queue()
+    publisher_q = Queue()
 
     pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps2018_runner')
     pub_thread.start()
@@ -312,7 +312,7 @@ def pps(options):
 
         try:
             msg = listener_q.get()
-        except Queue.Empty:
+        except Empty:
             continue
 
         LOG.debug(
@@ -369,7 +369,6 @@ def pps(options):
 if __name__ == "__main__":
 
     from logging import handlers
-
     OPTIONS = get_config("pps2018_config.ini")
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
 
