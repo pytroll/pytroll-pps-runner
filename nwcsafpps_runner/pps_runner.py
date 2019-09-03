@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, 2015, 2016 Adam.Dybbroe
+# Copyright (c) 2014 - 2017 Adam.Dybbroe
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c14526.ad.smhi.se>
+#   Adam.Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -129,9 +129,69 @@ import threading
 import Queue
 from datetime import datetime, timedelta
 
+LOG.debug("PYTHONPATH: " + str(sys.path))
 from nwcsafpps_runner.prepare_nwp import update_nwp
 from trollsift import Parser, compose
 SATNAME = {'Aqua': 'EOS-Aqua'}
+
+
+class SceneId(object):
+
+    def __init__(self, platform_name, orbit_number, starttime, threshold=5):
+        self.platform_name = platform_name
+        self.orbit_number = orbit_number
+        self.starttime = starttime
+        self.threshold = threshold
+
+    def __str__(self):
+
+        return (str(self.platform_name) + '_' +
+                str(self.orbit_number) + '_' +
+                str(self.starttime.strftime('%Y%m%d%H%M')))
+
+    def __eq__(self, other):
+
+        return (self.platform_name == other.platform_name and
+                self.orbit_number == other.orbit_number and
+                abs(self.starttime - other.starttime) < timedelta(minutes=self.threshold))
+
+
+def message_uid(msg):
+    """Create a unique id/key-name for the scene."""
+
+    orbit_number = int(msg.data['orbit_number'])
+    platform_name = msg.data['platform_name']
+    starttime = msg.data['start_time']
+
+    return SceneId(platform_name, orbit_number, starttime)
+
+
+class ThreadPool(object):
+
+    def __init__(self, max_nthreads=None):
+
+        self.jobs = set()
+        self.sema = threading.Semaphore(max_nthreads)
+        self.lock = threading.Lock()
+
+    def new_thread(self, job_id, group=None, target=None, name=None, args=(), kwargs={}):
+
+        def new_target(*args, **kwargs):
+            with self.sema:
+                result = target(*args, **kwargs)
+
+            self.jobs.remove(job_id)
+            return result
+
+        with self.lock:
+            if job_id in self.jobs:
+                LOG.info("Job with id %s already running!", str(job_id))
+                return
+
+            self.jobs.add(job_id)
+
+        thread = threading.Thread(group, new_target, name, args, kwargs)
+        thread.start()
 
 
 class PpsRunError(Exception):
@@ -154,33 +214,20 @@ def get_outputfiles(path, platform_name, orb):
 
     h5_output = (os.path.join(path, 'S_NWC') + '*' +
                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + str(orb) + '*.h5')
+                 '_' + '%.5d' % int(orb) + '_*.h5')
     LOG.info(
         "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
     nc_output = (os.path.join(path, 'S_NWC') + '*' +
                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                 '_' + str(orb) + '*.nc')
+                 '_' + '%.5d' % int(orb) + '_*.nc')
     LOG.info(
         "Match string to do a file globbing on netcdf output files: " + str(nc_output))
     xml_output = (os.path.join(path, 'S_NWC') + '*' +
                   str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                  '_' + str(orb) + '*.xml')
+                  '_' + '%.5d' % int(orb) + '_*.xml')
     LOG.info(
         "Match string to do a file globbing on xml output files: " + str(xml_output))
     return glob(h5_output) + glob(nc_output) + glob(xml_output)
-
-
-def reset_job_registry(objdict, key):
-    """Remove job key from registry"""
-    LOG.debug("Release/reset job-key " + str(key) + " from job registry")
-    if key in objdict:
-        objdict.pop(key)
-    else:
-        LOG.warning("Nothing to reset/release - " +
-                    "Register didn't contain any entry matching: " +
-                    str(key))
-
-    return
 
 
 def terminate_process(popen_obj, scene):
@@ -195,8 +242,8 @@ def terminate_process(popen_obj, scene):
     return
 
 
-def pps_worker(semaphore_obj, scene, job_dict, job_key, publish_q, input_msg):
-    """Spawn/Start a PPS run on a new thread if available
+def pps_worker(scene, publish_q, input_msg):
+    """Start PPS on a scene
 
         scene = {'platform_name': platform_name,
                  'orbit_number': orbit_number,
@@ -205,181 +252,159 @@ def pps_worker(semaphore_obj, scene, job_dict, job_key, publish_q, input_msg):
     """
 
     try:
-        LOG.debug("Waiting for acquired semaphore...")
-        with semaphore_obj:
-            LOG.debug("Acquired semaphore")
-            if scene['platform_name'] in SUPPORTED_EOS_SATELLITES or input_msg.data['antenna'] == "global-segments":
-                cmdstr = "%s %s %s %s %s %s" % (PPS_SCRIPT,
-                                             SATELLITE_NAME[
-                                                 scene['platform_name']],
-                                             scene['orbit_number'], scene[
-                                                 'satday'],
-                                             scene['sathour'],
-                                             input_msg.data['antenna'])
-            else:
-                cmdstr = "%s %s %s 0 0 %s" % (PPS_SCRIPT,
-                                           SATELLITE_NAME[
-                                               scene['platform_name']],
-                                           scene['orbit_number'],
-                                           input_msg.data['antenna'])
+        LOG.debug("Starting pps runner for scene %s", str(scene))
+        job_start_time = datetime.utcnow()
 
-            if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
-                cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
-            elif scene['platform_name'] in SUPPORTED_EOS_SATELLITES and LVL1_EOS_PATH:
-                cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH)
+        if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
+            cmdstr = "%s %s %s %s %s" % (PPS_SCRIPT,
+                                         SATELLITE_NAME[
+                                             scene['platform_name']],
+                                         scene['orbit_number'], scene[
+                                             'satday'],
+                                         scene['sathour'])
+        else:
+            cmdstr = "%s %s %s 0 0" % (PPS_SCRIPT,
+                                       SATELLITE_NAME[
+                                           scene['platform_name']],
+                                       scene['orbit_number'])
 
-            import shlex
-            myargs = shlex.split(str(cmdstr))
-            LOG.info("Command " + str(myargs))
-            my_env = os.environ.copy()
-            # for envkey in my_env:
-            #    LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
-            LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
-            LOG.debug("...from config file = " + str(OPTIONS['pps_outdir']))
-            LOG.debug("CWD: {}".format(os.getcwd()))
-            if not os.path.isfile(PPS_SCRIPT):
-                raise IOError("PPS script" + PPS_SCRIPT + " is not there!")
-            elif not os.access(PPS_SCRIPT, os.X_OK):
-                raise IOError(
-                    "PPS script" + PPS_SCRIPT + " cannot be executed!")
+        if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
+            cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
+        elif scene['platform_name'] in SUPPORTED_EOS_SATELLITES and LVL1_EOS_PATH:
+            cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH)
 
-            try:
-                pps_proc = Popen(myargs, shell=False, stderr=PIPE, stdout=PIPE)
-            except PpsRunError:
-                LOG.exception("Failed in PPS...")
+        import shlex
+        myargs = shlex.split(str(cmdstr))
+        LOG.info("Command " + str(myargs))
+        my_env = os.environ.copy()
+        # for envkey in my_env:
+        # LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
+        LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
+        LOG.debug(
+            "...from config file = " + str(OPTIONS['pps_outdir']))
+        if not os.path.isfile(PPS_SCRIPT):
+            raise IOError("PPS script" + PPS_SCRIPT + " is not there!")
+        elif not os.access(PPS_SCRIPT, os.X_OK):
+            raise IOError(
+                "PPS script" + PPS_SCRIPT + " cannot be executed!")
 
-            t__ = threading.Timer(
-                20 * 60.0, terminate_process, args=(pps_proc, scene, ))
-            t__.start()
+        try:
+            pps_proc = Popen(
+                myargs, shell=False, stderr=PIPE, stdout=PIPE)
+        except PpsRunError:
+            LOG.exception("Failed in PPS...")
 
-            out_reader = threading.Thread(
-                target=logreader, args=(pps_proc.stdout, LOG.info))
-            err_reader = threading.Thread(
-                target=logreader, args=(pps_proc.stderr, LOG.info))
-            out_reader.start()
-            err_reader.start()
-            out_reader.join()
-            err_reader.join()
+        t__ = threading.Timer(
+            20 * 60.0, terminate_process, args=(pps_proc, scene, ))
+        t__.start()
 
+        out_reader = threading.Thread(
+            target=logreader, args=(pps_proc.stdout, LOG.info))
+        err_reader = threading.Thread(
+            target=logreader, args=(pps_proc.stderr, LOG.info))
+        out_reader.start()
+        err_reader.start()
+        out_reader.join()
+        err_reader.join()
+
+        LOG.info(
+            "Ready with PPS level-2 processing on scene: " + str(scene))
+
+        # Now try perform som time statistics editing with ppsTimeControl.py from
+        # pps:
+        do_time_control = True
+        try:
+            from pps_time_control import PPSTimeControl
+        except ImportError:
+            LOG.warning("Failed to import the PPSTimeControl from pps")
+            do_time_control = False
+
+        if STATISTICS_DIR:
+            pps_control_path = STATISTICS_DIR
+        else:
+            pps_control_path = my_env.get('STATISTICS_DIR')
+
+        if do_time_control:
+            LOG.info("Read time control ascii file and generate XML")
+            platform_id = SATELLITE_NAME.get(
+                scene['platform_name'], scene['platform_name'])
+            LOG.info("pps platform_id = " + str(platform_id))
+            txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
+                             str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
+                             '_' + str(scene['orbit_number']) + '*.txt')
+            LOG.info("glob string = " + str(txt_time_file))
+            infiles = glob(txt_time_file)
             LOG.info(
-                "Ready with PPS level-2 processing on scene: " + str(scene))
+                "Time control ascii file candidates: " + str(infiles))
+            if len(infiles) == 1:
+                infile = infiles[0]
+                LOG.info("Time control ascii file: " + str(infile))
+                ppstime_con = PPSTimeControl(infile)
+                ppstime_con.sum_up_processing_times()
+                ppstime_con.write_xml()
 
-            # Now try perform som time statistics editing with ppsTimeControl.py from
-            # pps:
-            do_time_control = True
-            try:
-                from pps_time_control import PPSTimeControl
-            except ImportError:
-                LOG.warning("Failed to import the PPSTimeControl from pps")
-                do_time_control = False
+        # Now check what netCDF/hdf5 output was produced and publish
+        # them:
+        pps_path = my_env.get('SM_PRODUCT_DIR', PPS_OUTPUT_DIR)
+        result_files = get_outputfiles(
+            pps_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
+        LOG.info("PPS Output files: " + str(result_files))
+        xml_files = get_outputfiles(
+            pps_control_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
+        LOG.info("PPS summary statistics files: " + str(xml_files))
 
-            if STATISTICS_DIR:
-                pps_control_path = STATISTICS_DIR
-            else:
-                pps_control_path = my_env.get('STATISTICS_DIR')
+        # Now publish:
+        for result_file in result_files + xml_files:
+            filename = os.path.split(result_file)[1]
+            LOG.info("file to publish = " + str(filename))
 
-            if do_time_control:
-                LOG.info("Read time control ascii file and generate XML")
-                platform_id = SATELLITE_NAME.get(
-                    scene['platform_name'], scene['platform_name'])
-                LOG.info("pps platform_id = " + str(platform_id))
-                txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
-                                 str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
-                                 '_' + str(scene['orbit_number']) + '*.txt')
-                LOG.info("glob string = " + str(txt_time_file))
-                infiles = glob(txt_time_file)
-                LOG.info("Time control ascii file candidates: " + str(infiles))
-                if len(infiles) == 1:
-                    infile = infiles[0]
-                    LOG.info("Time control ascii file: " + str(infile))
-                    ppstime_con = PPSTimeControl(infile)
-                    ppstime_con.sum_up_processing_times()
-                    ppstime_con.write_xml()
+            to_send = input_msg.data.copy()
+            to_send.pop('dataset', None)
+            to_send.pop('collection', None)
+            to_send['uri'] = (
+                'ssh://%s/%s' % (SERVERNAME, result_file))
+            to_send['uid'] = filename
+            to_send['sensor'] = scene.get('instrument', None)
+            if not to_send['sensor']:
+                to_send['sensor'] = scene.get('sensor', None)
 
-            # Now check what netCDF/hdf5 output was produced and publish them:
-            pps_path = my_env.get('SM_PRODUCT_DIR', PPS_OUTPUT_DIR)
-            LOG.debug("PPS_PATH: {}".format(pps_path))
-            result_files = get_outputfiles(
-                pps_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
-            LOG.info("PPS Output files: " + str(result_files))
-            xml_files = get_outputfiles(
-                pps_control_path, SATELLITE_NAME[scene['platform_name']], scene['orbit_number'])
-            LOG.info("PPS summary statistics files: " + str(xml_files))
+            to_send['platform_name'] = scene['platform_name']
+            to_send['orbit_number'] = scene['orbit_number']
+            if result_file.endswith("xml"):
+                to_send['format'] = 'PPS-XML'
+                to_send['type'] = 'XML'
+            if result_file.endswith("nc"):
+                to_send['format'] = 'CF'
+                to_send['type'] = 'netCDF4'
+            if result_file.endswith("h5"):
+                to_send['format'] = 'PPS'
+                to_send['type'] = 'HDF5'
+            to_send['data_processing_level'] = '2'
 
-            # Now publish:
-            for result_file in result_files + xml_files:
-                filename = os.path.split(result_file)[1]
-                LOG.info("file to publish = " + str(filename))
+            environment = MODE
+            to_send['start_time'], to_send['end_time'] = scene[
+                'starttime'], scene['endtime']
+            pubmsg = Message('/' + to_send['format'] + '/' +
+                             to_send['data_processing_level'] +
+                             '/norrköping/' + environment +
+                             '/polar/direct_readout/',
+                             "file", to_send).encode()
+            LOG.debug("sending: " + str(pubmsg))
+            LOG.info("Sending: " + str(pubmsg))
+            publish_q.put(pubmsg)
 
-                to_send = input_msg.data.copy()
-                to_send.pop('dataset', None)
-                to_send.pop('collection', None)
-                to_send['uri'] = ('ssh://%s/%s' % (SERVERNAME, result_file))
-                to_send['uid'] = filename
-                to_send['sensor'] = scene.get('instrument', None)
-                if not to_send['sensor']:
-                    to_send['sensor'] = scene.get('sensor', None)
+            dt_ = datetime.utcnow() - job_start_time
+            LOG.info("PPS on scene " + str(scene) +
+                     " finished. It took: " + str(dt_))
 
-                to_send['platform_name'] = scene['platform_name']
-                to_send['orbit_number'] = scene['orbit_number']
-                if result_file.endswith("xml"):
-                    to_send['format'] = 'PPS-XML'
-                    to_send['type'] = 'XML'
-                if result_file.endswith("nc"):
-                    to_send['format'] = 'CF'
-                    to_send['type'] = 'netCDF4'
-                if result_file.endswith("h5"):
-                    to_send['format'] = 'PPS'
-                    to_send['type'] = 'HDF5'
-                to_send['data_processing_level'] = '2'
-
-                environment = MODE
-                to_send['start_time'], to_send['end_time'] = scene[
-                    'starttime'], scene['endtime']
-
-                #Need to put all need keys into a dict to make them available for sift
-                #This is a bit dangerous because this will fail if keys are not defined...
-                sift_to_send = dict()
-                sift_to_send['data_processing_level'] = to_send['data_processing_level']
-                sift_to_send['format'] = to_send['format']
-                sift_to_send['type'] = to_send['type']
-                sift_to_send['location'] = 'norrköping'
-                sift_to_send['environment'] = environment
-
-                if 'publish_sift_format' in OPTIONS:
-                    publish_topic = compose(OPTIONS['publish_sift_format'], sift_to_send)
-                    LOG.debug("Using publish topic from config: {}".format(publish_topic))
-                    pubmsg = Message(publish_topic, "file", to_send).encode()
-                else:
-                    pubmsg = Message('/' + to_send['format'] + '/' +
-                                     to_send['data_processing_level'] +
-                                     '/norrköping/' + environment +
-                                     '/polar/direct_readout/',
-                                     "file", to_send).encode()
-                LOG.debug("sending: " + str(pubmsg))
-                LOG.info("Sending: " + str(pubmsg))
-                publish_q.put(pubmsg)
-
-                try:
-                    job_id = job_dict[job_key]
-                    if isinstance(job_id, datetime):
-                        dt_ = datetime.utcnow() - job_id
-                        LOG.info("PPS on scene " + str(job_key) +
-                                 " finished. It took: " + str(dt_))
-                    else:
-                        LOG.warning(
-                            "Job entry is not a datetime instance: " + str(job_id))
-                except KeyError as ke:
-                    LOG.error("Failed with {}".format(ke))
-
-            t__.cancel()
+        t__.cancel()
 
     except:
         LOG.exception('Failed in pps_worker...')
         raise
 
 
-def ready2run(msg, files4pps, job_register, sceneid):
+def ready2run(msg, files4pps):
     """Check wether pps is ready to run or not"""
     #"""Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
@@ -389,29 +414,6 @@ def ready2run(msg, files4pps, job_register, sceneid):
 
     LOG.debug("Ready to run...")
     LOG.info("Got message: " + str(msg))
-
-    # urlobj = urlparse(msg.data['uri'])
-    # server = urlobj.netloc
-    # server_name = None
-    # try:
-    #     server_name, dummy, dummy = gethostbyaddr(server)
-    # except gaierror:
-    #     pass
-
-    # LOG.debug('Server = <' + str(server) + '>')
-    # if server_name and server_name == server:
-    #     LOG.debug('Server = <' + str(server_name) + '>')
-
-    # if (len(server) > 0 and server == SERVERNAME or
-    #         server_name and server_name == SERVERNAME):
-    #     LOG.debug(
-    #         "We got a message from the same server: " + str(SERVERNAME))
-    # else:
-    #     LOG.warning("The server " + str(server) +
-    #                 "is not the same as where we are runnning: " + str(SERVERNAME))
-    #     return False
-
-    # LOG.info("Ok... " + str(server))
 
     uris = []
     if (msg.type == 'dataset' and
@@ -513,32 +515,15 @@ def ready2run(msg, files4pps, job_register, sceneid):
 
     if 'start_time' in msg.data:
         starttime = msg.data['start_time']
+        sceneid = (str(platform_name) + '_' +
+                   str(orbit_number) + '_' +
+                   str(starttime.strftime('%Y%m%d%H%M')))
     else:
         starttime = None
+        sceneid = (str(platform_name) + '_' +
+                   str(orbit_number))
 
     LOG.debug("Scene identifier = " + str(sceneid))
-    LOG.debug("Job register = " + str(job_register))
-    if sceneid in job_register and job_register[sceneid]:
-        LOG.debug("Processing of scene " + str(sceneid) +
-                  " have already been launched...")
-        return False
-
-    tdelta_thr = timedelta(seconds=180)  # 3 minutes
-    key_entries = sceneid.split('_')
-    if len(key_entries) == 3:
-        for key in job_register.keys():
-            firstpart = key.split('_')[0] + '_' + key.split('_')[1]
-            this_firstpart = key_entries[0] + '_' + key_entries[1]
-            LOG.debug('datetimes of entries: ' +
-                      str(firstpart) + ' ' +
-                      str(this_firstpart))
-            if firstpart == this_firstpart:
-                # Check if the times are approximately the same:
-                tobj = datetime.strptime(key.split('_')[-1], '%Y%m%d%H%M')
-                if starttime and abs(tobj - starttime) < tdelta_thr:
-                    LOG.warning("This scene is very close to a previously " +
-                                "processed scene! Don't do anything with it then...")
-                    return False
 
     if sceneid not in files4pps:
         files4pps[sceneid] = []
@@ -591,16 +576,21 @@ def ready2run(msg, files4pps, job_register, sceneid):
     else:
         LOG.info("Level 1 files ready: " + str(files4pps[sceneid]))
 
+    # Clean the files4pps dict:
+    LOG.debug("files4pps: " + str(files4pps))
+    try:
+        files4pps.pop(sceneid)
+    except KeyError:
+        LOG.warning("Failed trying to remove key " + str(sceneid) +
+                    " from dictionary files4pps")
+    LOG.debug("After cleaning: files4pps = " + str(files4pps))
+
     if msg.data['platform_name'] in SUPPORTED_PPS_SATELLITES:
         LOG.info(
             "This is a PPS supported scene. Start the PPS lvl2 processing!")
         LOG.info("Process the scene (sat, orbit) = " +
                  str(platform_name) + ' ' + str(orbit_number))
 
-        #Will need to prepare the Data for PPS processing
-        #prepare_data4pps(files4pps[sceneid])
-        
-        job_register[sceneid] = datetime.utcnow()
         return True
 
 
@@ -707,98 +697,22 @@ def check_threads(threads):
     return
 
 
-def prepare_data4pps(filelist):
+def run_nwp_and_pps(scene, flens, publish_q, input_msg):
+    """Run first the nwp-preparation and then pps. No parallel running here!"""
 
-    first = True
+    prepare_nwp4pps(flens)
+    pps_worker(scene, publish_q, input_msg)
 
-    for file in filelist:
-        LOG.debug("Handeling file: {}".format(file))
-        filename = os.path.basename(file)
-        
-        #Parse filenames according to input files and config
-        try:
-            parser = Parser(OPTIONS['data_file_name_sift'])
-        except NoOptionError as noe:
-            LOG.error("NoOptionError {}".format(noe)) 
-            continue
-        if not parser.validate(filename):
-            LOG.error("Parser validate on filename: {} failed.".format(filename))
-            continue
-        res = parser.parse("{}".format(filename))
+    return
 
-        LOG.debug("{}".format(res))
-        
-        #Build up new pps data directory
-        pps_data_import_dir = compose(OPTIONS['import_pps_data_dir'], res)
-        LOG.debug("{}".format(pps_data_import_dir))
-        if not os.path.exists(pps_data_import_dir):
-            try:
-                os.makedirs(pps_data_import_dir)
-            except OSError as err:
-                LOG.error("Can't create directory: {} because: {}".format(pps_data_import_dir, err))
-                return False
-            else:
-                LOG.debug("Created new directory for PPS data files: {}".format(pps_data_import_dir))
-        elif first:
-            LOG.debug("PPS data directory: {} exists. This can mean the data have been processed before. Take care.".format(pps_data_import_dir))
-            
-        #Distribute data from AAPP for PPS processing
-        from shutil import copy2
-        try:
-            copy2(file, pps_data_import_dir)
-            if os.path.exists(os.path.join(pps_data_import_dir,os.path.basename(file))):
-                LOG.debug("Distribution success: {}".format(os.path.join(pps_data_import_dir,os.path.basename(file))))
-            else:
-                LOG.error("Distribution failed: {}".format(file))
-        except (IOError, os.error) as err:
-            LOG.error("Distribution of PPS data(copy2) failed: {}".format(err))
-            return False
-        except:
-            LOG.error("Distribution of PPS data failed.")
-            return False
 
-        first = False
-
-    return True
-
-def prepare_nwp4pps(sphor_obj, starttime, flens):
+def prepare_nwp4pps(flens):
     """Prepare NWP data for pps"""
 
+    starttime = datetime.utcnow() - timedelta(days=1)
     try:
-        LOG.debug("Waiting for acquired semaphore for nwp prepare...")
-        with sphor_obj:
-            LOG.debug("Acquired semaphore for nwp preparation...")
-            try:
-                module_name = CONF.get("nwp_handeling_function", "module")
-            except (NoSectionError, NoOptionError):
-                LOG.debug("No custom nwp_handeling_function provided i config file...")
-                LOG.debug("Use build in.")
-                update_nwp(starttime, flens)
-            else:
-                LOG.debug("Use custom nwp_handeling_function provided i config file...")
-                LOG.debug("module_name = %s", str(module_name))
-                try:
-                    name = "update_nwp"
-                    name = name.replace("/", "")
-                    module = __import__(module_name, globals(), locals(), [name])
-                    LOG.info("function : {} loaded from module: {}".format([name],module_name))
-                except ImportError:
-                    LOG.debug("Failed to import custom compositer for %s", str(name))
-
-                try:
-                    params = {}
-                    params['starttime'] = starttime
-                    params['nlengths'] = flens
-                    params['options'] = OPTIONS
-                    getattr(module, name)(params)
-                    #LOG.debug("get_attr: {}".format(get_attr))
-                except AttributeError:
-                    LOG.debug("Could not get attribute %s from %s", str(name), str(module))
-                #return []
-
-            LOG.info("Ready with nwp preparation")
-
-
+        update_nwp(starttime, flens)
+        LOG.info("Ready with nwp preparation")
         LOG.debug("Leaving prepare_nwp4pps...")
     except:
         LOG.exception("Something went wrong in update_nwp...")
@@ -844,8 +758,6 @@ def pps():
 
     LOG.info("Ready with nwp preparation...")
 
-    nwp_pp_sema = threading.Semaphore(1)
-    sema = threading.Semaphore(1)
     listener_q = Queue.Queue()
     publisher_q = Queue.Queue()
 
@@ -855,8 +767,7 @@ def pps():
     listen_thread.start()
 
     files4pps = {}
-    threads = []
-    jobs_dict = {}
+    thread_pool = ThreadPool(5)
     while True:
 
         try:
@@ -876,61 +787,26 @@ def pps():
             LOG.warning("end_time missing, set to start time + 15 minutes")
             endtime = starttime + timedelta(minutes=15)
 
-        keyname = (str(platform_name) + '_' +
-                   str(orbit_number) + '_' +
-                   str(starttime.strftime('%Y%m%d%H%M')))
+        satday = starttime.strftime('%Y%m%d')
+        sathour = starttime.strftime('%H%M')
+        sensors = SENSOR_LIST.get(platform_name, None)
+        scene = {'platform_name': platform_name,
+                 'orbit_number': orbit_number,
+                 'satday': satday, 'sathour': sathour,
+                 'starttime': starttime, 'endtime': endtime,
+                 'sensor': sensors}
 
-        status = ready2run(msg, files4pps,
-                           jobs_dict, keyname)
+        status = ready2run(msg, files4pps)
         if status:
-            # Process pps on the scene
-            sensors = SENSOR_LIST.get(platform_name, None)
-            satday = starttime.strftime('%Y%m%d')
-            sathour = starttime.strftime('%H%M')
-            scene = {'platform_name': platform_name,
-                     'orbit_number': orbit_number,
-                     'satday': satday, 'sathour': sathour,
-                     'starttime': starttime, 'endtime': endtime,
-                     'sensor': sensors}
 
-            if keyname not in jobs_dict:
-                LOG.warning("Scene-run seems unregistered! Forget it...")
-                continue
-
-            LOG.info('Start a thread preparing the nwp data...')
-            now = datetime.utcnow()
-            t_nwp_pp = threading.Thread(target=prepare_nwp4pps,
-                                        args=(nwp_pp_sema,
-                                              now - timedelta(days=1), NWP_FLENS))
-            t_nwp_pp.start()
-
-            #t_data_pp = threading.Thread(target=prepare_data4pps,
-            #                             args=(msg
-            t__ = threading.Thread(target=pps_worker, args=(sema, scene,
-                                                            jobs_dict,
-                                                            keyname,
-                                                            publisher_q,
-                                                            msg))
-            threads.append(t__)
-            t__.start()
-
-            # Clean the files4pps dict:
-            LOG.debug("files4pps: " + str(files4pps))
-            try:
-                files4pps.pop(keyname)
-            except KeyError:
-                LOG.warning("Failed trying to remove key " + str(keyname) +
-                            " from dictionary files4pps")
-            LOG.debug("After cleaning: files4pps = " + str(files4pps))
+            LOG.info('Start a thread preparing the nwp data and run pps...')
+            thread_pool.new_thread(message_uid(msg),
+                                   target=run_nwp_and_pps, args=(scene, NWP_FLENS,
+                                                                 publisher_q,
+                                                                 msg))
 
             LOG.debug(
                 "Number of threads currently alive: " + str(threading.active_count()))
-
-            # Block any future run on this scene for x minutes from now
-            # x = 20
-            thread_job_registry = threading.Timer(
-                20 * 60.0, reset_job_registry, args=(jobs_dict, keyname))
-            thread_job_registry.start()
 
     LOG.info("Wait till all threads are dead...")
     while True:
