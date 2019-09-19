@@ -47,6 +47,8 @@ from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 
 from nwcsafpps_runner.prepare_nwp import update_nwp
 
+from six.moves.configparser import NoSectionError, NoOptionError
+
 # from ppsRunAll import pps_run_all_serial
 # from ppsCmaskProb import pps_cmask_prob
 
@@ -267,23 +269,48 @@ def check_threads(threads):
 def run_nwp_and_pps(scene, flens, publish_q, input_msg, options):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
-    prepare_nwp4pps(flens)
+    prepare_nwp4pps(flens, options)
     pps_worker(scene, publish_q, input_msg, options)
 
     return
 
 
-def prepare_nwp4pps(flens):
+def prepare_nwp4pps(flens, options):
     """Prepare NWP data for pps"""
 
     starttime = datetime.utcnow() - timedelta(days=1)
     try:
-        update_nwp(starttime, flens)
-        LOG.info("Ready with nwp preparation")
-        LOG.debug("Leaving prepare_nwp4pps...")
-    except:
-        LOG.exception("Something went wrong in update_nwp...")
-        raise
+        module_name = options.get("nwp_handeling_module")
+    except (NoSectionError, NoOptionError):
+        LOG.debug("No custom nwp_handeling_function provided i config file...")
+        LOG.debug("Use build in.")
+        try:
+            update_nwp(starttime, flens)
+        except:
+            LOG.exception("Something went wrong in update_nwp...")
+            raise
+    else:
+        LOG.debug("Use custom nwp_handeling_function provided i config file...")
+        LOG.debug("module_name = %s", str(module_name))
+        try:
+            name = "update_nwp"
+            name = name.replace("/", "")
+            module = __import__(module_name, globals(), locals(), [name])
+            LOG.info("function : {} loaded from module: {}".format([name],module_name))
+        except (ImportError, ModuleNotFoundError):
+            LOG.exception("Failed to import custom compositer for %s", str(name))
+            raise
+        try:
+            params = {}
+            params['starttime'] = starttime
+            params['nlengths'] = flens
+            params['options'] = OPTIONS
+            getattr(module, name)(params)
+        except AttributeError:
+            LOG.debug("Could not get attribute %s from %s", str(name), str(module))
+
+    LOG.info("Ready with nwp preparation")
+    LOG.debug("Leaving prepare_nwp4pps...")
 
 
 def pps(options):
@@ -294,7 +321,35 @@ def pps(options):
 
     LOG.info("First check if NWP data should be downloaded and prepared")
     now = datetime.utcnow()
-    update_nwp(now - timedelta(days=1), NWP_FLENS)
+    try:
+        module_name = options.get("nwp_handeling_module")
+    except (NoSectionError, NoOptionError):
+        LOG.debug("No custom nwp_handeling_function provided i config file...")
+        LOG.debug("Use build in.")
+        update_nwp(now - timedelta(days=1), NWP_FLENS)
+    else:
+        LOG.debug("Use custom nwp_handeling_function provided i config file...")
+        LOG.debug("module_name = %s", str(module_name))
+        try:
+            name = "update_nwp"
+            name = name.replace("/", "")
+            module = __import__(module_name, globals(), locals(), [name])
+            LOG.info("function : {} loaded from module: {}".format([name],module_name))
+        except ImportError:
+            LOG.exception("Failed to import custom compositer for %s", str(name))
+            raise
+        except ModuleNotFoundError:
+            LOG.exception("%s module not found", str(name))
+            raise
+        try:
+            params = {}
+            params['starttime'] = now - timedelta(days=1)
+            params['nlengths'] = NWP_FLENS
+            params['options'] = OPTIONS
+            getattr(module, name)(params)
+        except AttributeError:
+            LOG.debug("Could not get attribute %s from %s", str(name), str(module))
+
     LOG.info("Ready with nwp preparation...")
 
     listener_q = Queue.Queue()
@@ -333,7 +388,7 @@ def pps(options):
                  'sensor': sensors
                  }
 
-        status = ready2run(msg, files4pps,
+        status = ready2run(msg, files4pps, options,
                            sdr_granule_processing=options.get('sdr_processing') == 'granules')
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
