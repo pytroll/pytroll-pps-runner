@@ -306,7 +306,7 @@ def prepare_nwp4pps(flens, nwp_handeling_module):
         except:
             LOG.exception("Something went wrong in update_nwp...")
             raise
-        
+
     LOG.info("Ready with nwp preparation")
     LOG.debug("Leaving prepare_nwp4pps...")
 
