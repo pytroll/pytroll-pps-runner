@@ -281,12 +281,12 @@ def prepare_nwp4pps(flens, nwp_handeling_module):
     starttime = datetime.utcnow() - timedelta(days=1)
     if nwp_handeling_module:
         LOG.debug("Use custom nwp_handeling_function provided i config file...")
-        LOG.debug("module_name = %s", str(module_name))
+        LOG.debug("nwp_module_name = %s", str(nwp_handeling_module))
         try:
             name = "update_nwp"
             name = name.replace("/", "")
-            module = __import__(module_name, globals(), locals(), [name])
-            LOG.info("function : {} loaded from module: {}".format([name],module_name))
+            module = __import__(nwp_handeling_module, globals(), locals(), [name])
+            LOG.info("function : {} loaded from module: {}".format([name],nwp_handeling_module))
         except (ImportError, ModuleNotFoundError):
             LOG.exception("Failed to import custom compositer for %s", str(name))
             raise
