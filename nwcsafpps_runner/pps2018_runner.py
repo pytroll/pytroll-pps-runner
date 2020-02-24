@@ -28,24 +28,35 @@ import sys
 from glob import glob
 from subprocess import Popen, PIPE
 import threading
-import Queue
 from datetime import datetime, timedelta
 #
-from nwcsafpps_runner.config import get_config
-from nwcsafpps_runner.config import MODE
+#: TODO: add this nwcsafpps_runner.
+from config import get_config  # @UnresolvedImport
+from config import MODE  # @UnresolvedImport
 
-from nwcsafpps_runner.utils import ready2run, publish_pps_files
-from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,
-                                    create_pps2018_call_command, get_pps_inputfile,
-                                    logreader, terminate_process, get_outputfiles,
-                                    message_uid)
-from nwcsafpps_runner.utils import PpsRunError
-from nwcsafpps_runner.utils import (SENSOR_LIST,
-                                    SATELLITE_NAME,
-                                    METOP_NAME_LETTER)
-from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
+from utils import ready2run, publish_pps_files  # @UnresolvedImport
+from utils import (get_sceneid, prepare_pps_arguments,  # @UnresolvedImport
+                                    create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport
+                                    logreader, terminate_process, get_outputfiles,  # @UnresolvedImport
+                                    message_uid)  # @UnresolvedImport
+from utils import PpsRunError  # @UnresolvedImport
+from utils import (SENSOR_LIST,  # @UnresolvedImport
+                                    SATELLITE_NAME,  # @UnresolvedImport
+                                    METOP_NAME_LETTER)  # @UnresolvedImport
+from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport
 
-from nwcsafpps_runner.prepare_nwp import update_nwp
+from prepare_nwp import update_nwp  # @UnresolvedImport
+
+#: Python 2/3 differences
+import six
+if six.PY2:
+    import Queue
+    from urlparse import urlparse
+#     from urlparse import urlunsplit
+elif six.PY3:
+    import queue as Queue  # @UnresolvedImport
+    from urllib.parse import urlparse  # @UnresolvedImport
+
 
 # from ppsRunAll import pps_run_all_serial
 # from ppsCmaskProb import pps_cmask_prob

@@ -32,7 +32,8 @@ from posttroll.message import Message
 from trollsift.parser import parse
 import socket
 from datetime import datetime, timedelta
-from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
+#: TODO: add this nwcsafpps_runner.
+from config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
 import six
 if six.PY2:
     from urlparse import urlparse
