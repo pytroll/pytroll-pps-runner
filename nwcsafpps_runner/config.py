@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import pdb
 
 # Copyright (c) 2018 Adam.Dybbroe
 
@@ -34,7 +35,12 @@ elif six.PY3:
 
 MODE = os.getenv("SMHI_MODE")
 if MODE is None:
-    MODE = "offline"
+    #: TODO: Remove later /Erik
+    import pwd
+    if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
+        MODE = "bi"
+    else:
+        MODE = "offline"
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 

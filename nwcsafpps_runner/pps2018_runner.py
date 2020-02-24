@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import pdb
 
 # Copyright (c) 2014 - 2019 Adam.Dybbroe
 
@@ -30,22 +31,38 @@ from subprocess import Popen, PIPE
 import threading
 from datetime import datetime, timedelta
 #
-#: TODO: add this nwcsafpps_runner.
-from config import get_config  # @UnresolvedImport
-from config import MODE  # @UnresolvedImport
+#: TODO: Remove later
+import pwd
+if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
+    from config import get_config  # @UnresolvedImport
+    from config import MODE  # @UnresolvedImport
+    
+    from utils import ready2run, publish_pps_files  # @UnresolvedImport
+    from utils import (get_sceneid, prepare_pps_arguments,  # @UnresolvedImport
+                                        create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport
+                                        logreader, terminate_process, get_outputfiles,  # @UnresolvedImport
+                                        message_uid)  # @UnresolvedImport
+    from utils import PpsRunError  # @UnresolvedImport
+    from utils import (SENSOR_LIST,  # @UnresolvedImport
+                                        SATELLITE_NAME,  # @UnresolvedImport
+                                        METOP_NAME_LETTER)  # @UnresolvedImport
+    from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport
+else:
+    from nwcsafpps_runner.config import get_config  # @UnresolvedImport
+    from nwcsafpps_runner.config import MODE  # @UnresolvedImport
+    
+    from nwcsafpps_runner.utils import ready2run, publish_pps_files  # @UnresolvedImport
+    from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,  # @UnresolvedImport
+                                        create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport
+                                        logreader, terminate_process, get_outputfiles,  # @UnresolvedImport
+                                        message_uid)  # @UnresolvedImport
+    from nwcsafpps_runner.utils import PpsRunError  # @UnresolvedImport
+    from nwcsafpps_runner.utils import (SENSOR_LIST,  # @UnresolvedImport
+                                        SATELLITE_NAME,  # @UnresolvedImport
+                                        METOP_NAME_LETTER)  # @UnresolvedImport
+    from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport
 
-from utils import ready2run, publish_pps_files  # @UnresolvedImport
-from utils import (get_sceneid, prepare_pps_arguments,  # @UnresolvedImport
-                                    create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport
-                                    logreader, terminate_process, get_outputfiles,  # @UnresolvedImport
-                                    message_uid)  # @UnresolvedImport
-from utils import PpsRunError  # @UnresolvedImport
-from utils import (SENSOR_LIST,  # @UnresolvedImport
-                                    SATELLITE_NAME,  # @UnresolvedImport
-                                    METOP_NAME_LETTER)  # @UnresolvedImport
-from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport
-
-from prepare_nwp import update_nwp  # @UnresolvedImport
+    from nwcsafpps_runner.prepare_nwp import update_nwp  # @UnresolvedImport
 
 #: Python 2/3 differences
 import six
@@ -305,12 +322,13 @@ def pps(options):
 
     LOG.info("First check if NWP data should be downloaded and prepared")
     now = datetime.utcnow()
-    update_nwp(now - timedelta(days=1), NWP_FLENS)
+    if pwd.getpwuid(os.getuid()).pw_name != 'sm_erjoh':
+        update_nwp(now - timedelta(days=1), NWP_FLENS)
     LOG.info("Ready with nwp preparation...")
 
     listener_q = Queue.Queue()
     publisher_q = Queue.Queue()
-
+ 
     pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps2018_runner')
     pub_thread.start()
     listen_thread = FileListener(listener_q, options['subscribe_topics'])
@@ -383,7 +401,6 @@ if __name__ == "__main__":
 
     OPTIONS = get_config("pps2018_config.ini")
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
-
     PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
     STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
 
