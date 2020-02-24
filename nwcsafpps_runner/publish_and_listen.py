@@ -29,9 +29,9 @@ import threading
 #: TODO: Remove later /Erik
 import os,pwd
 if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
-    from utils import (SUPPORTED_PPS_SATELLITES)
+    from utils import (SUPPORTED_PPS_SATELLITES, SUPPORTED_METEOSAT_SATELLITES)
 else:
-    from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES)
+    from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES, SUPPORTED_METEOSAT_SATELLITES)
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -71,11 +71,14 @@ class FileListener(threading.Thread):
             return False
 
         if ('platform_name' not in msg.data or
-                'orbit_number' not in msg.data or
                 'start_time' not in msg.data):
             LOG.warning("Message is lacking crucial fields...")
             return False
-        
+        #: Orbit_number not needed for seviri
+        if (msg.data['platform_name'] not in SUPPORTED_METEOSAT_SATELLITES):
+            if ('orbit_number' not in msg.data):
+                LOG.warning("Message is lacking crucial fields...")
+            return False
         if (msg.data['platform_name'] not in SUPPORTED_PPS_SATELLITES):
             LOG.info(str(msg.data['platform_name']) + ": " +
                      "Not a NOAA/Metop/S-NPP/Terra/Aqua scene. Continue...")

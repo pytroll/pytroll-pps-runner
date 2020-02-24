@@ -57,16 +57,18 @@ SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19']
 SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A', 'Metop-C']
 SUPPORTED_EOS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
 SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21']
+SUPPORTED_METEOSAT_SATELLITES = ['Meteosat-09', 'Meteosat-10', 'Meteosat-11']
 
-SUPPORTED_PPS_SATELLITES = (SUPPORTED_NOAA_SATELLITES +
-                            SUPPORTED_METOP_SATELLITES +
-                            SUPPORTED_EOS_SATELLITES +
+SUPPORTED_PPS_SATELLITES = (SUPPORTED_NOAA_SATELLITES + 
+                            SUPPORTED_METOP_SATELLITES + 
+                            SUPPORTED_EOS_SATELLITES + 
+                            SUPPORTED_METEOSAT_SATELLITES + 
                             SUPPORTED_JPSS_SATELLITES)
 
 GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
 DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 
-PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis']
+PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis', 'seviri']
 REQUIRED_MW_SENSORS = {}
 REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
 # REQUIRED_MW_SENSORS['NOAA-18'] = ['amsu-a', 'mhs']
@@ -87,7 +89,9 @@ SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
                   'Metop-C': 'metop03',
                   'Suomi-NPP': 'npp',
                   'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21',
-                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1'}
+                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1', 
+                  'Meteosat-09': 'Meteosat-09', 'Meteosat-10': 'Meteosat-10', 
+                  'Meteosat-11': 'Meteosat-11'}
 SENSOR_LIST = {}
 for sat in SATELLITE_NAME:
     if sat in ['NOAA-15']:
@@ -96,6 +100,8 @@ for sat in SATELLITE_NAME:
         SENSOR_LIST[sat] = 'modis'
     elif sat in ['Suomi-NPP', 'NOAA-20', 'NOAA-21']:
         SENSOR_LIST[sat] = 'viirs'
+    elif 'Meteosat' in sat:
+        SENSOR_LIST[sat] = 'seviri'
     else:
         SENSOR_LIST[sat] = ['avhrr/3', 'mhs', 'amsu-a']
 
@@ -246,7 +252,9 @@ def ready2run(msg, files4pps, **kwargs):
         url_ip = socket.gethostbyname(msg.host)
         if url_ip not in get_local_ips():
             LOG.warning("Server %s not the current one: %s", str(url_ip), socket.gethostname())
-            return False
+            #: TODO: remove if. Everything should return False
+            if pwd.getpwuid(os.getuid()).pw_name != 'sm_erjoh':
+                return False
     except (AttributeError, socket.gaierror) as err:
         LOG.error("Failed checking host! Hostname = %s", socket.gethostname())
         LOG.exception(err)
@@ -259,7 +267,13 @@ def ready2run(msg, files4pps, **kwargs):
                  "Continue...")
         return False
 
-    if msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES:
+    if msg.data['platform_name'] in SUPPORTED_METEOSAT_SATELLITES:
+        if msg.data['sensor'] not in ['seviri', ]:
+            LOG.info(
+                'Sensor ' + str(msg.data['sensor']) +
+                ' not required for MODIS PPS processing...')
+            return False
+    elif msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES:
         if msg.data['sensor'] not in ['modis', ]:
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) +
@@ -295,6 +309,7 @@ def ready2run(msg, files4pps, **kwargs):
     # sensor = (msg.data['sensor'])
     platform_name = msg.data['platform_name']
 
+    
     if platform_name not in SATELLITE_NAME:
         LOG.warning("Satellite not supported: " + str(platform_name))
         return False
@@ -444,6 +459,10 @@ def get_pps_inputfile(platform_name, ppsfiles):
     elif platform_name in SUPPORTED_JPSS_SATELLITES:
         for ppsfile in ppsfiles:
             if os.path.basename(ppsfile).find('SVM01') >= 0:
+                return ppsfile
+    elif platform_name in SUPPORTED_METEOSAT_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('NWC') >= 0: #: TODO: What i this?
                 return ppsfile
 
     return None

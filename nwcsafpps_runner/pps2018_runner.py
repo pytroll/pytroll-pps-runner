@@ -346,6 +346,13 @@ def pps(options):
 
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
+        
+        if isinstance(msg.data['sensor'], list):
+            msg.data['sensor'] = msg.data['sensor'][0]
+        if 'orbit_number' not in msg.data.keys():
+            msg.data.update({'orbit_number': 99999})
+        if 'end_time' not in msg.data.keys():
+            msg.data.update({'end_time': 99999})
 
         orbit_number = int(msg.data['orbit_number'])
         platform_name = msg.data['platform_name']
@@ -367,6 +374,7 @@ def pps(options):
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
             scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
+            pdb.set_trace()
 
             LOG.info('Start a thread preparing the nwp data and run pps...')
             thread_pool.new_thread(message_uid(msg),
