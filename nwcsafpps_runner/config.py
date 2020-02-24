@@ -24,8 +24,13 @@
 """
 
 import os
-import ConfigParser
 import socket
+#: Python 2/3 differences
+import six
+if six.PY2:
+    import ConfigParser
+elif six.PY3:
+    import configparser as ConfigParser
 
 MODE = os.getenv("SMHI_MODE")
 if MODE is None:
