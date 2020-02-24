@@ -26,7 +26,8 @@
 import posttroll.subscriber
 from posttroll.publisher import Publish
 import threading
-from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES)
+#: TODO: add this nwcsafpps_runner.
+from utils import (SUPPORTED_PPS_SATELLITES)
 import logging
 LOG = logging.getLogger(__name__)
 
