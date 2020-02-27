@@ -23,14 +23,19 @@
 """Prepare NWP data for PPS
 """
 
-import logging
 from glob import glob
 import os
 from datetime import datetime
-import ConfigParser
 import tempfile
 from subprocess import Popen, PIPE
+#: Python 2/3 differences
+import six
+if six.PY2:
+    import ConfigParser
+elif six.PY3:
+    import configparser as ConfigParser
 
+import logging
 LOG = logging.getLogger(__name__)
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
