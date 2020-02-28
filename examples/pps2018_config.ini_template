@@ -75,3 +75,7 @@ nhsf_path = /data/prodtest/sam/data/data/S/REDA/ECMWF/
 #nhsf_path = /data/proj/sam/sam-utv/data/data/S/LL02_NHSF
 
 
+[metno-test]
+
+nhsf_prefix = LL02_NHSF_
+nhsf_file_name_sift = {nhsf_prefix:3s}{analyse_time:8s}{forecast_time:8s}{end:1s}

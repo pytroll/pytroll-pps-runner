@@ -31,7 +31,7 @@ from glob import glob
 from posttroll.message import Message
 from trollsift.parser import parse
 import socket
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
 from datetime import datetime, timedelta
 from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
 import logging
@@ -134,6 +134,11 @@ class SceneId(object):
     def __str__(self):
 
         return (str(self.platform_name) + '_' +
+                str(self.orbit_number) + '_' +
+                str(self.starttime.strftime('%Y%m%d%H%M')))
+
+    def __hash__(self):
+        return hash(str(self.platform_name) + '_' +
                 str(self.orbit_number) + '_' +
                 str(self.starttime.strftime('%Y%m%d%H%M')))
 
@@ -308,7 +313,8 @@ def ready2run(msg, files4pps, **kwargs):
             files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if (msg.data['variant'] in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES):
+    if ('variant' in msg.data and msg.data['variant'] in ['EARS', ] and
+        platform_name in SUPPORTED_METOP_SATELLITES):
         LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
     elif (platform_name in SUPPORTED_METOP_SATELLITES or
           platform_name in SUPPORTED_NOAA_SATELLITES):
