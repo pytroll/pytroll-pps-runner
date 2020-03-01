@@ -90,8 +90,8 @@ SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
                   'Suomi-NPP': 'npp',
                   'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21',
                   'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1', 
-                  'Meteosat-09': 'Meteosat-09', 'Meteosat-10': 'Meteosat-10', 
-                  'Meteosat-11': 'Meteosat-11'}
+                  'Meteosat-09': 'meteosat09', 'Meteosat-10': 'meteosat10', 
+                  'Meteosat-11': 'meteosat11'}
 SENSOR_LIST = {}
 for sat in SATELLITE_NAME:
     if sat in ['NOAA-15']:
@@ -429,6 +429,9 @@ def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=Tr
     elif scene['platform_name'] in SUPPORTED_JPSS_SATELLITES:
         cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
                   " --csppfile %s" % scene['file4pps'])
+    elif scene['platform_name'] in SUPPORTED_METEOSAT_SATELLITES:
+        cmdstr = ("%s" % python_exec + " %s " % pps_script_name +
+                  "-af %s" % scene['file4pps'])
     else:
         cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
                   " --hrptfile %s" % scene['file4pps'])
@@ -578,7 +581,11 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
                          "file", to_send).encode()
         LOG.debug("sending: " + str(pubmsg))
         LOG.info("Sending: " + str(pubmsg))
-        publish_q.put(pubmsg)
+        #: TODO: remove try. Use only put
+        try:
+            publish_q.put(pubmsg)
+        except:
+            publish_q.send(pubmsg)
 
     return
 

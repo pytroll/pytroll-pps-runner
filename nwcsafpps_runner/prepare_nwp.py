@@ -38,6 +38,7 @@ elif six.PY3:
 import logging
 LOG = logging.getLogger(__name__)
 
+
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONF = ConfigParser.ConfigParser()
 ppsconf_path = os.path.join(CONFIG_PATH, "pps_config.cfg")
@@ -46,7 +47,12 @@ CONF.read(ppsconf_path)
 
 MODE = os.getenv("SMHI_MODE")
 if MODE is None:
-    MODE = "offline"
+    #: TODO: Remove later /Erik
+    import pwd
+    if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
+        MODE = "bi"
+    else:
+        MODE = "offline"
 
 LOG.debug('MODE = ' + str(MODE))
 
