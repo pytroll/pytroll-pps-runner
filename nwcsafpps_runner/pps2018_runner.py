@@ -250,7 +250,9 @@ def pps_worker(scene, publish_q, input_msg, options):
                 LOG.info("Time control ascii file: " + str(infile))
                 ppstime_con = PPSTimeControl(infile)
                 ppstime_con.sum_up_processing_times()
-#                 ppstime_con.write_xml()
+                #: TODO: Remove later
+                if pwd.getpwuid(os.getuid()).pw_name != 'sm_erjoh':
+                    ppstime_con.write_xml()
         # The PPS post-hooks takes care of publishing the PPS PGEs
         # For the XML files we keep the publishing from here:
         xml_files = get_outputfiles(pps_control_path,
@@ -384,9 +386,11 @@ def pps(options):
                         LOG.info('Start a thread preparing the nwp data and run pps...')
                         #: TODO: Remove later
                         if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
-            #                 message_uid(msg)
-            #                 run_nwp_and_pps(scene, NWP_FLENS, publisher_q, msg, options)
-                            pps_worker(scene, publisher_q, msg, options)
+                            message_uid(msg)
+#                             pdb.set_trace()
+                            run_nwp_and_pps(scene, NWP_FLENS, publisher_q, msg, options)
+                            pdb.set_trace()
+#                             pps_worker(scene, publisher_q, msg, options)
                         else:
                             thread_pool.new_thread(message_uid(msg),
                                                    target=run_nwp_and_pps, args=(scene, NWP_FLENS,
