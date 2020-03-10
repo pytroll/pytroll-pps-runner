@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import pdb
 
 # Copyright (c) 2014 - 2019 Adam.Dybbroe
 
@@ -34,7 +33,9 @@ from datetime import datetime, timedelta
 #: TODO: Remove later
 import pwd
 if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
+    import pdb
     from config import get_config  # @UnresolvedImport
+    from config import CONFIG_FILE  # @UnresolvedImport
     from config import MODE  # @UnresolvedImport
     
     from utils import ready2run, publish_pps_files  # @UnresolvedImport
@@ -50,6 +51,7 @@ if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
     from prepare_nwp import update_nwp  # @UnresolvedImport
 else:
     from nwcsafpps_runner.config import get_config  # @UnresolvedImport
+    from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport
     from nwcsafpps_runner.config import MODE  # @UnresolvedImport
     
     from nwcsafpps_runner.utils import ready2run, publish_pps_files  # @UnresolvedImport
@@ -421,12 +423,19 @@ def pps(options):
 if __name__ == "__main__":
 
     from logging import handlers
-
-    OPTIONS = get_config("pps2018_config.ini")
+    LOG.debug("Path to pps2018_runner config file = " + CONFIG_FILE)
+    OPTIONS = get_config(CONFIG_FILE)
+    pdb.set_trace()
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
     PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
     STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
-
+#     for arname, val in options_yaml.items():
+#         if arname not in OPTIONS.keys():
+#             print('no key = %s' %arname)
+#             continue
+#         if val != OPTIONS[arname]:
+#             print('vrong val = %s' %arname)
+#     pdb.set_trace()
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])
         ncount = int(OPTIONS["log_rotation_backup"])

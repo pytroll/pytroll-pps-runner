@@ -28,38 +28,20 @@ import os
 from datetime import datetime
 import tempfile
 from subprocess import Popen, PIPE
-#: Python 2/3 differences
-import six
-if six.PY2:
-    import ConfigParser
-elif six.PY3:
-    import configparser as ConfigParser
+#: TODO: Remove later
+import pwd
+if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
+    from config import get_config  # @UnresolvedImport
+    from config import CONFIG_FILE  # @UnresolvedImport
+else:
+    from nwcsafpps_runner.config import get_config  # @UnresolvedImport
+    from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport
 
 import logging
 LOG = logging.getLogger(__name__)
 
-
-CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-CONF = ConfigParser.ConfigParser()
-ppsconf_path = os.path.join(CONFIG_PATH, "pps_config.cfg")
-LOG.debug("Path to config file = " + str(ppsconf_path))
-CONF.read(ppsconf_path)
-
-MODE = os.getenv("SMHI_MODE")
-if MODE is None:
-    #: TODO: Remove later /Erik
-    import pwd
-    if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
-        MODE = "bi"
-    else:
-        MODE = "offline"
-
-LOG.debug('MODE = ' + str(MODE))
-
-OPTIONS = {}
-for option, value in CONF.items(MODE, raw=True):
-    OPTIONS[option] = value
-
+LOG.debug("Path to prepare_nwp config file = " + CONFIG_FILE)
+OPTIONS = get_config(CONFIG_FILE)
 
 try:
     nhsp_path = OPTIONS['nhsp_path']

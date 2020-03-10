@@ -1,0 +1,72 @@
+nhsp_prefix: LL02_NHSP_
+nhsf_prefix: LL02_NHSF_
+nwp_static_surface: /san1/pps/import/NWP_data/lsm_z.grib1
+nwp_output_prefix: LL02_NHSPSF_
+nwp_outdir: /san1/pps/import/NWP_data/source
+
+pps_nwp_requirements: /san1/pps/import/NWP_data/pps_nwp_list_of_required_fields.txt
+
+publish_topic: PPS
+subscribe_topics: [AAPP-HRPT,AAPP-PPS,EOS/1B,segment/SDR/1B,1c/nc/0deg]
+sdr_processing: granules
+run_cmask_prob: yes
+number_of_threads: 10
+
+run_all_script: /local_disk/opt/acpg/v2018/scr/ppsRunAll.py
+run_cmaprob_script: /local_disk/opt/acpg/v2018/scr/ppsCmaskProb.py
+python: /bin/python
+maximum_pps_processing_time_in_minutes: 20
+station: norrkoping
+
+
+offline:
+    level1_dir: /local_disk/data/pps/import/PPS_data/source
+
+    nhsp_path: /data/proj/sam/sam-utv/data/data/S/LL02_NHSP
+    nhsf_path: /data/proj/sam/sam-utv/data/data/S/LL02_NHSF
+    nwp_outdir: /home/a000680/data/pps/import/NWP_data/source
+    nwp_static_surface: /home/a000680/laptop/Satsa/nwp_ingest/lsm_z.grib1
+
+
+prod:
+    level1_dir: /san1/pps/import/PPS_data/source
+    pps_outdir: /data/24/saf/polar_out/direct_readout
+    pps_statistics_dir: /data/24/saf/polar_out/monitoring/direct_readout
+
+    nhsp_path: /data/24/baps/weatherdata/ECNH/
+    nhsf_path: /data/24/sam/data/data/S/REDA/ECMWF/
+
+    log_rotation_days: 1
+    log_rotation_backup: 10
+
+    ncpus: 4
+
+test:
+    level1_dir: /san1/pps/import/PPS_data/source
+    pps_outdir: /data/prodtest/saf/polar_out/direct_readout
+    pps_statistics_dir: /data/prodtest/saf/polar_out/monitoring/direct_readout
+
+    nhsp_path: /data/prodtest/baps/weatherdata/ECNH/
+    nhsf_path: /data/prodtest/sam/data/data/S/REDA/ECMWF/
+
+    log_rotation_days: 1
+    log_rotation_backup: 10
+
+    ncpus: 4
+
+utv:
+    level1_dir: /san1/pps/import/PPS_data/source
+    pps_outdir: /data/proj/safutv/data/polar_out/direct_readout
+    pps_statistics_dir: /data/proj/safutv/polar_out/monitoring/direct_readout
+    pps_script: /usr/bin/pps_run.sh
+
+    log_rotation_days: 1
+    log_rotation_backup: 10
+
+    ncpus: 4
+
+
+    nhsp_path: /data/prodtest/baps/weatherdata/ECNH/
+    nhsf_path: /data/prodtest/sam/data/data/S/REDA/ECMWF/
+
+

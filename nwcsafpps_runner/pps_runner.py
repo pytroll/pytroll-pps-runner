@@ -32,6 +32,7 @@ from datetime import datetime, timedelta
 
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
+from nwcsafpps_runner.config import CONFIG_FILE
 from nwcsafpps_runner.utils import ready2run, publish_pps_files
 from nwcsafpps_runner.utils import (terminate_process,
                                     create_pps_call_command_sequence,
@@ -295,7 +296,7 @@ if __name__ == "__main__":
 
     from logging import handlers
 
-    OPTIONS = get_config("pps_config.cfg")
+    OPTIONS = get_config(CONFIG_FILE)
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
 
     # PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
