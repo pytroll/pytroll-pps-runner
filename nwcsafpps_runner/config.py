@@ -27,16 +27,8 @@ import pdb
 import os
 import socket
 
-MODE = os.getenv("SMHI_MODE")
-if MODE is None:
-    #: TODO: Remove later /Erik
-    import pwd
-    if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
-        MODE = "bi"
-    else:
-        MODE = "offline"
+MODE = os.environ.get('SMHI_MODE', 'offline')
 
-#     CONFIGFILE = "pps2018_config.ini"
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
 
@@ -44,15 +36,14 @@ LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
 LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 def get_config(configfile, service=MODE, procenv=''):
-    configfile = os.path.join(CONFIG_PATH, configfile)
-    if os.path.splitext(configfile)[1] == '.yaml':
-        options = get_config_yaml(configfile, service, procenv)
-    elif (os.path.splitext(configfile)[1] == '.ini') or \
-            (os.path.splitext(configfile)[1] == '.cfg'):
-        options = get_config_init_cfg(configfile, service=MODE)
+    conf = os.path.join(CONFIG_PATH, configfile)
+    filetype = os.path.splitext(conf)[1]
+    if filetype == '.yaml':
+        options = get_config_yaml(conf, service, procenv)
+    elif filetype in ['.ini', '.cfg']:
+        options = get_config_init_cfg(conf, service=MODE)
     else:
-        print("%s is not a valid extension for the config file" \
-              %os.path.splitext(configfile)[1])
+        print("%s is not a valid extension for the config file" %filetype)
         print("Pleas use .yaml, .ini or .cfg")
         options = -1
     return options
