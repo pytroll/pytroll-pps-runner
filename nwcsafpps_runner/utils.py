@@ -125,7 +125,7 @@ def check_uri(uri):
                         "Data file %s unaccessible from this host" % uri)
 
     except socket.gaierror:
-        LOGGER.warning("Couldn't check file location, running anyway")
+        LOG.warning("Couldn't check file location, running anyway")
 
     return url.path
 
@@ -247,6 +247,7 @@ def ready2run(msg, files4pps, **kwargs):
         if url_ip not in get_local_ips():
             LOG.warning("Server %s not the current one: %s", str(url_ip), socket.gethostname())
             #: TODO: remove if. Everything should return False
+            import pwd
             if pwd.getpwuid(os.getuid()).pw_name != 'sm_erjoh':
                 return False
     except (AttributeError, socket.gaierror) as err:
@@ -463,7 +464,7 @@ def get_pps_inputfile(platform_name, ppsfiles):
                 return ppsfile
     elif platform_name in SUPPORTED_METEOSAT_SATELLITES:
         for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('NWC') >= 0: #: TODO: What i this?
+            if os.path.basename(ppsfile).find('NWC') >= 0:
                 return ppsfile
 
     return None
