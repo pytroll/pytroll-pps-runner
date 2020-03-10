@@ -23,15 +23,15 @@
 """Publisher and Listener classes for the PPS runners
 """
 
-import posttroll.subscriber
-from posttroll.publisher import Publish
+import posttroll.subscriber  # @UnresolvedImport
+from posttroll.publisher import Publish  # @UnresolvedImport
 import threading
 #: TODO: Remove later /Erik
 import os,pwd
 if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
-    from utils import (SUPPORTED_PPS_SATELLITES, SUPPORTED_METEOSAT_SATELLITES)
+    from utils import (SUPPORTED_PPS_SATELLITES, SUPPORTED_METEOSAT_SATELLITES)  # @UnresolvedImport
 else:
-    from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES, SUPPORTED_METEOSAT_SATELLITES)
+    from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES, SUPPORTED_METEOSAT_SATELLITES)  # @UnresolvedImport
 
 import logging
 LOG = logging.getLogger(__name__)
