@@ -32,12 +32,6 @@ from posttroll.message import Message
 from trollsift.parser import parse
 import socket
 from datetime import datetime, timedelta
-#: TODO: Remove later /Erik
-import pwd
-if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
-    from config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
-else:
-    from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
 import six
 if six.PY2:
     from urlparse import urlparse
@@ -397,6 +391,10 @@ def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
 
 
 def create_pps_call_command_sequence(pps_script_name, scene, options):
+    LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', 
+                                   options.get('LVL1_NPP_PATH', None))
+    LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', 
+                                   options.get('LVL1_EOS_PATH', None))
 
     if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
         cmdstr = "%s %s %s %s %s" % (pps_script_name,

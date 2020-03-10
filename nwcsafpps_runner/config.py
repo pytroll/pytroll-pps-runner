@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import pdb
 
 # Copyright (c) 2018 Adam.Dybbroe
 
@@ -32,8 +31,6 @@ MODE = os.environ.get('SMHI_MODE', 'offline')
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
 
-LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
-LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 def get_config(conf, service=MODE, procenv=''):
     configfile = os.path.join(CONFIG_PATH, conf)
@@ -76,6 +73,7 @@ def get_config_init_cfg(configfile, service=MODE):
     options['station'] = options.get('station', 'unknown')
 
     return options
+
 
 def get_config_yaml(configfile, service=MODE, procenv=''):
     """Get the configuration from file"""
