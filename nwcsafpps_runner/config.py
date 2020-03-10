@@ -35,13 +35,13 @@ CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
 LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
 LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
-def get_config(configfile, service=MODE, procenv=''):
-    conf = os.path.join(CONFIG_PATH, configfile)
+def get_config(conf, service=MODE, procenv=''):
+    configfile = os.path.join(CONFIG_PATH, conf)
     filetype = os.path.splitext(conf)[1]
     if filetype == '.yaml':
-        options = get_config_yaml(conf, service, procenv)
+        options = get_config_yaml(configfile, service, procenv)
     elif filetype in ['.ini', '.cfg']:
-        options = get_config_init_cfg(conf, service=MODE)
+        options = get_config_init_cfg(configfile, service=MODE)
     else:
         print("%s is not a valid extension for the config file" %filetype)
         print("Pleas use .yaml, .ini or .cfg")
