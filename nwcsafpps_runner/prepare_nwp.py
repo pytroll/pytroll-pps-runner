@@ -27,14 +27,15 @@ import logging
 from glob import glob
 import os
 from datetime import datetime
-import ConfigParser
+from six.moves.configparser import ConfigParser
 import tempfile
 from subprocess import Popen, PIPE
+from nwcsafpps_runner.helper_functions import run_command
 
 LOG = logging.getLogger(__name__)
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-CONF = ConfigParser.ConfigParser()
+CONF = ConfigParser()
 ppsconf_path = os.path.join(CONFIG_PATH, "pps_config.cfg")
 LOG.debug("Path to config file = " + str(ppsconf_path))
 CONF.read(ppsconf_path)
@@ -115,7 +116,6 @@ def update_nwp(starttime, nlengths):
     """
 
     tempfile.tempdir = nwp_outdir
-
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
         LOG.info("No input files! dir = " + str(nhsf_path))
@@ -124,12 +124,51 @@ def update_nwp(starttime, nlengths):
     LOG.debug('NHSF NWP files found = ' + str(filelist))
     nfiles_error = 0
     for filename in filelist:
-        timeinfo = filename.rsplit("_", 1)[-1]
-        timestamp, step = timeinfo.split("+")
-        analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
+        #filename = os.path.basename(filename2)
+        if nhsf_file_name_sift != None:
+            try:
+                parser = Parser(nhsf_file_name_sift)
+            except NoOptionError as noe:
+                LOG.error("NoOptionError {}".format(noe)) 
+                continue
+            if not parser.validate(os.path.basename(filename)):
+                LOG.error("Parser validate on filename: {} failed.".format(filename))
+                continue
+            LOG.info("{}".format(os.path.basename(filename)))
+            res = parser.parse("{}".format(os.path.basename(filename)))
+            LOG.info("{}".format(res))
+            if 'analysis_time' in res:
+                if res['analysis_time'].year == 1900:
+                    #year_now = datetime.utcnow().year
+                    #print year_now
+                    res['analysis_time'] = res['analysis_time'].replace( year = datetime.utcnow().year)
+                    #res['analysis_time'].year = datetime.utcnow().year
+            else:
+                LOG.error("Can not parse analysis_time in file name. Check config and filename timestamp")
+            if 'forecast_time' in res:
+                if res['forecast_time'].year == 1900:
+                    res['forecast_time'] = res['forecast_time'].replace( year = datetime.utcnow().year)
+            else:
+                LOG.error("Can not parse forecast_time in file name. Check config and filename timestamp")
+            forecast_time = res['forecast_time']
+            analysis_time = res['analysis_time']
+            timestamp = analysis_time.strftime("%Y%m%d%H%M")
+            step = forecast_time - analysis_time
+            step = "{:03d}H{:02d}M".format(step.days*24 + step.seconds/3600,0)
+            #timeinfo = "{:s}_{:s}".format(timestamp, step)
+            timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime("%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
+            type(step)
+        else:
+            timeinfo = filename.rsplit("_", 1)[-1]
+            timestamp, step = timeinfo.split("+")
+            analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
+
+        print(analysis_time, starttime)
         if analysis_time < starttime:
+            print("skip analysis")
             continue
         if int(step[:3]) not in nlengths:
+            print("skip step",int(step[:3]), nlengths)
             continue
 
         LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(step))
