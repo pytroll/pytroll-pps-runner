@@ -193,6 +193,8 @@ def ready2run(msg, files4pps, **kwargs):
     LOG.info("Got message: " + str(msg))
 
     sdr_granule_processing = kwargs.get('sdr_granule_processing')
+    stream_tag_name = kwargs.get('stream_tag_name', 'variant')
+    stream_name = kwargs.get('stream_name', 'EARS')
     destination = msg.data.get('destination')
 
     uris = []
@@ -313,7 +315,7 @@ def ready2run(msg, files4pps, **kwargs):
             files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if ('variant' in msg.data and msg.data['variant'] in ['EARS', ] and
+    if (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
         platform_name in SUPPORTED_METOP_SATELLITES):
         LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
     elif (platform_name in SUPPORTED_METOP_SATELLITES or

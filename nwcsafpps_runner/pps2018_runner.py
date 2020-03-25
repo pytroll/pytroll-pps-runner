@@ -47,6 +47,8 @@ from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 
 from nwcsafpps_runner.prepare_nwp import update_nwp
 
+from six.moves.configparser import NoSectionError, NoOptionError
+
 # from ppsRunAll import pps_run_all_serial
 # from ppsCmaskProb import pps_cmask_prob
 
@@ -264,26 +266,49 @@ def check_threads(threads):
     return
 
 
-def run_nwp_and_pps(scene, flens, publish_q, input_msg, options):
+def run_nwp_and_pps(scene, flens, publish_q, input_msg, nwp_handeling_module):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
-    prepare_nwp4pps(flens)
+    prepare_nwp4pps(flens, nwp_handeling_module)
     pps_worker(scene, publish_q, input_msg, options)
 
     return
 
 
-def prepare_nwp4pps(flens):
+def prepare_nwp4pps(flens, nwp_handeling_module):
     """Prepare NWP data for pps"""
 
     starttime = datetime.utcnow() - timedelta(days=1)
-    try:
-        update_nwp(starttime, flens)
-        LOG.info("Ready with nwp preparation")
-        LOG.debug("Leaving prepare_nwp4pps...")
-    except:
-        LOG.exception("Something went wrong in update_nwp...")
-        raise
+    if nwp_handeling_module:
+        LOG.debug("Use custom nwp_handeling_function provided i config file...")
+        LOG.debug("nwp_module_name = %s", str(nwp_handeling_module))
+        try:
+            name = "update_nwp"
+            name = name.replace("/", "")
+            module = __import__(nwp_handeling_module, globals(), locals(), [name])
+            LOG.info("function : {} loaded from module: {}".format([name],nwp_handeling_module))
+        except (ImportError, ModuleNotFoundError):
+            LOG.exception("Failed to import custom compositer for %s", str(name))
+            raise
+        try:
+            params = {}
+            params['starttime'] = starttime
+            params['nlengths'] = flens
+            params['options'] = OPTIONS
+            getattr(module, name)(params)
+        except AttributeError:
+            LOG.debug("Could not get attribute %s from %s", str(name), str(module))
+    else:
+        LOG.debug("No custom nwp_handeling_function provided i config file...")
+        LOG.debug("Use build in.")
+        try:
+            update_nwp(starttime, flens)
+        except:
+            LOG.exception("Something went wrong in update_nwp...")
+            raise
+
+    LOG.info("Ready with nwp preparation")
+    LOG.debug("Leaving prepare_nwp4pps...")
 
 
 def pps(options):
@@ -293,9 +318,8 @@ def pps(options):
     LOG.info("*** Start the PPS level-2 runner:")
 
     LOG.info("First check if NWP data should be downloaded and prepared")
-    now = datetime.utcnow()
-    update_nwp(now - timedelta(days=1), NWP_FLENS)
-    LOG.info("Ready with nwp preparation...")
+    nwp_handeling_module=options.get("nwp_handeling_module", None)
+    prepare_nwp4pps(NWP_FLENS, nwp_handeling_module)
 
     listener_q = Queue()
     publisher_q = Queue()
@@ -334,6 +358,8 @@ def pps(options):
                  }
 
         status = ready2run(msg, files4pps,
+                           stream_tag_name=options.get('stream_tag_name', 'variant'),
+                           stream_name=options.get('stream_name', 'EARS'),
                            sdr_granule_processing=options.get('sdr_processing') == 'granules')
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
@@ -343,7 +369,7 @@ def pps(options):
             thread_pool.new_thread(message_uid(msg),
                                    target=run_nwp_and_pps, args=(scene, NWP_FLENS,
                                                                  publisher_q,
-                                                                 msg, options))
+                                                                 msg, nwp_handeling_module))
 
             LOG.debug(
                 "Number of threads currently alive: " + str(threading.active_count()))
