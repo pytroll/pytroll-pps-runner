@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018 Martin Raspaud
+# Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018, 2020 Pytroll Community
 
 # Author(s):
 
 #   Martin Raspaud <martin.raspaud@smhi.se>
+#   Adam Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,7 +48,7 @@ setup(name="pps_runner",
                'bin/pps_run.sh', ],
       data_files=[],
       zip_safe=False,
-      install_requires=['posttroll', ],
+      install_requires=['posttroll', 'trollsift', ],
       # test_requires=['mock'],
       # test_suite='pps_runner.tests.suite',
       )

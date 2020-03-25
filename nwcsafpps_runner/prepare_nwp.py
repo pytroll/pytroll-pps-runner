@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015 - 2019 Adam.Dybbroe
+# Copyright (c) 2015 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -29,8 +29,7 @@ import os
 from datetime import datetime
 from six.moves.configparser import ConfigParser
 import tempfile
-from subprocess import Popen, PIPE
-from nwcsafpps_runner.helper_functions import run_command
+from nwcsafpps_runner.utils import run_command
 
 LOG = logging.getLogger(__name__)
 
@@ -67,8 +66,6 @@ nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
 nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
 nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
 
-import threading
-
 
 class NwpPrepareError(Exception):
     pass
@@ -81,31 +78,6 @@ def logreader(stream, log_func):
             break
         log_func(s.strip())
     stream.close()
-
-
-def run_command(cmdstr):
-    """Run system command"""
-
-    import shlex
-    myargs = shlex.split(str(cmdstr))
-
-    LOG.debug("Command: " + str(cmdstr))
-    LOG.debug('Command sequence= ' + str(myargs))
-    try:
-        proc = Popen(myargs, shell=False, stderr=PIPE, stdout=PIPE)
-    except NwpPrepareError:
-        LOG.exception("Failed when preparing NWP data for PPS...")
-
-    out_reader = threading.Thread(
-        target=logreader, args=(proc.stdout, LOG.info))
-    err_reader = threading.Thread(
-        target=logreader, args=(proc.stderr, LOG.info))
-    out_reader.start()
-    err_reader.start()
-    out_reader.join()
-    err_reader.join()
-
-    return proc.wait()
 
 
 def update_nwp(starttime, nlengths):
@@ -129,7 +101,7 @@ def update_nwp(starttime, nlengths):
             try:
                 parser = Parser(nhsf_file_name_sift)
             except NoOptionError as noe:
-                LOG.error("NoOptionError {}".format(noe)) 
+                LOG.error("NoOptionError {}".format(noe))
                 continue
             if not parser.validate(os.path.basename(filename)):
                 LOG.error("Parser validate on filename: {} failed.".format(filename))
@@ -140,23 +112,24 @@ def update_nwp(starttime, nlengths):
             if 'analysis_time' in res:
                 if res['analysis_time'].year == 1900:
                     #year_now = datetime.utcnow().year
-                    #print year_now
-                    res['analysis_time'] = res['analysis_time'].replace( year = datetime.utcnow().year)
+                    # print year_now
+                    res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
                     #res['analysis_time'].year = datetime.utcnow().year
             else:
                 LOG.error("Can not parse analysis_time in file name. Check config and filename timestamp")
             if 'forecast_time' in res:
                 if res['forecast_time'].year == 1900:
-                    res['forecast_time'] = res['forecast_time'].replace( year = datetime.utcnow().year)
+                    res['forecast_time'] = res['forecast_time'].replace(year=datetime.utcnow().year)
             else:
                 LOG.error("Can not parse forecast_time in file name. Check config and filename timestamp")
             forecast_time = res['forecast_time']
             analysis_time = res['analysis_time']
             timestamp = analysis_time.strftime("%Y%m%d%H%M")
             step = forecast_time - analysis_time
-            step = "{:03d}H{:02d}M".format(step.days*24 + step.seconds/3600,0)
+            step = "{:03d}H{:02d}M".format(step.days*24 + step.seconds/3600, 0)
             #timeinfo = "{:s}_{:s}".format(timestamp, step)
-            timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime("%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
+            timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime(
+                "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
             type(step)
         else:
             timeinfo = filename.rsplit("_", 1)[-1]
@@ -168,7 +141,7 @@ def update_nwp(starttime, nlengths):
             print("skip analysis")
             continue
         if int(step[:3]) not in nlengths:
-            print("skip step",int(step[:3]), nlengths)
+            print("skip step", int(step[:3]), nlengths)
             continue
 
         LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(step))
