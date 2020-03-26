@@ -35,8 +35,8 @@ LOG = logging.getLogger(__name__)
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONF = ConfigParser()
-ppsconf_path = os.path.join(CONFIG_PATH, "pps_config.cfg")
-LOG.debug("Path to config file = " + str(ppsconf_path))
+ppsconf_path = os.path.join(CONFIG_PATH, "pps2018_config.cfg")
+LOG.debug("Path to config file = ", str(ppsconf_path))
 CONF.read(ppsconf_path)
 
 MODE = os.getenv("SMHI_MODE")
