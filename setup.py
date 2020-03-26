@@ -23,15 +23,29 @@
 
 """Setup for pps-runner.
 """
-from setuptools import setup
+from setuptools import setup, find_packages
 import imp
 
-version = imp.load_source(
-    'nwcsafpps_runner.version', 'nwcsafpps_runner/version.py')
+try:
+    # HACK: https://github.com/pypa/setuptools_scm/issues/190#issuecomment-351181286
+    # Stop setuptools_scm from including all repository files
+    import setuptools_scm.integration
+    setuptools_scm.integration.find_files = lambda _: []
+except ImportError:
+    pass
 
-setup(name="pps_runner",
-      version=version.__version__,
-      description='Pytroll runner for PPS',
+description = 'Pytroll runner for PPS'
+
+try:
+    with open('./README', 'r') as fd:
+        long_description = fd.read()
+except IOError:
+    long_description = ''
+
+NAME = "pps_runner"
+
+setup(name=NAME,
+      description=description,
       author='Adam Dybroe',
       author_email='adam.dybroe@smhi.se',
       classifiers=["Development Status :: 3 - Alpha",
@@ -42,13 +56,18 @@ setup(name="pps_runner",
                    "Programming Language :: Python",
                    "Topic :: Scientific/Engineering"],
       url="https://github.com/pytroll/pytroll-pps-runner",
-      packages=['nwcsafpps_runner', ],
+      long_description=long_description,
+      license='GPLv3',
+
+      packages=find_packages(),
       scripts=['nwcsafpps_runner/pps_runner.py',
                'nwcsafpps_runner/pps2018_runner.py',
                'bin/pps_run.sh', ],
       data_files=[],
-      zip_safe=False,
       install_requires=['posttroll', 'trollsift', ],
+      python_requires='>=3.4',
+      zip_safe=False,
+      use_scm_version=True
       # test_requires=['mock'],
       # test_suite='pps_runner.tests.suite',
       )
