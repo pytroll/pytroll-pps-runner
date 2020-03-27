@@ -23,32 +23,37 @@
 """Prepare NWP data for PPS
 """
 
+from nwcsafpps_runner.config import get_config
 import logging
 from glob import glob
 import os
 from datetime import datetime
 from six.moves.configparser import ConfigParser
+from six.moves.configparser import NoOptionError
 import tempfile
 from nwcsafpps_runner.utils import run_command
+from trollsift import Parser
 
 LOG = logging.getLogger(__name__)
 
-CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-CONF = ConfigParser()
-ppsconf_path = os.path.join(CONFIG_PATH, "pps2018_config.ini")
-LOG.debug("Path to config file = ", str(ppsconf_path))
-CONF.read(ppsconf_path)
+# CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
+# CONF = ConfigParser()
+# ppsconf_path = os.path.join(CONFIG_PATH, "pps2018_config.ini")
+# LOG.debug("Path to config file = ", str(ppsconf_path))
+# CONF.read(ppsconf_path)
 
-MODE = os.getenv("SMHI_MODE")
-if MODE is None:
-    MODE = "offline"
+# MODE = os.getenv("SMHI_MODE")
+# if MODE is None:
+#     MODE = "offline"
 
-LOG.debug('MODE = ' + str(MODE))
+# LOG.debug('MODE = ' + str(MODE))
 
-OPTIONS = {}
-for option, value in CONF.items(MODE, raw=True):
-    OPTIONS[option] = value
+# OPTIONS = {}
+# for option, value in CONF.items(MODE, raw=True):
+#     OPTIONS[option] = value
 
+
+OPTIONS = get_config('pps2018_config.ini')
 
 try:
     nhsp_path = OPTIONS['nhsp_path']
@@ -65,6 +70,7 @@ nwp_outdir = OPTIONS.get('nwp_outdir', None)
 nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
 nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
 nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
+nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
 
 
 class NwpPrepareError(Exception):
@@ -81,7 +87,7 @@ def logreader(stream, log_func):
 
 
 def update_nwp(starttime, nlengths):
-    """Prepare NWP grib files for PPS.  Consider only analysis times newer than
+    """Prepare NWP grib files for PPS. Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
     the list *nlengths* of integers
 
@@ -97,71 +103,78 @@ def update_nwp(starttime, nlengths):
     nfiles_error = 0
     for filename in filelist:
         #filename = os.path.basename(filename2)
-        if nhsf_file_name_sift != None:
-            try:
-                parser = Parser(nhsf_file_name_sift)
-            except NoOptionError as noe:
-                LOG.error("NoOptionError {}".format(noe))
-                continue
-            if not parser.validate(os.path.basename(filename)):
-                LOG.error("Parser validate on filename: {} failed.".format(filename))
-                continue
-            LOG.info("{}".format(os.path.basename(filename)))
-            res = parser.parse("{}".format(os.path.basename(filename)))
-            LOG.info("{}".format(res))
-            if 'analysis_time' in res:
-                if res['analysis_time'].year == 1900:
-                    #year_now = datetime.utcnow().year
-                    # print year_now
-                    res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
-                    #res['analysis_time'].year = datetime.utcnow().year
-            else:
-                LOG.error("Can not parse analysis_time in file name. Check config and filename timestamp")
-            if 'forecast_time' in res:
-                if res['forecast_time'].year == 1900:
-                    res['forecast_time'] = res['forecast_time'].replace(year=datetime.utcnow().year)
-            else:
-                LOG.error("Can not parse forecast_time in file name. Check config and filename timestamp")
-            forecast_time = res['forecast_time']
+        if nhsf_file_name_sift == None:
+            raise NwpPrepareError()
+
+        try:
+            parser = Parser(nhsf_file_name_sift)
+        except NoOptionError as noe:
+            LOG.error("NoOptionError {}".format(noe))
+            continue
+        if not parser.validate(os.path.basename(filename)):
+            LOG.error("Parser validate on filename: {} failed.".format(filename))
+            continue
+        LOG.info("{}".format(os.path.basename(filename)))
+        res = parser.parse("{}".format(os.path.basename(filename)))
+        LOG.info("{}".format(res))
+        if 'analysis_time' in res:
+            if res['analysis_time'].year == 1900:
+                #year_now = datetime.utcnow().year
+                # print year_now
+                res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
+                #res['analysis_time'].year = datetime.utcnow().year
+
             analysis_time = res['analysis_time']
             timestamp = analysis_time.strftime("%Y%m%d%H%M")
-            step = forecast_time - analysis_time
-            step = "{:03d}H{:02d}M".format(step.days*24 + step.seconds/3600, 0)
-            #timeinfo = "{:s}_{:s}".format(timestamp, step)
+        else:
+            raise NwpPrepareError("Can not parse analysis_time in file name. Check config and filename timestamp")
+
+        if 'forecast_time' in res:
+            if res['forecast_time'].year == 1900:
+                res['forecast_time'] = res['forecast_time'].replace(year=datetime.utcnow().year)
+            forecast_time = res['forecast_time']
+            forecast_step = forecast_time - analysis_time
+            forecast_step = "{:03d}H{:02d}M".format(forecast_step.days*24 + forecast_step.seconds/3600, 0)
             timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime(
                 "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
-            type(step)
         else:
+            LOG.info("Can not parse forecast_time in file name. Try forecast step...")
+            # This needs to be done more solid suing the sift pattern! FIXME!
             timeinfo = filename.rsplit("_", 1)[-1]
-            timestamp, step = timeinfo.split("+")
-            analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
+            # Forecast step in hours:
+            if 'forecast_step' in res:
+                forecast_step = res['forecast_step']
+            else:
+                raise NwpPrepareError(
+                    'Failed parsing forecast_step in file name. Check config and filename timestamp.')
+        # else:
+        #     timestamp, forecast_step = timeinfo.split("+")
+        #     analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
+        #     forecast_step = int(forecast_step[:3])
 
         print(analysis_time, starttime)
         if analysis_time < starttime:
             print("skip analysis")
             continue
-        if int(step[:3]) not in nlengths:
-            print("skip step", int(step[:3]), nlengths)
+        if forecast_step not in nlengths:
+            print("skip step", forecast_step, nlengths)
             continue
 
-        LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(step))
+        LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(forecast_step))
         result_file = os.path.join(
-            nwp_outdir, nwp_output_prefix + timestamp + "+" + step)
+            nwp_outdir, nwp_output_prefix + timestamp + "+" + '%.3dH00M' % forecast_step)
         if os.path.exists(result_file):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        tmp_file = tempfile.mktemp(suffix="_" + timestamp + "+" + step, dir=nwp_outdir)
-        #tmp_file = os.path.join(nwp_outdir, "tmp." + timestamp + "+" + step)
-        LOG.info("result and tmp files: " +
-                 str(result_file) + " " + str(tmp_file))
+        tmp_file = tempfile.mktemp(suffix="_" + timestamp + "+" + '%.3dH00M' % forecast_step, dir=nwp_outdir)
+        LOG.info("result and tmp files: " + str(result_file) + " " + str(tmp_file))
         nhsp_file = os.path.join(nhsp_path, nhsp_prefix + timeinfo)
         if not os.path.exists(nhsp_file):
             LOG.warning("Corresponding nhsp-file not there: " + str(nhsp_file))
             continue
 
-        cmd = ("grib_copy -w gridType=regular_ll " +
-               nhsp_file + " " + tmp_file)
+        cmd = ("grib_copy -w gridType=regular_ll " + nhsp_file + " " + tmp_file)
         retv = run_command(cmd)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
