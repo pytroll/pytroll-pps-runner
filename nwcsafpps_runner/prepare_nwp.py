@@ -28,14 +28,15 @@ import os
 from datetime import datetime
 import tempfile
 from subprocess import Popen, PIPE
-#: TODO: Remove later
-import pwd
-if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
+try:
     from config import get_config  # @UnresolvedImport
     from config import CONFIG_FILE  # @UnresolvedImport
-else:
+except ImportError as e:
+    print('\n ImportError is only used during developing \n')
+
     from nwcsafpps_runner.config import get_config  # @UnresolvedImport
     from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport
+
 
 import logging
 LOG = logging.getLogger(__name__)

@@ -50,9 +50,9 @@ def get_config_init_cfg(configfile, service=MODE):
     #: Python 2/3 differences
     import six
     if six.PY2:
-        import ConfigParser
+        import ConfigParser  # @UnusedImport
     elif six.PY3:
-        import configparser as ConfigParser  # @UnresolvedImport
+        import configparser as ConfigParser  # @UnresolvedImport @Reimport
 
     conf = ConfigParser.ConfigParser()
     conf.read(configfile)
