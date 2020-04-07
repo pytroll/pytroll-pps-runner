@@ -6,6 +6,7 @@
 # Author(s):
 
 #   Adam.Dybbroe <adam.dybbroe@smhi.se>
+#   Erik.Johansson <erik.johansson@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,20 +71,13 @@ except ImportError as e:
 import six
 if six.PY2:
     import Queue  # @UnusedImport
-#     from urlparse import urlparse  # @UnusedImport
 elif six.PY3:
     import queue as Queue  # @UnresolvedImport @Reimport
-#     from urllib.parse import urlparse  # @UnresolvedImport @Reimport
 
-
-# from ppsRunAll import pps_run_all_serial
-# from ppsCmaskProb import pps_cmask_prob
 
 import logging
 LOG = logging.getLogger(__name__)
 
-# LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
-# LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
