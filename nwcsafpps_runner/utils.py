@@ -25,19 +25,18 @@
 
 import os
 import stat
-import netifaces
+import netifaces  # @UnresolvedImport
 import shlex
 from glob import glob
-from posttroll.message import Message
-from trollsift.parser import parse
+from posttroll.message import Message  # @UnresolvedImport
+from trollsift.parser import parse  # @UnresolvedImport
 import socket
 from datetime import datetime, timedelta
 import six
 if six.PY2:
-    from urlparse import urlparse
+    from urlparse import urlparse  # @UnusedImport
 elif six.PY3:
-    from urllib.parse import urlparse  # @UnresolvedImport
-
+    from urllib.parse import urlparse  # @UnresolvedImport @Reimport
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -246,10 +245,7 @@ def ready2run(msg, files4pps, **kwargs):
         url_ip = socket.gethostbyname(msg.host)
         if url_ip not in get_local_ips():
             LOG.warning("Server %s not the current one: %s", str(url_ip), socket.gethostname())
-            #: TODO: remove if. Everything should return False
-            import pwd
-            if pwd.getpwuid(os.getuid()).pw_name != 'sm_erjoh':
-                return False
+            return False
     except (AttributeError, socket.gaierror) as err:
         LOG.error("Failed checking host! Hostname = %s", socket.gethostname())
         LOG.exception(err)
@@ -434,7 +430,6 @@ def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=Tr
     else:
         cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
                   " --hrptfile %s" % scene['file4pps'])
-
     if sequence:
         return shlex.split(str(cmdstr))
     else:
@@ -580,7 +575,6 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
                          "file", to_send).encode()
         LOG.debug("sending: " + str(pubmsg))
         LOG.info("Sending: " + str(pubmsg))
-        #: TODO: remove try. Use only put
         try:
             publish_q.put(pubmsg)
         except:
