@@ -29,53 +29,51 @@ from glob import glob
 from subprocess import Popen, PIPE
 import threading
 from datetime import datetime, timedelta
-#
-#: TODO: Remove later
-import pwd
-if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
-    import pdb
-    from config import get_config  # @UnresolvedImport
-    from config import CONFIG_FILE  # @UnresolvedImport
-    from config import MODE  # @UnresolvedImport
-    
-    from utils import ready2run, publish_pps_files  # @UnresolvedImport
-    from utils import (get_sceneid, prepare_pps_arguments,  # @UnresolvedImport
-                                        create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport
-                                        logreader, terminate_process, get_outputfiles,  # @UnresolvedImport
-                                        message_uid)  # @UnresolvedImport
-    from utils import PpsRunError  # @UnresolvedImport
-    from utils import (SENSOR_LIST,  # @UnresolvedImport
-                                        SATELLITE_NAME,  # @UnresolvedImport
-                                        METOP_NAME_LETTER)  # @UnresolvedImport
-    from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport
-    from prepare_nwp import update_nwp  # @UnresolvedImport
-else:
-    from nwcsafpps_runner.config import get_config  # @UnresolvedImport
-    from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport
-    from nwcsafpps_runner.config import MODE  # @UnresolvedImport
-    
-    from nwcsafpps_runner.utils import ready2run, publish_pps_files  # @UnresolvedImport
-    from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,  # @UnresolvedImport
-                                        create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport
-                                        logreader, terminate_process, get_outputfiles,  # @UnresolvedImport
-                                        message_uid)  # @UnresolvedImport
-    from nwcsafpps_runner.utils import PpsRunError  # @UnresolvedImport
-    from nwcsafpps_runner.utils import (SENSOR_LIST,  # @UnresolvedImport
-                                        SATELLITE_NAME,  # @UnresolvedImport
-                                        METOP_NAME_LETTER)  # @UnresolvedImport
-    from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport
 
-    from nwcsafpps_runner.prepare_nwp import update_nwp  # @UnresolvedImport
+try:
+    from config import MODE  # @UnresolvedImport @Reimport
+    
+    import pdb
+    from config import get_config  # @UnresolvedImport @UnusedImport
+    from config import CONFIG_FILE  # @UnresolvedImport @UnusedImport
+    
+    from utils import ready2run, publish_pps_files  # @UnresolvedImport @UnusedImport
+    from utils import (get_sceneid, prepare_pps_arguments,              # @UnresolvedImport @UnusedImport
+                       create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport @UnusedImport
+                       logreader, terminate_process, get_outputfiles,   # @UnresolvedImport @UnusedImport
+                       message_uid)                                     # @UnresolvedImport @UnusedImport
+    from utils import PpsRunError  # @UnresolvedImport @UnusedImport
+    from utils import (SENSOR_LIST, SATELLITE_NAME, METOP_NAME_LETTER)  # @UnresolvedImport @UnusedImport
+    from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport @UnusedImport
+    from prepare_nwp import update_nwp  # @UnresolvedImport @UnusedImport
+except ImportError as e:
+    print('\n ImportError is only used during developing \n')
+
+    from nwcsafpps_runner.config import MODE  # @UnresolvedImport @UnusedImport
+    from nwcsafpps_runner.config import get_config  # @UnresolvedImport @Reimport
+    from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport @Reimport
+    
+    from nwcsafpps_runner.utils import ready2run, publish_pps_files  # @UnresolvedImport @Reimport
+    from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,  # @UnresolvedImport @Reimport
+                                        create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport @Reimport
+                                        logreader, terminate_process, get_outputfiles,  # @UnresolvedImport @Reimport
+                                        message_uid)  # @UnresolvedImport @Reimport
+    from nwcsafpps_runner.utils import PpsRunError  # @UnresolvedImport @Reimport
+    from nwcsafpps_runner.utils import (SENSOR_LIST,  # @UnresolvedImport @Reimport
+                                        SATELLITE_NAME,  # @UnresolvedImport @Reimport
+                                        METOP_NAME_LETTER)  # @UnresolvedImport @Reimport
+    from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport @Reimport
+
+    from nwcsafpps_runner.prepare_nwp import update_nwp  # @UnresolvedImport @Reimport
 
 #: Python 2/3 differences
 import six
 if six.PY2:
-    import Queue
-    from urlparse import urlparse
-#     from urlparse import urlunsplit
+    import Queue  # @UnusedImport
+#     from urlparse import urlparse  # @UnusedImport
 elif six.PY3:
-    import queue as Queue  # @UnresolvedImport
-    from urllib.parse import urlparse  # @UnresolvedImport
+    import queue as Queue  # @UnresolvedImport @Reimport
+#     from urllib.parse import urlparse  # @UnresolvedImport @Reimport
 
 
 # from ppsRunAll import pps_run_all_serial
@@ -169,7 +167,8 @@ def pps_worker(scene, publish_q, input_msg, options):
         py_exec = options.get('python', '/bin/python')
         pps_script = options.get('run_all_script')
         cmd_str = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
-
+        if not options['run_pps_cpp']:
+            cmd_str = cmd_str + ' --no_cpp'
         my_env = os.environ.copy()
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
@@ -252,9 +251,7 @@ def pps_worker(scene, publish_q, input_msg, options):
                 LOG.info("Time control ascii file: " + str(infile))
                 ppstime_con = PPSTimeControl(infile)
                 ppstime_con.sum_up_processing_times()
-                #: TODO: Remove later
-                if pwd.getpwuid(os.getuid()).pw_name != 'sm_erjoh':
-                    ppstime_con.write_xml()
+                ppstime_con.write_xml()
         # The PPS post-hooks takes care of publishing the PPS PGEs
         # For the XML files we keep the publishing from here:
         xml_files = get_outputfiles(pps_control_path,
@@ -329,88 +326,89 @@ def pps(options):
     update_nwp(now - timedelta(days=1), NWP_FLENS)
     LOG.info("Ready with nwp preparation...")
 
-#     listener_q = Queue.Queue()
-#     publisher_q = Queue.Queue()
-#  
-#     pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps2018_runner')
-#     pub_thread.start()
-#     listen_thread = FileListener(listener_q, options['subscribe_topics'])
-#     listen_thread.start()
-
     files4pps = {}
     LOG.info("Number of threads: %d", options['number_of_threads'])
     thread_pool = ThreadPool(options['number_of_threads'])
-    from posttroll.subscriber import Subscribe  # @UnresolvedImport
-    from posttroll.publisher import Publish  # @UnresolvedImport
-    with Subscribe('', options['subscribe_topics'], True) as sub:
-        with Publish('seviri_l1c_runner', 0) as publisher_q:
-            while True:
-                for msg in sub.recv():
-                    
-#     while True:
-# 
-#         try:
-#             msg = listener_q.get()
-#         except Queue.Empty:
-#             continue
+    
+    #:-----------------------
+    listener_q = Queue.Queue()
+    publisher_q = Queue.Queue()
+    pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps2018_runner')
+    pub_thread.start()
+    listen_thread = FileListener(listener_q, options['subscribe_topics'])
+    listen_thread.start()
+    #:-----------------------
+    
+    #===========================================================================
+    # from posttroll.subscriber import Subscribe  # @UnresolvedImport
+    # from posttroll.publisher import Publish  # @UnresolvedImport
+    # with Subscribe('', options['subscribe_topics'], True) as sub:
+    #     with Publish('seviri_l1c_runner', 0) as publisher_q:
+    #         while True:
+    #             for msg in sub.recv():
+    #===========================================================================
+    #:-----------------------            
+    while True:
+        try:
+            msg = listener_q.get()
+        except Queue.Empty:
+            continue
+        #:-----------------------
+        LOG.debug(
+            "Number of threads currently alive: " + str(threading.active_count()))
+        
+        if isinstance(msg.data['sensor'], list):
+            msg.data['sensor'] = msg.data['sensor'][0]
+        if 'orbit_number' not in msg.data.keys():
+            msg.data.update({'orbit_number': 99999})
+        if 'end_time' not in msg.data.keys():
+            msg.data.update({'end_time': 99999})
 
-                    LOG.debug(
-                        "Number of threads currently alive: " + str(threading.active_count()))
-                    
-                    if isinstance(msg.data['sensor'], list):
-                        msg.data['sensor'] = msg.data['sensor'][0]
-                    if 'orbit_number' not in msg.data.keys():
-                        msg.data.update({'orbit_number': 99999})
-                    if 'end_time' not in msg.data.keys():
-                        msg.data.update({'end_time': 99999})
+        orbit_number = int(msg.data['orbit_number'])
+        platform_name = msg.data['platform_name']
+        starttime = msg.data['start_time']
+        endtime = msg.data['end_time']
+
+        satday = starttime.strftime('%Y%m%d')
+        sathour = starttime.strftime('%H%M')
+        sensors = SENSOR_LIST.get(platform_name, None)
+        scene = {'platform_name': platform_name,
+                 'orbit_number': orbit_number,
+                 'satday': satday, 'sathour': sathour,
+                 'starttime': starttime, 'endtime': endtime,
+                 'sensor': sensors
+                 }
+
+        status = ready2run(msg, files4pps,
+                           sdr_granule_processing=options.get('sdr_processing') == 'granules')
+        if status:
+            sceneid = get_sceneid(platform_name, orbit_number, starttime)
+            scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
+
+            LOG.info('Start a thread preparing the nwp data and run pps...')
             
-                    orbit_number = int(msg.data['orbit_number'])
-                    platform_name = msg.data['platform_name']
-                    starttime = msg.data['start_time']
-                    endtime = msg.data['end_time']
-            
-                    satday = starttime.strftime('%Y%m%d')
-                    sathour = starttime.strftime('%H%M')
-                    sensors = SENSOR_LIST.get(platform_name, None)
-                    scene = {'platform_name': platform_name,
-                             'orbit_number': orbit_number,
-                             'satday': satday, 'sathour': sathour,
-                             'starttime': starttime, 'endtime': endtime,
-                             'sensor': sensors
-                             }
-            
-                    status = ready2run(msg, files4pps,
-                                       sdr_granule_processing=options.get('sdr_processing') == 'granules')
-                    if status:
-                        sceneid = get_sceneid(platform_name, orbit_number, starttime)
-                        scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
-            
-                        LOG.info('Start a thread preparing the nwp data and run pps...')
-                        #: TODO: Remove later
-                        if pwd.getpwuid(os.getuid()).pw_name == 'sm_erjoh':
-                            message_uid(msg)
-#                             pdb.set_trace()
-                            run_nwp_and_pps(scene, NWP_FLENS, publisher_q, msg, options)
-                            pdb.set_trace()
+            if options['number_of_threads'] == 1:
+                run_nwp_and_pps(scene, NWP_FLENS, publisher_q, msg, options)
 #                             pps_worker(scene, publisher_q, msg, options)
-                        else:
-                            thread_pool.new_thread(message_uid(msg),
-                                                   target=run_nwp_and_pps, args=(scene, NWP_FLENS,
-                                                                                 publisher_q,
-                                                                                 msg, options))
-            
-                        LOG.debug(
-                            "Number of threads currently alive: " + str(threading.active_count()))
-            
-                        # Clean the files4pps dict:
-                        LOG.debug("files4pps: " + str(files4pps))
-                        try:
-                            files4pps.pop(sceneid)
-                        except KeyError:
-                            LOG.warning("Failed trying to remove key " + str(sceneid) +
-                                        " from dictionary files4pps")
-            
-                        LOG.debug("After cleaning: files4pps = " + str(files4pps))
+            else:
+                thread_pool.new_thread(message_uid(msg),
+                                       target=run_nwp_and_pps, args=(scene, NWP_FLENS,
+                                                                     publisher_q,
+                                                                     msg, options))
+
+            LOG.debug(
+                "Number of threads currently alive: " + 
+                str(threading.active_count()))
+
+            # Clean the files4pps dict:
+            LOG.debug("files4pps: " + str(files4pps))
+            try:
+                files4pps.pop(sceneid)
+            except KeyError:
+                LOG.warning("Failed trying to remove key " + str(sceneid) +
+                            " from dictionary files4pps")
+
+            LOG.debug("After cleaning: files4pps = " + str(files4pps))
 
     # FIXME! Should I clean up the thread_pool (open threads?) here at the end!?
 
@@ -425,17 +423,9 @@ if __name__ == "__main__":
     from logging import handlers
     LOG.debug("Path to pps2018_runner config file = " + CONFIG_FILE)
     OPTIONS = get_config(CONFIG_FILE)
-    pdb.set_trace()
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
     PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
     STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
-#     for arname, val in options_yaml.items():
-#         if arname not in OPTIONS.keys():
-#             print('no key = %s' %arname)
-#             continue
-#         if val != OPTIONS[arname]:
-#             print('vrong val = %s' %arname)
-#     pdb.set_trace()
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])
         ncount = int(OPTIONS["log_rotation_backup"])
@@ -460,6 +450,5 @@ if __name__ == "__main__":
     logging.getLogger('posttroll').setLevel(logging.INFO)
 
     LOG = logging.getLogger('pps_runner')
-
 
     pps(OPTIONS)
