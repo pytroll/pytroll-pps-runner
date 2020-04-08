@@ -88,8 +88,6 @@ _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 #: Default log format
 _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
 
-_PPS_LOG_FILE = os.environ.get('PPSRUNNER_LOG_FILE', None)
-
 
 LOG.debug("PYTHONPATH: " + str(sys.path))
 SATNAME = {'Aqua': 'EOS-Aqua'}
@@ -166,8 +164,9 @@ def pps_worker(scene, publish_q, input_msg, options):
         my_env = os.environ.copy()
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
-
-        LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
+        
+        pps_output_dir = my_env.get('SM_PRODUCT_DIR', options.get(['pps_outdir'], './'))
+        LOG.debug("PPS_OUTPUT_DIR = " + str(pps_output_dir))
         LOG.debug("...from config file = " + str(options['pps_outdir']))
 
         LOG.debug("Run command: " + str(cmd_str))
@@ -220,14 +219,9 @@ def pps_worker(scene, publish_q, input_msg, options):
         except ImportError:
             LOG.warning("Failed to import the PPSTimeControl from pps")
             do_time_control = False
-
-        if STATISTICS_DIR:
-            pps_control_path = STATISTICS_DIR
-        elif my_env.get('STATISTICS_DIR'):
-            pps_control_path = my_env.get('STATISTICS_DIR')
-        else:
-            pps_control_path = options['stat_path']
-
+        
+        pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
+        
         if do_time_control:
             LOG.info("Read time control ascii file and generate XML")
             platform_id = SATELLITE_NAME.get(
@@ -407,18 +401,14 @@ def pps(options):
             LOG.info('Start a thread preparing the nwp data and run pps...')
             
             if options['number_of_threads'] == 1:
-                run_nwp_and_pps(scene, NWP_FLENS, publisher_q, msg, options)
-#                             pps_worker(scene, publisher_q, msg, options)
+                run_nwp_and_pps(scene, NWP_FLENS, publisher_q, 
+                                msg, options, nwp_handeling_module)
             else:
                 thread_pool.new_thread(message_uid(msg),
                                        target=run_nwp_and_pps, args=(scene, NWP_FLENS,
                                                                      publisher_q,
                                                                      msg, options,
                                                                      nwp_handeling_module))
-#                 thread_pool.new_thread(message_uid(msg),
-#                                        target=run_nwp_and_pps, args=(scene, NWP_FLENS,
-#                                                                      publisher_q,
-#                                                                      msg, options))
 
             LOG.debug(
                 "Number of threads currently alive: " + 
@@ -449,9 +439,8 @@ if __name__ == "__main__":
     LOG.debug("Pps2018_runner config file = " + CONFIG_FILE)
     OPTIONS = get_config(CONFIG_FILE)
 
-    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
-    PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
-    STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
+    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', 
+                                os.environ.get('PPSRUNNER_LOG_FILE', False))
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])
         ncount = int(OPTIONS["log_rotation_backup"])
