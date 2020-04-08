@@ -65,13 +65,14 @@ try:
 except KeyError:
     LOG.exception('Parameter not set in config file: ' + 'nhsp_prefix')
 
+nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
+
 nhsf_path = OPTIONS.get('nhsf_path', None)
 nhsf_prefix = OPTIONS.get('nhsf_prefix', None)
 nwp_outdir = OPTIONS.get('nwp_outdir', None)
 nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
 nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
 nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
-nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
 
 
 class NwpPrepareError(Exception):
