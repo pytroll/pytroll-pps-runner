@@ -165,7 +165,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
         
-        pps_output_dir = my_env.get('SM_PRODUCT_DIR', options.get(['pps_outdir'], './'))
+        pps_output_dir = my_env.get('SM_PRODUCT_DIR', options.get('pps_outdir', './'))
         LOG.debug("PPS_OUTPUT_DIR = " + str(pps_output_dir))
         LOG.debug("...from config file = " + str(options['pps_outdir']))
 
@@ -238,7 +238,11 @@ def pps_worker(scene, publish_q, input_msg, options):
                 LOG.info("Time control ascii file: " + str(infile))
                 ppstime_con = PPSTimeControl(infile)
                 ppstime_con.sum_up_processing_times()
-                ppstime_con.write_xml()
+                try:
+                    ppstime_con.write_xml()
+                except Exception as e:#TypeError as e:
+                    LOG.warning('Not able to write time control xml file')
+                    LOG.warning(e)
         # The PPS post-hooks takes care of publishing the PPS PGEs
         # For the XML files we keep the publishing from here:
         xml_files = get_outputfiles(pps_control_path,
@@ -256,7 +260,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
 
         t__.cancel()
-        if run_cma_prob:
+        if options['run_cmask_prob']:
             timer_cmaprob.cancel()
 
     except:
