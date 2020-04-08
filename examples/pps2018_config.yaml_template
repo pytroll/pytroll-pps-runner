@@ -26,8 +26,6 @@ run_all_script: /local_disk/opt/acpg/v2018_cmsaf/scr/ppsRunAll.py
 run_cmaprob_script: /local_disk/opt/acpg/v2018_cmsaf/scr/ppsCmaskProb.py
 run_cmask_prob: yes
 run_pps_cpp: yes
-#: Only used in pps_runner
-aapp_level1files_max_minutes_old: 9000
 
 
 #: Used for PPS log file
