@@ -189,8 +189,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         LOG.info("Ready with PPS level-2 processing on scene: " + str(scene))
 
-        run_cma_prob = (options.get('run_cmask_prob') == 'yes')
-        if run_cma_prob:
+        if options['run_cmask_prob']:
             pps_script = options.get('run_cmaprob_script')
             cmdl = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
 
