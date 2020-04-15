@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015 - 2019 Adam.Dybbroe
+# Copyright (c) 2015 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -23,26 +23,24 @@
 """Prepare NWP data for PPS
 """
 
+from nwcsafpps_runner.config import get_config
+import logging
 from glob import glob
 import os
 from datetime import datetime
+from six.moves.configparser import ConfigParser
+from six.moves.configparser import NoOptionError
 import tempfile
-from subprocess import Popen, PIPE
-try:
-    from config import get_config  # @UnresolvedImport
-    from config import CONFIG_FILE  # @UnresolvedImport
-except ImportError as e:
-    print('\n ImportError is only used during developing \n')
+from nwcsafpps_runner.utils import run_command
+from trollsift import Parser
 
-    from nwcsafpps_runner.config import get_config  # @UnresolvedImport
-    from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport
-
-
-import logging
 LOG = logging.getLogger(__name__)
+
 
 LOG.debug("Path to prepare_nwp config file = " + CONFIG_FILE)
 OPTIONS = get_config(CONFIG_FILE)
+
+OPTIONS = get_config('pps2018_config.ini')
 
 try:
     nhsp_path = OPTIONS['nhsp_path']
@@ -59,8 +57,7 @@ nwp_outdir = OPTIONS.get('nwp_outdir', None)
 nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
 nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
 nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
-
-import threading
+nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
 
 
 class NwpPrepareError(Exception):
@@ -76,40 +73,14 @@ def logreader(stream, log_func):
     stream.close()
 
 
-def run_command(cmdstr):
-    """Run system command"""
-
-    import shlex
-    myargs = shlex.split(str(cmdstr))
-
-    LOG.debug("Command: " + str(cmdstr))
-    LOG.debug('Command sequence= ' + str(myargs))
-    try:
-        proc = Popen(myargs, shell=False, stderr=PIPE, stdout=PIPE)
-    except NwpPrepareError:
-        LOG.exception("Failed when preparing NWP data for PPS...")
-
-    out_reader = threading.Thread(
-        target=logreader, args=(proc.stdout, LOG.info))
-    err_reader = threading.Thread(
-        target=logreader, args=(proc.stderr, LOG.info))
-    out_reader.start()
-    err_reader.start()
-    out_reader.join()
-    err_reader.join()
-
-    return proc.wait()
-
-
 def update_nwp(starttime, nlengths):
-    """Prepare NWP grib files for PPS.  Consider only analysis times newer than
+    """Prepare NWP grib files for PPS. Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
     the list *nlengths* of integers
 
     """
 
     tempfile.tempdir = nwp_outdir
-
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
         LOG.info("No input files! dir = " + str(nhsf_path))
@@ -118,32 +89,79 @@ def update_nwp(starttime, nlengths):
     LOG.debug('NHSF NWP files found = ' + str(filelist))
     nfiles_error = 0
     for filename in filelist:
-        timeinfo = filename.rsplit("_", 1)[-1]
-        timestamp, step = timeinfo.split("+")
-        analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
-        if analysis_time < starttime:
+        #filename = os.path.basename(filename2)
+        if nhsf_file_name_sift == None:
+            raise NwpPrepareError()
+
+        try:
+            parser = Parser(nhsf_file_name_sift)
+        except NoOptionError as noe:
+            LOG.error("NoOptionError {}".format(noe))
             continue
-        if int(step[:3]) not in nlengths:
+        if not parser.validate(os.path.basename(filename)):
+            LOG.error("Parser validate on filename: {} failed.".format(filename))
+            continue
+        LOG.info("{}".format(os.path.basename(filename)))
+        res = parser.parse("{}".format(os.path.basename(filename)))
+        LOG.info("{}".format(res))
+        if 'analysis_time' in res:
+            if res['analysis_time'].year == 1900:
+                #year_now = datetime.utcnow().year
+                # print year_now
+                res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
+                #res['analysis_time'].year = datetime.utcnow().year
+
+            analysis_time = res['analysis_time']
+            timestamp = analysis_time.strftime("%Y%m%d%H%M")
+        else:
+            raise NwpPrepareError("Can not parse analysis_time in file name. Check config and filename timestamp")
+
+        if 'forecast_time' in res:
+            if res['forecast_time'].year == 1900:
+                res['forecast_time'] = res['forecast_time'].replace(year=datetime.utcnow().year)
+            forecast_time = res['forecast_time']
+            forecast_step = forecast_time - analysis_time
+            forecast_step = "{:03d}H{:02d}M".format(forecast_step.days*24 + forecast_step.seconds/3600, 0)
+            timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime(
+                "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
+        else:
+            LOG.info("Can not parse forecast_time in file name. Try forecast step...")
+            # This needs to be done more solid suing the sift pattern! FIXME!
+            timeinfo = filename.rsplit("_", 1)[-1]
+            # Forecast step in hours:
+            if 'forecast_step' in res:
+                forecast_step = res['forecast_step']
+            else:
+                raise NwpPrepareError(
+                    'Failed parsing forecast_step in file name. Check config and filename timestamp.')
+        # else:
+        #     timestamp, forecast_step = timeinfo.split("+")
+        #     analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
+        #     forecast_step = int(forecast_step[:3])
+
+        print(analysis_time, starttime)
+        if analysis_time < starttime:
+            print("skip analysis")
+            continue
+        if forecast_step not in nlengths:
+            print("skip step", forecast_step, nlengths)
             continue
 
-        LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(step))
+        LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(forecast_step))
         result_file = os.path.join(
-            nwp_outdir, nwp_output_prefix + timestamp + "+" + step)
+            nwp_outdir, nwp_output_prefix + timestamp + "+" + '%.3dH00M' % forecast_step)
         if os.path.exists(result_file):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        tmp_file = tempfile.mktemp(suffix="_" + timestamp + "+" + step, dir=nwp_outdir)
-        #tmp_file = os.path.join(nwp_outdir, "tmp." + timestamp + "+" + step)
-        LOG.info("result and tmp files: " +
-                 str(result_file) + " " + str(tmp_file))
+        tmp_file = tempfile.mktemp(suffix="_" + timestamp + "+" + '%.3dH00M' % forecast_step, dir=nwp_outdir)
+        LOG.info("result and tmp files: " + str(result_file) + " " + str(tmp_file))
         nhsp_file = os.path.join(nhsp_path, nhsp_prefix + timeinfo)
         if not os.path.exists(nhsp_file):
             LOG.warning("Corresponding nhsp-file not there: " + str(nhsp_file))
             continue
 
-        cmd = ("grib_copy -w gridType=regular_ll " +
-               nhsp_file + " " + tmp_file)
+        cmd = ("grib_copy -w gridType=regular_ll " + nhsp_file + " " + tmp_file)
         retv = run_command(cmd)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:

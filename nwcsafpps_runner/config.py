@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 Adam.Dybbroe
+# Copyright (c) 2018, 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -24,6 +24,7 @@
 """
 
 import os
+from six.moves.configparser import ConfigParser
 import socket
 
 MODE = os.environ.get('SMHI_MODE', 'offline')
@@ -40,7 +41,7 @@ def get_config(conf, service=MODE, procenv=''):
     elif filetype in ['.ini', '.cfg']:
         options = get_config_init_cfg(configfile, service=MODE)
     else:
-        print("%s is not a valid extension for the config file" %filetype)
+        print("%s is not a valid extension for the config file" % filetype)
         print("Pleas use .yaml, .ini or .cfg")
         options = -1
     return options
@@ -54,9 +55,8 @@ def get_config_init_cfg(configfile, service=MODE):
     elif six.PY3:
         import configparser as ConfigParser  # @UnresolvedImport @Reimport
 
-    conf = ConfigParser.ConfigParser()
-    conf.read(configfile)
-
+    conf = ConfigParser()
+    conf.read(os.path.join(CONFIG_PATH, configfile))
     options = {}
     for option, value in conf.items(service, raw=True):
         options[option] = value
@@ -82,7 +82,7 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
         from yaml import UnsafeLoader
     except ImportError:
         from yaml import Loader as UnsafeLoader
-    
+
     with open(configfile, 'r') as fp_:
         config = yaml.load(fp_, Loader=UnsafeLoader)
 
@@ -103,7 +103,7 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
             if len(item) == 0:
                 subscribe_topics.remove(item)
         options['subscribe_topics'] = subscribe_topics
-    
+
     options['number_of_threads'] = int(options.get('number_of_threads', 5))
     options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
     options['servername'] = options.get('servername', socket.gethostname())
@@ -111,4 +111,3 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
     if options['run_cmask_prob']:
         options['run_cmask_prob'] = 'yes'
     return options
-
