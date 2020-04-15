@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2019 Adam.Dybbroe
+# Copyright (c) 2014 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -266,7 +266,7 @@ def check_threads(threads):
     return
 
 
-def run_nwp_and_pps(scene, flens, publish_q, input_msg, nwp_handeling_module):
+def run_nwp_and_pps(scene, flens, publish_q, input_msg, options, nwp_handeling_module):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
     prepare_nwp4pps(flens, nwp_handeling_module)
@@ -286,7 +286,7 @@ def prepare_nwp4pps(flens, nwp_handeling_module):
             name = "update_nwp"
             name = name.replace("/", "")
             module = __import__(nwp_handeling_module, globals(), locals(), [name])
-            LOG.info("function : {} loaded from module: {}".format([name],nwp_handeling_module))
+            LOG.info("function : {} loaded from module: {}".format([name], nwp_handeling_module))
         except (ImportError, ModuleNotFoundError):
             LOG.exception("Failed to import custom compositer for %s", str(name))
             raise
@@ -318,7 +318,7 @@ def pps(options):
     LOG.info("*** Start the PPS level-2 runner:")
 
     LOG.info("First check if NWP data should be downloaded and prepared")
-    nwp_handeling_module=options.get("nwp_handeling_module", None)
+    nwp_handeling_module = options.get("nwp_handeling_module", None)
     prepare_nwp4pps(NWP_FLENS, nwp_handeling_module)
 
     listener_q = Queue()
@@ -369,7 +369,8 @@ def pps(options):
             thread_pool.new_thread(message_uid(msg),
                                    target=run_nwp_and_pps, args=(scene, NWP_FLENS,
                                                                  publisher_q,
-                                                                 msg, nwp_handeling_module))
+                                                                 msg, options,
+                                                                 nwp_handeling_module))
 
             LOG.debug(
                 "Number of threads currently alive: " + str(threading.active_count()))
