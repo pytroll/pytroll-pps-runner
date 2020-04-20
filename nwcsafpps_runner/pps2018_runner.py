@@ -352,12 +352,7 @@ def pps(options):
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
 
-
-<< << << < HEAD
-        if isinstance(msg.data['sensor'], list):
-== == == =
         if 'sensor' in msg.data.keys() and isinstance(msg.data['sensor'], list):
->>>>>> > add_runner_for_seviri
             msg.data['sensor'] = msg.data['sensor'][0]
         if 'orbit_number' not in msg.data.keys():
             msg.data.update({'orbit_number': 99999})
