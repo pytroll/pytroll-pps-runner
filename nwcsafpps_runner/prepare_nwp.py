@@ -134,16 +134,12 @@ def update_nwp(starttime, nlengths):
             else:
                 raise NwpPrepareError(
                     'Failed parsing forecast_step in file name. Check config and filename timestamp.')
-        # else:
-        #     timestamp, forecast_step = timeinfo.split("+")
-        #     analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
-        #     forecast_step = int(forecast_step[:3])
 
-        print(analysis_time, starttime)
+        LOG.debug(analysis_time, starttime)
         if analysis_time < starttime:
             continue
         if forecast_step not in nlengths:
-            print("skip step", forecast_step, nlengths)
+            LOG.debug("skip step", forecast_step, nlengths)
             continue
 
         LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(forecast_step))
