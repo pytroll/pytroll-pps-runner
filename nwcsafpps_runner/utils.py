@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2019 PyTroll
+# Copyright (c) 2018 - 2020 PyTroll
 
 # Author(s):
 
@@ -25,20 +25,19 @@
 
 import os
 import stat
-import netifaces  # @UnresolvedImport
-import shlex
+import netifaces
 from glob import glob
-from posttroll.message import Message  # @UnresolvedImport
-from trollsift.parser import parse  # @UnresolvedImport
+from subprocess import Popen, PIPE
+from posttroll.message import Message
+from trollsift.parser import parse
 import socket
+from six.moves.urllib.parse import urlparse
 from datetime import datetime, timedelta
-import six
-if six.PY2:
-    from urlparse import urlparse  # @UnusedImport
-elif six.PY3:
-    from urllib.parse import urlparse  # @UnresolvedImport @Reimport
-
+from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
+import shlex
+import threading
 import logging
+
 LOG = logging.getLogger(__name__)
 
 
@@ -52,10 +51,10 @@ SUPPORTED_EOS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
 SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21']
 SUPPORTED_METEOSAT_SATELLITES = ['Meteosat-09', 'Meteosat-10', 'Meteosat-11']
 
-SUPPORTED_PPS_SATELLITES = (SUPPORTED_NOAA_SATELLITES + 
-                            SUPPORTED_METOP_SATELLITES + 
-                            SUPPORTED_EOS_SATELLITES + 
-                            SUPPORTED_METEOSAT_SATELLITES + 
+SUPPORTED_PPS_SATELLITES = (SUPPORTED_NOAA_SATELLITES +
+                            SUPPORTED_METOP_SATELLITES +
+                            SUPPORTED_EOS_SATELLITES +
+                            SUPPORTED_METEOSAT_SATELLITES +
                             SUPPORTED_JPSS_SATELLITES)
 
 GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
@@ -82,8 +81,8 @@ SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
                   'Metop-C': 'metop03',
                   'Suomi-NPP': 'npp',
                   'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21',
-                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1', 
-                  'Meteosat-09': 'meteosat09', 'Meteosat-10': 'meteosat10', 
+                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1',
+                  'Meteosat-09': 'meteosat09', 'Meteosat-10': 'meteosat10',
                   'Meteosat-11': 'meteosat11'}
 SENSOR_LIST = {}
 for sat in SATELLITE_NAME:
@@ -102,6 +101,29 @@ for sat in SATELLITE_NAME:
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
 # METOP_NUMBER = {'b': '01', 'a': '02'}
+
+
+def run_command(cmdstr):
+    """Run system command"""
+    myargs = shlex.split(str(cmdstr))
+
+    LOG.debug("Command: " + str(cmdstr))
+    LOG.debug('Command sequence= ' + str(myargs))
+    try:
+        proc = Popen(myargs, shell=False, stderr=PIPE, stdout=PIPE)
+    except NwpPrepareError:
+        LOG.exception("Failed when preparing NWP data for PPS...")
+
+    out_reader = threading.Thread(
+        target=logreader, args=(proc.stdout, LOG.info))
+    err_reader = threading.Thread(
+        target=logreader, args=(proc.stderr, LOG.info))
+    out_reader.start()
+    err_reader.start()
+    out_reader.join()
+    err_reader.join()
+
+    return proc.wait()
 
 
 def check_uri(uri):
@@ -146,6 +168,11 @@ class SceneId(object):
         return (str(self.platform_name) + '_' +
                 str(self.orbit_number) + '_' +
                 str(self.starttime.strftime('%Y%m%d%H%M')))
+
+    def __hash__(self):
+        return hash(str(self.platform_name) + '_' +
+                    str(self.orbit_number) + '_' +
+                    str(self.starttime.strftime('%Y%m%d%H%M')))
 
     def __eq__(self, other):
 
@@ -198,6 +225,8 @@ def ready2run(msg, files4pps, **kwargs):
     LOG.info("Got message: " + str(msg))
 
     sdr_granule_processing = kwargs.get('sdr_granule_processing')
+    stream_tag_name = kwargs.get('stream_tag_name', 'variant')
+    stream_name = kwargs.get('stream_name', 'EARS')
     destination = msg.data.get('destination')
 
     uris = []
@@ -300,7 +329,6 @@ def ready2run(msg, files4pps, **kwargs):
     # sensor = (msg.data['sensor'])
     platform_name = msg.data['platform_name']
 
-    
     if platform_name not in SATELLITE_NAME:
         LOG.warning("Satellite not supported: " + str(platform_name))
         return False
@@ -325,7 +353,8 @@ def ready2run(msg, files4pps, **kwargs):
             files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if (msg.data['variant'] in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES):
+    if (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
+            platform_name in SUPPORTED_METOP_SATELLITES):
         LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
     elif (platform_name in SUPPORTED_METOP_SATELLITES or
           platform_name in SUPPORTED_NOAA_SATELLITES):
@@ -388,9 +417,9 @@ def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
 
 
 def create_pps_call_command_sequence(pps_script_name, scene, options):
-    LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', 
+    LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH',
                                    options.get('LVL1_NPP_PATH', None))
-    LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', 
+    LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH',
                                    options.get('LVL1_EOS_PATH', None))
 
     if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
@@ -578,6 +607,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         try:
             publish_q.put(pubmsg)
         except:
+            LOG.warning("Failed putting message on the queue, will send it now...")
             publish_q.send(pubmsg)
 
     return

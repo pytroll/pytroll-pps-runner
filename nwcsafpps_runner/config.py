@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 Adam.Dybbroe
+# Copyright (c) 2018 - 2020 PyTroll
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c20671.ad.smhi.se>
+#   Adam.Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,16 +20,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
+"""Reading configuration settings for NWCSAF/pps runner(s)
 """
 
 import os
+from six.moves.configparser import ConfigParser
 import socket
 
 MODE = os.environ.get('SMHI_MODE', 'offline')
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
+LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
+LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 
 def get_config(conf, service=MODE, procenv=''):
@@ -40,21 +43,14 @@ def get_config(conf, service=MODE, procenv=''):
     elif filetype in ['.ini', '.cfg']:
         options = get_config_init_cfg(configfile, service=MODE)
     else:
-        print("%s is not a valid extension for the config file" %filetype)
+        print("%s is not a valid extension for the config file" % filetype)
         print("Pleas use .yaml, .ini or .cfg")
         options = -1
     return options
 
 
 def get_config_init_cfg(configfile, service=MODE):
-    #: Python 2/3 differences
-    import six
-    if six.PY2:
-        import ConfigParser  # @UnusedImport
-    elif six.PY3:
-        import configparser as ConfigParser  # @UnresolvedImport @Reimport
-
-    conf = ConfigParser.ConfigParser()
+    conf = ConfigParser()
     conf.read(configfile)
 
     options = {}
@@ -82,7 +78,7 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
         from yaml import UnsafeLoader
     except ImportError:
         from yaml import Loader as UnsafeLoader
-    
+
     with open(configfile, 'r') as fp_:
         config = yaml.load(fp_, Loader=UnsafeLoader)
 
@@ -103,7 +99,7 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
             if len(item) == 0:
                 subscribe_topics.remove(item)
         options['subscribe_topics'] = subscribe_topics
-    
+
     options['number_of_threads'] = int(options.get('number_of_threads', 5))
     options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
     options['servername'] = options.get('servername', socket.gethostname())
