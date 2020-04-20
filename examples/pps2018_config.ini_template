@@ -20,6 +20,9 @@ python=/bin/python
 maximum_pps_processing_time_in_minutes=20
 station=norrkoping
 
+[metno-test]
+nhsf_prefix = LL02_NHSF_
+nhsf_file_name_sift = {nhsf_prefix:3s}{analyse_time:8s}{forecast_time:8s}{end:1s}
 
 [offline]
 level1_dir = /local_disk/data/pps/import/PPS_data/source
