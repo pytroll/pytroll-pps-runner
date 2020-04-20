@@ -32,17 +32,15 @@ from subprocess import Popen, PIPE
 import os
 import stat
 import netifaces
-import shlex
 from glob import glob
+from subprocess import Popen, PIPE
+from posttroll.message import Message
+from trollsift.parser import parse
 import socket
+from six.moves.urllib.parse import urlparse
 from datetime import datetime, timedelta
-import six
-if six.PY2:
-    from urlparse import urlparse
-elif six.PY3:
-    from urllib.parse import urlparse  # @UnresolvedImport @Reimport
-
->>>>>> > converging-metno-and-smhi-code
+from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
+import shlex
 
 LOG = logging.getLogger(__name__)
 
@@ -613,6 +611,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         try:
             publish_q.put(pubmsg)
         except:
+            LOG.warning("Failed putting message on the queue, will send it now...")
             publish_q.send(pubmsg)
 
     return

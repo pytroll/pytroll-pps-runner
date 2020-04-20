@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015 - 2020 Adam.Dybbroe
+# Copyright (c) 2015 - 2020 Pytroll
 
 # Author(s):
 
@@ -24,15 +24,15 @@
 """
 
 from nwcsafpps_runner.config import get_config
-import logging
+from nwcsafpps_runner.config import CONFIG_FILE
 from glob import glob
 import os
 from datetime import datetime
-from six.moves.configparser import ConfigParser
 from six.moves.configparser import NoOptionError
 import tempfile
 from nwcsafpps_runner.utils import run_command
 from trollsift import Parser
+import logging
 
 LOG = logging.getLogger(__name__)
 
@@ -134,17 +134,13 @@ def update_nwp(starttime, nlengths):
             else:
                 raise NwpPrepareError(
                     'Failed parsing forecast_step in file name. Check config and filename timestamp.')
-        # else:
-        #     timestamp, forecast_step = timeinfo.split("+")
-        #     analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
-        #     forecast_step = int(forecast_step[:3])
 
-        print(analysis_time, starttime)
+        LOG.debug(analysis_time, starttime)
         if analysis_time < starttime:
             print("skip analysis")
             continue
         if forecast_step not in nlengths:
-            print("skip step", forecast_step, nlengths)
+            LOG.debug("skip step", forecast_step, nlengths)
             continue
 
         LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(forecast_step))

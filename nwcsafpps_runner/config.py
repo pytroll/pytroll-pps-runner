@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018, 2020 Adam.Dybbroe
+# Copyright (c) 2018 - 2020 PyTroll
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c20671.ad.smhi.se>
+#   Adam.Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
+"""Reading configuration settings for NWCSAF/pps runner(s)
 """
 
 import os
@@ -31,6 +31,8 @@ MODE = os.environ.get('SMHI_MODE', 'offline')
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
+LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH', None)
+LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH', None)
 
 
 def get_config(conf, service=MODE, procenv=''):
@@ -48,15 +50,9 @@ def get_config(conf, service=MODE, procenv=''):
 
 
 def get_config_init_cfg(configfile, service=MODE):
-    #: Python 2/3 differences
-    import six
-    if six.PY2:
-        import ConfigParser  # @UnusedImport
-    elif six.PY3:
-        import configparser as ConfigParser  # @UnresolvedImport @Reimport
-
     conf = ConfigParser()
-    conf.read(os.path.join(CONFIG_PATH, configfile))
+    conf.read(configfile)
+
     options = {}
     for option, value in conf.items(service, raw=True):
         options[option] = value
