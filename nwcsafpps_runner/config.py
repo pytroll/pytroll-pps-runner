@@ -48,13 +48,9 @@ def get_config(conf, service=MODE, procenv=''):
 
 def get_config_init_cfg(configfile, service=MODE):
     #: Python 2/3 differences
-    import six
-    if six.PY2:
-        import ConfigParser  # @UnusedImport
-    elif six.PY3:
-        import configparser as ConfigParser  # @UnresolvedImport @Reimport
+    from six.moves.configparser import ConfigParser  # @UnresolvedImport
 
-    conf = ConfigParser.ConfigParser()
+    conf = ConfigParser()
     conf.read(configfile)
 
     options = {}
@@ -71,7 +67,14 @@ def get_config_init_cfg(configfile, service=MODE):
     options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
     options['servername'] = options.get('servername', socket.gethostname())
     options['station'] = options.get('station', 'unknown')
-
+    options['run_cmask_prob'] = options.get('run_cmask_prob', True)
+    options['run_pps_cpp'] = options.get('run_pps_cpp', True)
+    #: Change yes to True and no to False to match .yaml
+    for arname, val in options.items():
+        if val == 'yes':
+            options[arname] = True
+        if val == 'no':
+            options[arname] = False
     return options
 
 
@@ -108,7 +111,8 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
     options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
     options['servername'] = options.get('servername', socket.gethostname())
     options['station'] = options.get('station', 'unknown')
-    if options['run_cmask_prob']:
-        options['run_cmask_prob'] = 'yes'
+    options['run_cmask_prob'] = options.get('run_cmask_prob', True)
+    options['run_pps_cpp'] = options.get('run_pps_cpp', True)
+
     return options
 

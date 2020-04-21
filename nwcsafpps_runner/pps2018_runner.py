@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2019 Adam.Dybbroe
+# Copyright (c) 2014 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -30,6 +30,9 @@ from glob import glob
 from subprocess import Popen, PIPE
 import threading
 from datetime import datetime, timedelta
+#: Python 2/3 differences
+from six.moves.queue import Queue, Empty  # @UnresolvedImport
+
 
 try:
     from config import MODE  # @UnresolvedImport @Reimport
@@ -37,6 +40,7 @@ try:
     import pdb
     from config import get_config  # @UnresolvedImport @UnusedImport
     from config import CONFIG_FILE  # @UnresolvedImport @UnusedImport
+    from config import CONFIG_PATH  # @UnresolvedImport @UnusedImport
     
     from utils import ready2run, publish_pps_files  # @UnresolvedImport @UnusedImport
     from utils import (get_sceneid, prepare_pps_arguments,              # @UnresolvedImport @UnusedImport
@@ -52,6 +56,7 @@ except ImportError as e:
 
     from nwcsafpps_runner.config import MODE  # @UnresolvedImport @UnusedImport
     from nwcsafpps_runner.config import get_config  # @UnresolvedImport @Reimport
+    from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport @Reimport
     from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport @Reimport
     
     from nwcsafpps_runner.utils import ready2run, publish_pps_files  # @UnresolvedImport @Reimport
@@ -67,13 +72,8 @@ except ImportError as e:
 
     from nwcsafpps_runner.prepare_nwp import update_nwp  # @UnresolvedImport @Reimport
 
-#: Python 2/3 differences
-import six
-if six.PY2:
-    import Queue  # @UnusedImport
-elif six.PY3:
-    import queue as Queue  # @UnresolvedImport @Reimport
 
+# from six.moves.configparser import NoSectionError, NoOptionError
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -87,8 +87,6 @@ _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 #: Default log format
 _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
-
-_PPS_LOG_FILE = os.environ.get('PPSRUNNER_LOG_FILE', None)
 
 
 LOG.debug("PYTHONPATH: " + str(sys.path))
@@ -166,8 +164,9 @@ def pps_worker(scene, publish_q, input_msg, options):
         my_env = os.environ.copy()
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
-
-        LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
+        
+        pps_output_dir = my_env.get('SM_PRODUCT_DIR', options.get('pps_outdir', './'))
+        LOG.debug("PPS_OUTPUT_DIR = " + str(pps_output_dir))
         LOG.debug("...from config file = " + str(options['pps_outdir']))
 
         LOG.debug("Run command: " + str(cmd_str))
@@ -190,8 +189,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         LOG.info("Ready with PPS level-2 processing on scene: " + str(scene))
 
-        run_cma_prob = (options.get('run_cmask_prob') == 'yes')
-        if run_cma_prob:
+        if options['run_cmask_prob']:
             pps_script = options.get('run_cmaprob_script')
             cmdl = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
 
@@ -220,14 +218,9 @@ def pps_worker(scene, publish_q, input_msg, options):
         except ImportError:
             LOG.warning("Failed to import the PPSTimeControl from pps")
             do_time_control = False
-
-        if STATISTICS_DIR:
-            pps_control_path = STATISTICS_DIR
-        elif my_env.get('STATISTICS_DIR'):
-            pps_control_path = my_env.get('STATISTICS_DIR')
-        else:
-            pps_control_path = options['stat_path']
-
+        
+        pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
+        
         if do_time_control:
             LOG.info("Read time control ascii file and generate XML")
             platform_id = SATELLITE_NAME.get(
@@ -245,7 +238,11 @@ def pps_worker(scene, publish_q, input_msg, options):
                 LOG.info("Time control ascii file: " + str(infile))
                 ppstime_con = PPSTimeControl(infile)
                 ppstime_con.sum_up_processing_times()
-                ppstime_con.write_xml()
+                try:
+                    ppstime_con.write_xml()
+                except Exception as e:#TypeError as e:
+                    LOG.warning('Not able to write time control xml file')
+                    LOG.warning(e)
         # The PPS post-hooks takes care of publishing the PPS PGEs
         # For the XML files we keep the publishing from here:
         xml_files = get_outputfiles(pps_control_path,
@@ -263,7 +260,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
 
         t__.cancel()
-        if run_cma_prob:
+        if options['run_cmask_prob']:
             timer_cmaprob.cancel()
 
     except:
@@ -287,26 +284,49 @@ def check_threads(threads):
     return
 
 
-def run_nwp_and_pps(scene, flens, publish_q, input_msg, options):
+def run_nwp_and_pps(scene, flens, publish_q, input_msg, options, nwp_handeling_module):
     """Run first the nwp-preparation and then pps. No parallel running here!"""
 
-    prepare_nwp4pps(flens)
+    prepare_nwp4pps(flens, nwp_handeling_module)
     pps_worker(scene, publish_q, input_msg, options)
 
     return
 
 
-def prepare_nwp4pps(flens):
+def prepare_nwp4pps(flens, nwp_handeling_module):
     """Prepare NWP data for pps"""
 
     starttime = datetime.utcnow() - timedelta(days=1)
-    try:
-        update_nwp(starttime, flens)
-        LOG.info("Ready with nwp preparation")
-        LOG.debug("Leaving prepare_nwp4pps...")
-    except:
-        LOG.exception("Something went wrong in update_nwp...")
-        raise
+    if nwp_handeling_module:
+        LOG.debug("Use custom nwp_handeling_function provided i config file...")
+        LOG.debug("nwp_module_name = %s", str(nwp_handeling_module))
+        try:
+            name = "update_nwp"
+            name = name.replace("/", "")
+            module = __import__(nwp_handeling_module, globals(), locals(), [name])
+            LOG.info("function : {} loaded from module: {}".format([name], nwp_handeling_module))
+        except (ImportError, ModuleNotFoundError):
+            LOG.exception("Failed to import custom compositer for %s", str(name))
+            raise
+        try:
+            params = {}
+            params['starttime'] = starttime
+            params['nlengths'] = flens
+            params['options'] = OPTIONS
+            getattr(module, name)(params)
+        except AttributeError:
+            LOG.debug("Could not get attribute %s from %s", str(name), str(module))
+    else:
+        LOG.debug("No custom nwp_handeling_function provided i config file...")
+        LOG.debug("Use build in.")
+        try:
+            update_nwp(starttime, flens)
+        except:
+            LOG.exception("Something went wrong in update_nwp...")
+            raise
+
+    LOG.info("Ready with nwp preparation")
+    LOG.debug("Leaving prepare_nwp4pps...")
 
 
 def pps(options):
@@ -316,17 +336,17 @@ def pps(options):
     LOG.info("*** Start the PPS level-2 runner:")
 
     LOG.info("First check if NWP data should be downloaded and prepared")
-    now = datetime.utcnow()
-    update_nwp(now - timedelta(days=1), NWP_FLENS)
-    LOG.info("Ready with nwp preparation...")
+    nwp_handeling_module = options.get("nwp_handeling_module", None)
+    prepare_nwp4pps(NWP_FLENS, nwp_handeling_module)
 
     files4pps = {}
     LOG.info("Number of threads: %d", options['number_of_threads'])
     thread_pool = ThreadPool(options['number_of_threads'])
     
     #:-----------------------
-    listener_q = Queue.Queue()
-    publisher_q = Queue.Queue()
+    listener_q = Queue()
+    publisher_q = Queue()
+
     pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps2018_runner')
     pub_thread.start()
     listen_thread = FileListener(listener_q, options['subscribe_topics'])
@@ -345,7 +365,7 @@ def pps(options):
     while True:
         try:
             msg = listener_q.get()
-        except Queue.Empty:
+        except Empty:
             continue
         #:-----------------------
         LOG.debug(
@@ -374,6 +394,8 @@ def pps(options):
                  }
 
         status = ready2run(msg, files4pps,
+                           stream_tag_name=options.get('stream_tag_name', 'variant'),
+                           stream_name=options.get('stream_name', 'EARS'),
                            sdr_granule_processing=options.get('sdr_processing') == 'granules')
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
@@ -382,13 +404,14 @@ def pps(options):
             LOG.info('Start a thread preparing the nwp data and run pps...')
             
             if options['number_of_threads'] == 1:
-                run_nwp_and_pps(scene, NWP_FLENS, publisher_q, msg, options)
-#                             pps_worker(scene, publisher_q, msg, options)
+                run_nwp_and_pps(scene, NWP_FLENS, publisher_q, 
+                                msg, options, nwp_handeling_module)
             else:
                 thread_pool.new_thread(message_uid(msg),
                                        target=run_nwp_and_pps, args=(scene, NWP_FLENS,
                                                                      publisher_q,
-                                                                     msg, options))
+                                                                     msg, options,
+                                                                     nwp_handeling_module))
 
             LOG.debug(
                 "Number of threads currently alive: " + 
@@ -415,11 +438,12 @@ def pps(options):
 if __name__ == "__main__":
 
     from logging import handlers
-    LOG.debug("Path to pps2018_runner config file = " + CONFIG_FILE)
+    LOG.debug("Path to pps2018_runner config file = " + CONFIG_PATH)
+    LOG.debug("Pps2018_runner config file = " + CONFIG_FILE)
     OPTIONS = get_config(CONFIG_FILE)
-    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
-    PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
-    STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
+
+    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', 
+                                os.environ.get('PPSRUNNER_LOG_FILE', False))
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])
         ncount = int(OPTIONS["log_rotation_backup"])
