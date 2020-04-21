@@ -51,8 +51,7 @@ LOG = logging.getLogger(__name__)
 
 LOG.debug("Path to prepare_nwp config file = " + CONFIG_PATH)
 LOG.debug("Prepare_nwp config file = " + CONFIG_FILE)
-configfile = os.path.join(CONFIG_PATH, CONFIG_FILE)
-OPTIONS = get_config(configfile)
+OPTIONS = get_config(CONFIG_FILE)
 
 try:
     nhsp_path = OPTIONS['nhsp_path']
