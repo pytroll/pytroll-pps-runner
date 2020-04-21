@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015 - 2020 Adam.Dybbroe
+# Copyright (c) 2015 - 2020 Pytroll
 
 # Author(s):
 
@@ -27,34 +27,32 @@ from glob import glob
 import os
 from datetime import datetime
 import tempfile
-# from subprocess import Popen, PIPE
-from trollsift import Parser  # @UnresolvedImport
+from trollsift import Parser
 import pygrib  # @UnresolvedImport
+from six.moves.configparser import NoOptionError
 
-from six.moves.configparser import NoOptionError  # @UnresolvedImport
 
-try:
-    from config import get_config  # @UnresolvedImport
-    from config import CONFIG_FILE  # @UnresolvedImport
-    from config import CONFIG_PATH  # @UnresolvedImport
-    from utils import run_command
+from nwcsafpps_runner.config import get_config
+from nwcsafpps_runner.config import CONFIG_FILE
+from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport
+from nwcsafpps_runner.utils import run_command
+
+
+#===============================================================================
+# from config import get_config  # @UnresolvedImport
+# from config import CONFIG_FILE  # @UnresolvedImport
+# from config import CONFIG_PATH  # @UnresolvedImport
+# from utils import run_command
+#===============================================================================
     
-except ImportError as e:
-    print('\n ImportError is only used during developing \n')
-
-    from nwcsafpps_runner.config import get_config  # @UnresolvedImport
-    from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport
-    from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport
-
-    from nwcsafpps_runner.utils import run_command
-
 import logging
 LOG = logging.getLogger(__name__)
 
+
 LOG.debug("Path to prepare_nwp config file = " + CONFIG_PATH)
 LOG.debug("Prepare_nwp config file = " + CONFIG_FILE)
-
-OPTIONS = get_config(CONFIG_FILE)
+configfile = os.path.join(CONFIG_PATH, CONFIG_FILE)
+OPTIONS = get_config(configfile)
 
 try:
     nhsp_path = OPTIONS['nhsp_path']
@@ -149,17 +147,13 @@ def update_nwp(starttime, nlengths):
             else:
                 raise NwpPrepareError(
                     'Failed parsing forecast_step in file name. Check config and filename timestamp.')
-        # else:
-        #     timestamp, forecast_step = timeinfo.split("+")
-        #     analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
-        #     forecast_step = int(forecast_step[:3])
 
-        print(analysis_time, starttime)
+        LOG.debug(analysis_time, starttime)
         if analysis_time < starttime:
             print("skip analysis")
             continue
         if forecast_step not in nlengths:
-            print("skip step", forecast_step, nlengths)
+            LOG.debug("skip step", forecast_step, nlengths)
             continue
 
         LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(forecast_step))

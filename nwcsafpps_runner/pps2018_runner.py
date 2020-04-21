@@ -29,51 +29,47 @@ import sys
 from glob import glob
 from subprocess import Popen, PIPE
 import threading
+from six.moves.queue import Queue, Empty
 from datetime import datetime, timedelta
-#: Python 2/3 differences
-from six.moves.queue import Queue, Empty  # @UnresolvedImport
 
 
-try:
-    from config import MODE  # @UnresolvedImport @Reimport
+from nwcsafpps_runner.config import get_config
+from nwcsafpps_runner.config import MODE
+from nwcsafpps_runner.config import CONFIG_PATH
+from nwcsafpps_runner.config import CONFIG_FILE
+
+from nwcsafpps_runner.utils import ready2run, publish_pps_files
+from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,
+                                    create_pps2018_call_command, get_pps_inputfile,
+                                    logreader, terminate_process, get_outputfiles,
+                                    message_uid)
+from nwcsafpps_runner.utils import PpsRunError
+from nwcsafpps_runner.utils import (SENSOR_LIST,
+                                    SATELLITE_NAME,
+                                    METOP_NAME_LETTER)
+from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
+
+from nwcsafpps_runner.prepare_nwp import update_nwp
+
+#===============================================================================
+# import pdb
+# from config import get_config  # @UnresolvedImport @UnusedImport
+# from config import MODE  # @UnresolvedImport @Reimport
+# from config import CONFIG_FILE  # @UnresolvedImport @UnusedImport
+# from config import CONFIG_PATH  # @UnresolvedImport @UnusedImport
+# 
+# from utils import ready2run, publish_pps_files  # @UnresolvedImport @UnusedImport
+# from utils import (get_sceneid, prepare_pps_arguments,              # @UnresolvedImport @UnusedImport
+#                    create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport @UnusedImport
+#                    logreader, terminate_process, get_outputfiles,   # @UnresolvedImport @UnusedImport
+#                    message_uid)                                     # @UnresolvedImport @UnusedImport
+# from utils import PpsRunError  # @UnresolvedImport @UnusedImport
+# from utils import (SENSOR_LIST, SATELLITE_NAME, METOP_NAME_LETTER)  # @UnresolvedImport @UnusedImport
+# from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport @UnusedImport
+# from prepare_nwp import update_nwp  # @UnresolvedImport @UnusedImport
+# from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport @Reimport
+#===============================================================================
     
-    import pdb
-    from config import get_config  # @UnresolvedImport @UnusedImport
-    from config import CONFIG_FILE  # @UnresolvedImport @UnusedImport
-    from config import CONFIG_PATH  # @UnresolvedImport @UnusedImport
-    
-    from utils import ready2run, publish_pps_files  # @UnresolvedImport @UnusedImport
-    from utils import (get_sceneid, prepare_pps_arguments,              # @UnresolvedImport @UnusedImport
-                       create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport @UnusedImport
-                       logreader, terminate_process, get_outputfiles,   # @UnresolvedImport @UnusedImport
-                       message_uid)                                     # @UnresolvedImport @UnusedImport
-    from utils import PpsRunError  # @UnresolvedImport @UnusedImport
-    from utils import (SENSOR_LIST, SATELLITE_NAME, METOP_NAME_LETTER)  # @UnresolvedImport @UnusedImport
-    from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport @UnusedImport
-    from prepare_nwp import update_nwp  # @UnresolvedImport @UnusedImport
-except ImportError as e:
-    print('\n ImportError is only used during developing \n')
-
-    from nwcsafpps_runner.config import MODE  # @UnresolvedImport @UnusedImport
-    from nwcsafpps_runner.config import get_config  # @UnresolvedImport @Reimport
-    from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport @Reimport
-    from nwcsafpps_runner.config import CONFIG_FILE  # @UnresolvedImport @Reimport
-    
-    from nwcsafpps_runner.utils import ready2run, publish_pps_files  # @UnresolvedImport @Reimport
-    from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,  # @UnresolvedImport @Reimport
-                                        create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport @Reimport
-                                        logreader, terminate_process, get_outputfiles,  # @UnresolvedImport @Reimport
-                                        message_uid)  # @UnresolvedImport @Reimport
-    from nwcsafpps_runner.utils import PpsRunError  # @UnresolvedImport @Reimport
-    from nwcsafpps_runner.utils import (SENSOR_LIST,  # @UnresolvedImport @Reimport
-                                        SATELLITE_NAME,  # @UnresolvedImport @Reimport
-                                        METOP_NAME_LETTER)  # @UnresolvedImport @Reimport
-    from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport @Reimport
-
-    from nwcsafpps_runner.prepare_nwp import update_nwp  # @UnresolvedImport @Reimport
-
-
-# from six.moves.configparser import NoSectionError, NoOptionError
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -159,7 +155,8 @@ def pps_worker(scene, publish_q, input_msg, options):
         py_exec = options.get('python', '/bin/python')
         pps_script = options.get('run_all_script')
         cmd_str = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
-        if not options['run_pps_cpp']:
+        run_cpp = options.get('run_pps_cpp', None)
+        if not run_cpp:
             cmd_str = cmd_str + ' --no_cpp'
         my_env = os.environ.copy()
         for envkey in my_env:
@@ -352,16 +349,16 @@ def pps(options):
     listen_thread = FileListener(listener_q, options['subscribe_topics'])
     listen_thread.start()
     #:-----------------------
-    
-    #===========================================================================
+
+    # ===========================================================================
     # from posttroll.subscriber import Subscribe  # @UnresolvedImport
     # from posttroll.publisher import Publish  # @UnresolvedImport
     # with Subscribe('', options['subscribe_topics'], True) as sub:
     #     with Publish('seviri_l1c_runner', 0) as publisher_q:
     #         while True:
     #             for msg in sub.recv():
-    #===========================================================================
-    #:-----------------------            
+    # ===========================================================================
+    #:-----------------------
     while True:
         try:
             msg = listener_q.get()
@@ -370,8 +367,8 @@ def pps(options):
         #:-----------------------
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
-        
-        if isinstance(msg.data['sensor'], list):
+
+        if 'sensor' in msg.data.keys() and isinstance(msg.data['sensor'], list):
             msg.data['sensor'] = msg.data['sensor'][0]
         if 'orbit_number' not in msg.data.keys():
             msg.data.update({'orbit_number': 99999})
@@ -414,7 +411,7 @@ def pps(options):
                                                                      nwp_handeling_module))
 
             LOG.debug(
-                "Number of threads currently alive: " + 
+                "Number of threads currently alive: " +
                 str(threading.active_count()))
 
             # Clean the files4pps dict:
@@ -440,7 +437,8 @@ if __name__ == "__main__":
     from logging import handlers
     LOG.debug("Path to pps2018_runner config file = " + CONFIG_PATH)
     LOG.debug("Pps2018_runner config file = " + CONFIG_FILE)
-    OPTIONS = get_config(CONFIG_FILE)
+    configfile = os.path.join(CONFIG_PATH, CONFIG_FILE)
+    OPTIONS = get_config(configfile)
 
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file', 
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))

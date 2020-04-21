@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 Adam.Dybbroe
+# Copyright (c) 2018, 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -23,16 +23,11 @@
 """Publisher and Listener classes for the PPS runners
 """
 
-import posttroll.subscriber  # @UnresolvedImport
-from posttroll.publisher import Publish  # @UnresolvedImport
+import posttroll.subscriber
+from posttroll.publisher import Publish
 import threading
-try:
-    from utils import (SUPPORTED_PPS_SATELLITES, SUPPORTED_METEOSAT_SATELLITES)  # @UnresolvedImport
-except ImportError as e:
-    print('\n ImportError is only used during developing \n')
-
-    from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES, 
-                                        SUPPORTED_METEOSAT_SATELLITES)  # @UnresolvedImport
+from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES,
+                                    SUPPORTED_METEOSAT_SATELLITES)
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -79,7 +74,7 @@ class FileListener(threading.Thread):
         if (msg.data['platform_name'] not in SUPPORTED_METEOSAT_SATELLITES):
             if ('orbit_number' not in msg.data):
                 LOG.warning("Message is lacking crucial fields...")
-            return False
+                return False
         if (msg.data['platform_name'] not in SUPPORTED_PPS_SATELLITES):
             LOG.info(str(msg.data['platform_name']) + ": " +
                      "Not a NOAA/Metop/S-NPP/Terra/Aqua scene. Continue...")
