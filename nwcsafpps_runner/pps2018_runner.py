@@ -436,7 +436,7 @@ def pps(options):
 
 
 if __name__ == "__main__":
-
+    print('hej')
     from logging import handlers
     LOG.debug("Path to pps2018_runner config file = " + CONFIG_PATH)
     LOG.debug("Pps2018_runner config file = " + CONFIG_FILE)
