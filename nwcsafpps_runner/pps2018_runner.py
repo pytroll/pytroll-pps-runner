@@ -37,7 +37,7 @@ from six.moves.queue import Queue, Empty  # @UnresolvedImport
 try:
     from config import MODE  # @UnresolvedImport @Reimport
     
-    import pdb  # @UnusedImport
+    import pdb
     from config import get_config  # @UnresolvedImport @UnusedImport
     from config import CONFIG_FILE  # @UnresolvedImport @UnusedImport
     from config import CONFIG_PATH  # @UnresolvedImport @UnusedImport
