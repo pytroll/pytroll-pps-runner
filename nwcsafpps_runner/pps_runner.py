@@ -295,7 +295,8 @@ if __name__ == "__main__":
     from logging import handlers
     LOG.debug("Path to pps_runner config file = " + CONFIG_PATH)
     LOG.debug("Pps_runner config file = " + CONFIG_FILE)
-    OPTIONS = get_config(CONFIG_FILE)
+    configfile = os.path.join(CONFIG_PATH, CONFIG_FILE)
+    OPTIONS = get_config(configfile)
 
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file', 
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))
