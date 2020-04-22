@@ -23,22 +23,22 @@
 """Utility functions for NWCSAF/pps runner(s)
 """
 
+import threading
+from trollsift.parser import parse  # @UnresolvedImport
+from posttroll.message import Message  # @UnresolvedImport
+from subprocess import Popen, PIPE
 import os
 import stat
 import netifaces
 import shlex
 from glob import glob
-from subprocess import Popen, PIPE
-from posttroll.message import Message
-from trollsift.parser import parse
 import socket
-from six.moves.urllib.parse import urlparse
 from datetime import datetime, timedelta
-from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
-import shlex
-import threading
-import logging
+#: Python 2/3 differences
+from six.moves.urllib.parse import urlparse  # @UnresolvedImport
 
+
+import logging
 LOG = logging.getLogger(__name__)
 
 
@@ -50,16 +50,18 @@ SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19']
 SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A', 'Metop-C']
 SUPPORTED_EOS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
 SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21']
+SUPPORTED_METEOSAT_SATELLITES = ['Meteosat-09', 'Meteosat-10', 'Meteosat-11']
 
 SUPPORTED_PPS_SATELLITES = (SUPPORTED_NOAA_SATELLITES +
                             SUPPORTED_METOP_SATELLITES +
                             SUPPORTED_EOS_SATELLITES +
+                            SUPPORTED_METEOSAT_SATELLITES +
                             SUPPORTED_JPSS_SATELLITES)
 
 GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
 DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 
-PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis']
+PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis', 'seviri']
 REQUIRED_MW_SENSORS = {}
 REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
 # REQUIRED_MW_SENSORS['NOAA-18'] = ['amsu-a', 'mhs']
@@ -80,7 +82,9 @@ SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
                   'Metop-C': 'metop03',
                   'Suomi-NPP': 'npp',
                   'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21',
-                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1'}
+                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1',
+                  'Meteosat-09': 'meteosat09', 'Meteosat-10': 'meteosat10',
+                  'Meteosat-11': 'meteosat11'}
 SENSOR_LIST = {}
 for sat in SATELLITE_NAME:
     if sat in ['NOAA-15']:
@@ -89,6 +93,8 @@ for sat in SATELLITE_NAME:
         SENSOR_LIST[sat] = 'modis'
     elif sat in ['Suomi-NPP', 'NOAA-20', 'NOAA-21']:
         SENSOR_LIST[sat] = 'viirs'
+    elif 'Meteosat' in sat:
+        SENSOR_LIST[sat] = 'seviri'
     else:
         SENSOR_LIST[sat] = ['avhrr/3', 'mhs', 'amsu-a']
 
@@ -104,6 +110,7 @@ def run_command(cmdstr):
 
     LOG.debug("Command: " + str(cmdstr))
     LOG.debug('Command sequence= ' + str(myargs))
+    #: TODO: What is this
     try:
         proc = Popen(myargs, shell=False, stderr=PIPE, stdout=PIPE)
     except NwpPrepareError:
@@ -141,7 +148,7 @@ def check_uri(uri):
                         "Data file %s unaccessible from this host" % uri)
 
     except socket.gaierror:
-        LOGGER.warning("Couldn't check file location, running anyway")
+        LOG.warning("Couldn't check file location, running anyway")
 
     return url.path
 
@@ -282,7 +289,13 @@ def ready2run(msg, files4pps, **kwargs):
                  "Continue...")
         return False
 
-    if msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES:
+    if msg.data['platform_name'] in SUPPORTED_METEOSAT_SATELLITES:
+        if msg.data['sensor'] not in ['seviri', ]:
+            LOG.info(
+                'Sensor ' + str(msg.data['sensor']) +
+                ' not required for MODIS PPS processing...')
+            return False
+    elif msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES:
         if msg.data['sensor'] not in ['modis', ]:
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) +
@@ -406,6 +419,10 @@ def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
 
 
 def create_pps_call_command_sequence(pps_script_name, scene, options):
+    LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH',
+                                   options.get('LVL1_NPP_PATH', None))
+    LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH',
+                                   options.get('LVL1_EOS_PATH', None))
 
     if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
         cmdstr = "%s %s %s %s %s" % (pps_script_name,
@@ -438,10 +455,12 @@ def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=Tr
     elif scene['platform_name'] in SUPPORTED_JPSS_SATELLITES:
         cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
                   " --csppfile %s" % scene['file4pps'])
+    elif scene['platform_name'] in SUPPORTED_METEOSAT_SATELLITES:
+        cmdstr = ("%s" % python_exec + " %s " % pps_script_name +
+                  "-af %s" % scene['file4pps'])
     else:
         cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
                   " --hrptfile %s" % scene['file4pps'])
-
     if sequence:
         return shlex.split(str(cmdstr))
     else:
@@ -468,6 +487,10 @@ def get_pps_inputfile(platform_name, ppsfiles):
     elif platform_name in SUPPORTED_JPSS_SATELLITES:
         for ppsfile in ppsfiles:
             if os.path.basename(ppsfile).find('SVM01') >= 0:
+                return ppsfile
+    elif platform_name in SUPPORTED_METEOSAT_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('NWC') >= 0:
                 return ppsfile
 
     return None
@@ -583,7 +606,11 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
                          "file", to_send).encode()
         LOG.debug("sending: " + str(pubmsg))
         LOG.info("Sending: " + str(pubmsg))
-        publish_q.put(pubmsg)
+        try:
+            publish_q.put(pubmsg)
+        except:
+            LOG.warning("Failed putting message on the queue, will send it now...")
+            publish_q.send(pubmsg)
 
     return
 

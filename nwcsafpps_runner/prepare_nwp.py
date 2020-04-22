@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015 - 2020 Adam.Dybbroe
+# Copyright (c) 2015 - 2020 Pytroll
 
 # Author(s):
 
@@ -23,37 +23,35 @@
 """Prepare NWP data for PPS
 """
 
-from nwcsafpps_runner.config import get_config
-import logging
 from glob import glob
 import os
 from datetime import datetime
-from six.moves.configparser import ConfigParser
-from six.moves.configparser import NoOptionError
 import tempfile
-from nwcsafpps_runner.utils import run_command
 from trollsift import Parser
+import pygrib  # @UnresolvedImport
+from six.moves.configparser import NoOptionError
 
+
+from nwcsafpps_runner.config import get_config
+from nwcsafpps_runner.config import CONFIG_FILE
+from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport
+from nwcsafpps_runner.utils import run_command
+
+
+#===============================================================================
+# from config import get_config  # @UnresolvedImport
+# from config import CONFIG_FILE  # @UnresolvedImport
+# from config import CONFIG_PATH  # @UnresolvedImport
+# from utils import run_command
+#===============================================================================
+    
+import logging
 LOG = logging.getLogger(__name__)
 
-# CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-# CONF = ConfigParser()
-# ppsconf_path = os.path.join(CONFIG_PATH, "pps2018_config.ini")
-# LOG.debug("Path to config file = ", str(ppsconf_path))
-# CONF.read(ppsconf_path)
 
-# MODE = os.getenv("SMHI_MODE")
-# if MODE is None:
-#     MODE = "offline"
-
-# LOG.debug('MODE = ' + str(MODE))
-
-# OPTIONS = {}
-# for option, value in CONF.items(MODE, raw=True):
-#     OPTIONS[option] = value
-
-
-OPTIONS = get_config('pps2018_config.ini')
+LOG.debug("Path to prepare_nwp config file = " + CONFIG_PATH)
+LOG.debug("Prepare_nwp config file = " + CONFIG_FILE)
+OPTIONS = get_config(CONFIG_FILE)
 
 try:
     nhsp_path = OPTIONS['nhsp_path']
@@ -64,13 +62,14 @@ try:
 except KeyError:
     LOG.exception('Parameter not set in config file: ' + 'nhsp_prefix')
 
+nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
+
 nhsf_path = OPTIONS.get('nhsf_path', None)
 nhsf_prefix = OPTIONS.get('nhsf_prefix', None)
 nwp_outdir = OPTIONS.get('nwp_outdir', None)
 nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
 nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
 nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
-nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
 
 
 class NwpPrepareError(Exception):
@@ -147,17 +146,13 @@ def update_nwp(starttime, nlengths):
             else:
                 raise NwpPrepareError(
                     'Failed parsing forecast_step in file name. Check config and filename timestamp.')
-        # else:
-        #     timestamp, forecast_step = timeinfo.split("+")
-        #     analysis_time = datetime.strptime(timestamp, '%Y%m%d%H%M')
-        #     forecast_step = int(forecast_step[:3])
 
-        print(analysis_time, starttime)
+        LOG.debug(analysis_time, starttime)
         if analysis_time < starttime:
             print("skip analysis")
             continue
         if forecast_step not in nlengths:
-            print("skip step", forecast_step, nlengths)
+            LOG.debug("skip step", forecast_step, nlengths)
             continue
 
         LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(forecast_step))
@@ -229,7 +224,6 @@ def check_nwp_content(gribfile):
     available, then return True
 
     """
-    import pygrib
 
     grbs = pygrib.open(gribfile)
     entries = []

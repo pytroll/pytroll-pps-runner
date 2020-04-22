@@ -32,6 +32,8 @@ from datetime import datetime, timedelta
 
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
+from nwcsafpps_runner.config import CONFIG_FILE
+from nwcsafpps_runner.config import CONFIG_PATH
 from nwcsafpps_runner.utils import ready2run, publish_pps_files
 from nwcsafpps_runner.utils import (terminate_process,
                                     create_pps_call_command_sequence,
@@ -59,8 +61,6 @@ _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 #: Default log format
 _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
-
-_PPS_LOG_FILE = os.environ.get('PPSRUNNER_LOG_FILE', None)
 
 LOG.debug("PYTHONPATH: " + str(sys.path))
 
@@ -112,7 +112,9 @@ def pps_worker(scene, publish_q, input_msg, options):
         my_env = os.environ.copy()
         # for envkey in my_env:
         # LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
-        LOG.debug("PPS_OUTPUT_DIR = " + str(PPS_OUTPUT_DIR))
+
+        pps_output_dir = my_env.get('SM_PRODUCT_DIR', options.get(['pps_outdir'], './'))
+        LOG.debug("PPS_OUTPUT_DIR = " + str(pps_output_dir))
         LOG.debug("...from config file = " + str(options['pps_outdir']))
         if not os.path.isfile(PPS_SCRIPT):
             raise IOError("PPS script" + PPS_SCRIPT + " is not there!")
@@ -150,10 +152,7 @@ def pps_worker(scene, publish_q, input_msg, options):
             LOG.warning("Failed to import the PPSTimeControl from pps")
             do_time_control = False
 
-        if STATISTICS_DIR:
-            pps_control_path = STATISTICS_DIR
-        else:
-            pps_control_path = my_env.get('STATISTICS_DIR')
+        pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
 
         if do_time_control:
             LOG.info("Read time control ascii file and generate XML")
@@ -176,7 +175,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         # Now check what netCDF/hdf5 output was produced and publish
         # them:
-        pps_path = my_env.get('SM_PRODUCT_DIR', PPS_OUTPUT_DIR)
+        pps_path = pps_output_dir
         result_files = get_outputfiles(pps_path,
                                        SATELLITE_NAME[scene['platform_name']],
                                        scene['orbit_number'],
@@ -294,14 +293,12 @@ def pps(options):
 if __name__ == "__main__":
 
     from logging import handlers
+    LOG.debug("Path to pps_runner config file = " + CONFIG_PATH)
+    LOG.debug("Pps_runner config file = " + CONFIG_FILE)
+    OPTIONS = get_config(CONFIG_FILE)
 
-    OPTIONS = get_config("pps_config.cfg")
-    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', _PPS_LOG_FILE)
-
-    # PPS_OUTPUT_DIR = os.environ.get('SM_PRODUCT_DIR', OPTIONS['pps_outdir'])
-    PPS_OUTPUT_DIR = OPTIONS['pps_outdir']
-    STATISTICS_DIR = OPTIONS.get('pps_statistics_dir')
-
+    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', 
+                                os.environ.get('PPSRUNNER_LOG_FILE', False))
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])
         ncount = int(OPTIONS["log_rotation_backup"])
