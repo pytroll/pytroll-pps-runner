@@ -21,7 +21,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Posttroll runner for PPS v2018
+"""Posttroll runner for PPS v2018.
 """
 
 import os
@@ -37,7 +37,7 @@ from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
 from nwcsafpps_runner.config import CONFIG_PATH
 from nwcsafpps_runner.config import CONFIG_FILE
- 
+
 from nwcsafpps_runner.utils import ready2run, publish_pps_files
 from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,
                                     create_pps2018_call_command, get_pps_inputfile,
@@ -49,7 +49,7 @@ from nwcsafpps_runner.utils import (SENSOR_LIST,
                                     METOP_NAME_LETTER)
 
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
- 
+
 from nwcsafpps_runner.prepare_nwp import update_nwp
 
 
@@ -59,7 +59,7 @@ from nwcsafpps_runner.prepare_nwp import update_nwp
 # from config import MODE  # @UnresolvedImport @Reimport
 # from config import CONFIG_FILE  # @UnresolvedImport @UnusedImport
 # from config import CONFIG_PATH  # @UnresolvedImport @UnusedImport
-#  
+#
 # from utils import ready2run, publish_pps_files  # @UnresolvedImport @UnusedImport
 # from utils import (get_sceneid, prepare_pps_arguments,              # @UnresolvedImport @UnusedImport
 #                    create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport @UnusedImport
@@ -70,7 +70,7 @@ from nwcsafpps_runner.prepare_nwp import update_nwp
 # from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport @UnusedImport
 # from prepare_nwp import update_nwp  # @UnresolvedImport @UnusedImport
 #===============================================================================
-    
+
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -119,12 +119,12 @@ class ThreadPool(object):
 
 
 def pps_worker(scene, publish_q, input_msg, options):
-    """Start PPS on a scene
+    """Start PPS on a scene.
 
-        scene = {'platform_name': platform_name,
-                 'orbit_number': orbit_number,
-                 'satday': satday, 'sathour': sathour,
-                 'starttime': starttime, 'endtime': endtime}
+    scene = {'platform_name': platform_name,
+             'orbit_number': orbit_number,
+             'satday': satday, 'sathour': sathour,
+             'starttime': starttime, 'endtime': endtime}
     """
 
     try:
@@ -162,7 +162,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         my_env = os.environ.copy()
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
-        
+
         pps_output_dir = my_env.get('SM_PRODUCT_DIR', options.get('pps_outdir', './'))
         LOG.debug("PPS_OUTPUT_DIR = " + str(pps_output_dir))
         LOG.debug("...from config file = " + str(options['pps_outdir']))
@@ -217,9 +217,9 @@ def pps_worker(scene, publish_q, input_msg, options):
             LOG.warning("Failed to import the PPSTimeControl from pps")
             do_time_control = False
         #: Create the start time (format dateTtime) to be used in file findings
-        st_time = scene['starttime'].isoformat().replace('-', '').replace(':','')
+        st_time = scene['starttime'].isoformat().replace('-', '').replace(':', '')
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
-        
+
         if do_time_control:
             LOG.info("Read time control ascii file and generate XML")
             platform_id = SATELLITE_NAME.get(
@@ -241,7 +241,7 @@ def pps_worker(scene, publish_q, input_msg, options):
                 ppstime_con.sum_up_processing_times()
                 try:
                     ppstime_con.write_xml()
-                except Exception as e:#TypeError as e:
+                except Exception as e:  # TypeError as e:
                     LOG.warning('Not able to write time control xml file')
                     LOG.warning(e)
         # The PPS post-hooks takes care of publishing the PPS PGEs
@@ -271,7 +271,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
 
 def check_threads(threads):
-    """Scan all threads and join those that are finished (dead)"""
+    """Scan all threads and join those that are finished (dead)."""
 
     # LOG.debug(str(threading.enumerate()))
     for i, thread in enumerate(threads):
@@ -287,7 +287,7 @@ def check_threads(threads):
 
 
 def run_nwp_and_pps(scene, flens, publish_q, input_msg, options, nwp_handeling_module):
-    """Run first the nwp-preparation and then pps. No parallel running here!"""
+    """Run first the nwp-preparation and then pps. No parallel running here."""
 
     prepare_nwp4pps(flens, nwp_handeling_module)
     pps_worker(scene, publish_q, input_msg, options)
@@ -296,7 +296,7 @@ def run_nwp_and_pps(scene, flens, publish_q, input_msg, options, nwp_handeling_m
 
 
 def prepare_nwp4pps(flens, nwp_handeling_module):
-    """Prepare NWP data for pps"""
+    """Prepare NWP data for pps."""
 
     starttime = datetime.utcnow() - timedelta(days=1)
     if nwp_handeling_module:
@@ -332,8 +332,11 @@ def prepare_nwp4pps(flens, nwp_handeling_module):
 
 
 def pps(options):
-    """The PPS runner. Triggers processing of PPS main script once AAPP or CSPP
-    is ready with a level-1 file"""
+    """The PPS runner.
+
+    Triggers processing of PPS main script once AAPP or CSPP
+    is ready with a level-1 file
+    """
 
     LOG.info("*** Start the PPS level-2 runner:")
 
@@ -403,9 +406,9 @@ def pps(options):
             scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
 
             LOG.info('Start a thread preparing the nwp data and run pps...')
-            
+
             if options['number_of_threads'] == 1:
-                run_nwp_and_pps(scene, NWP_FLENS, publisher_q, 
+                run_nwp_and_pps(scene, NWP_FLENS, publisher_q,
                                 msg, options, nwp_handeling_module)
             else:
                 thread_pool.new_thread(message_uid(msg),
@@ -444,7 +447,7 @@ if __name__ == "__main__":
     configfile = os.path.join(CONFIG_PATH, CONFIG_FILE)
     OPTIONS = get_config(configfile)
 
-    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', 
+    _PPS_LOG_FILE = OPTIONS.get('pps_log_file',
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])

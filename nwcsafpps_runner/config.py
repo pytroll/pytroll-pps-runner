@@ -20,7 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Reading configuration settings for NWCSAF/pps runner(s)
+"""Reading configuration settings for NWCSAF/pps runner(s).
 """
 
 import os
@@ -31,6 +31,7 @@ MODE = os.environ.get('SMHI_MODE', 'offline')
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
+
 
 def get_config(conf, service=MODE, procenv=''):
     configfile = os.path.join(CONFIG_PATH, conf)
@@ -78,7 +79,7 @@ def get_config_init_cfg(configfile, service=MODE):
 
 
 def get_config_yaml(configfile, service=MODE, procenv=''):
-    """Get the configuration from file"""
+    """Get the configuration from file."""
     import yaml
     try:
         from yaml import UnsafeLoader
