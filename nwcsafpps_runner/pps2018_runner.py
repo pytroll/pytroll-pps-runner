@@ -37,7 +37,7 @@ from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
 from nwcsafpps_runner.config import CONFIG_PATH
 from nwcsafpps_runner.config import CONFIG_FILE
-
+ 
 from nwcsafpps_runner.utils import ready2run, publish_pps_files
 from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,
                                     create_pps2018_call_command, get_pps_inputfile,
@@ -47,9 +47,11 @@ from nwcsafpps_runner.utils import PpsRunError
 from nwcsafpps_runner.utils import (SENSOR_LIST,
                                     SATELLITE_NAME,
                                     METOP_NAME_LETTER)
-from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 
+from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
+ 
 from nwcsafpps_runner.prepare_nwp import update_nwp
+
 
 #===============================================================================
 # import pdb
@@ -57,7 +59,7 @@ from nwcsafpps_runner.prepare_nwp import update_nwp
 # from config import MODE  # @UnresolvedImport @Reimport
 # from config import CONFIG_FILE  # @UnresolvedImport @UnusedImport
 # from config import CONFIG_PATH  # @UnresolvedImport @UnusedImport
-# 
+#  
 # from utils import ready2run, publish_pps_files  # @UnresolvedImport @UnusedImport
 # from utils import (get_sceneid, prepare_pps_arguments,              # @UnresolvedImport @UnusedImport
 #                    create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport @UnusedImport
@@ -67,7 +69,6 @@ from nwcsafpps_runner.prepare_nwp import update_nwp
 # from utils import (SENSOR_LIST, SATELLITE_NAME, METOP_NAME_LETTER)  # @UnresolvedImport @UnusedImport
 # from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport @UnusedImport
 # from prepare_nwp import update_nwp  # @UnresolvedImport @UnusedImport
-# from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport @Reimport
 #===============================================================================
     
 
@@ -215,7 +216,8 @@ def pps_worker(scene, publish_q, input_msg, options):
         except ImportError:
             LOG.warning("Failed to import the PPSTimeControl from pps")
             do_time_control = False
-        
+        #: Create the start time (format dateTtime) to be used in file findings
+        st_time = scene['starttime'].isoformat().replace('-', '').replace(':','')
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
         
         if do_time_control:
@@ -225,7 +227,9 @@ def pps_worker(scene, publish_q, input_msg, options):
             LOG.info("pps platform_id = " + str(platform_id))
             txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
                              str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
-                             '_' + '%.5d' % scene['orbit_number'] + '*.txt')
+                             '_' + '%.5d' % scene['orbit_number'] + '_' +
+                             st_time +
+                             '*.txt')
             LOG.info("glob string = " + str(txt_time_file))
             infiles = glob(txt_time_file)
             LOG.info(
@@ -245,6 +249,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         xml_files = get_outputfiles(pps_control_path,
                                     SATELLITE_NAME[scene['platform_name']],
                                     scene['orbit_number'],
+                                    st_time,
                                     xml_output=True)
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
@@ -339,7 +344,7 @@ def pps(options):
     files4pps = {}
     LOG.info("Number of threads: %d", options['number_of_threads'])
     thread_pool = ThreadPool(options['number_of_threads'])
-    
+
     #:-----------------------
     listener_q = Queue()
     publisher_q = Queue()
@@ -367,7 +372,6 @@ def pps(options):
         #:-----------------------
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
-
         if 'sensor' in msg.data.keys() and isinstance(msg.data['sensor'], list):
             msg.data['sensor'] = msg.data['sensor'][0]
         if 'orbit_number' not in msg.data.keys():

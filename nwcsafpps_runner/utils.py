@@ -496,14 +496,13 @@ def get_pps_inputfile(platform_name, ppsfiles):
     return None
 
 
-def get_outputfiles(path, platform_name, orb, **kwargs):
-    """From the directory path and satellite id and orbit number scan the directory
-    and find all pps output files matching that scene and return the full
-    filenames. Since the orbit number is unstable there might be more than one
-    scene with the same orbit number and platform name. In order to avoid
-    picking up an older scene we check the file modifcation time, and if the
-    file is too old we discard it!
-
+def get_outputfiles(path, platform_name, orb, st_time, **kwargs):
+    """From the directory path and satellite id and orbit number and start time, 
+    scan the directory and find all pps output files matching that scene and 
+    return the full filenames. Since the orbit number is unstable there might be 
+    more than one scene with the same orbit number and platform name. In order 
+    to avoid picking up an older scene we check the file modifcation time, and 
+    if the file is too old we discard it!
     """
 
     filelist = []
@@ -511,7 +510,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if h5_output:
         h5_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_*.h5')
+                     '_' + '%.5d' % int(orb) + '_%s*.h5' %st_time)
         LOG.info(
             "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
         filelist = filelist + glob(h5_output)
@@ -520,7 +519,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if nc_output:
         nc_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_*.nc')
+                     '_' + '%.5d' % int(orb) + '_%s*.nc' %st_time)
         LOG.info(
             "Match string to do a file globbing on netcdf output files: " + str(nc_output))
         filelist = filelist + glob(nc_output)
@@ -529,7 +528,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if xml_output:
         xml_output = (os.path.join(path, 'S_NWC') + '*' +
                       str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                      '_' + '%.5d' % int(orb) + '_*.xml')
+                      '_' + '%.5d' % int(orb) + '_%s*.xml' %st_time)
         LOG.info(
             "Match string to do a file globbing on xml output files: " + str(xml_output))
         filelist = filelist + glob(xml_output)
