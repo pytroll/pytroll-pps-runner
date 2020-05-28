@@ -29,13 +29,6 @@ import threading
 from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES,
                                     SUPPORTED_METEOSAT_SATELLITES)
 
-
-#===============================================================================
-# from utils import (SUPPORTED_PPS_SATELLITES,
-#                                     SUPPORTED_METEOSAT_SATELLITES)
-#===============================================================================
-
-
 import logging
 LOG = logging.getLogger(__name__)
 

@@ -52,26 +52,6 @@ from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 
 from nwcsafpps_runner.prepare_nwp import update_nwp
 
-
-#===============================================================================
-# import pdb
-# from config import get_config  # @UnresolvedImport @UnusedImport
-# from config import MODE  # @UnresolvedImport @Reimport
-# from config import CONFIG_FILE  # @UnresolvedImport @UnusedImport
-# from config import CONFIG_PATH  # @UnresolvedImport @UnusedImport
-#
-# from utils import ready2run, publish_pps_files  # @UnresolvedImport @UnusedImport
-# from utils import (get_sceneid, prepare_pps_arguments,              # @UnresolvedImport @UnusedImport
-#                    create_pps2018_call_command, get_pps_inputfile,  # @UnresolvedImport @UnusedImport
-#                    logreader, terminate_process, get_outputfiles,   # @UnresolvedImport @UnusedImport
-#                    message_uid)                                     # @UnresolvedImport @UnusedImport
-# from utils import PpsRunError  # @UnresolvedImport @UnusedImport
-# from utils import (SENSOR_LIST, SATELLITE_NAME, METOP_NAME_LETTER)  # @UnresolvedImport @UnusedImport
-# from publish_and_listen import FileListener, FilePublisher  # @UnresolvedImport @UnusedImport
-# from prepare_nwp import update_nwp  # @UnresolvedImport @UnusedImport
-#===============================================================================
-
-
 import logging
 LOG = logging.getLogger(__name__)
 
