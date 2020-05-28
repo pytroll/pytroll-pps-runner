@@ -496,16 +496,20 @@ def get_pps_inputfile(platform_name, ppsfiles):
     return None
 
 
-def get_outputfiles(path, platform_name, orb, st_time, **kwargs):
-    """From the directory path and satellite id and orbit number and start time,
+def get_outputfiles(path, platform_name, orb, **kwargs):
+    """Finds outputfiles depending on certain input criteria.
+
+    From the directory path and satellite id and orbit number,
     scan the directory and find all pps output files matching that scene and
     return the full filenames. Since the orbit number is unstable there might be
     more than one scene with the same orbit number and platform name. In order
     to avoid picking up an older scene we check the file modifcation time, and
-    if the file is too old we discard it!
+    if the file is too old we discard it! For a more specific search patern the
+    start time can be used, just add st_time=start-time
     """
-
+    
     filelist = []
+    st_time = kwargs.get('st_time', '')
     h5_output = kwargs.get('h5_output')
     if h5_output:
         h5_output = (os.path.join(path, 'S_NWC') + '*' +

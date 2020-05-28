@@ -217,9 +217,11 @@ def pps_worker(scene, publish_q, input_msg, options):
             LOG.warning("Failed to import the PPSTimeControl from pps")
             do_time_control = False
         #: Create the start time (format dateTtime) to be used in file findings
-        st_time = scene['starttime'].isoformat().replace('-', '').replace(':', '')
+        if SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) == 'seviri':
+            st_time = scene['starttime'].isoformat().replace('-', '').replace(':', '')
+        else:
+            st_time = ''
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
-
         if do_time_control:
             LOG.info("Read time control ascii file and generate XML")
             platform_id = SATELLITE_NAME.get(
@@ -249,7 +251,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         xml_files = get_outputfiles(pps_control_path,
                                     SATELLITE_NAME[scene['platform_name']],
                                     scene['orbit_number'],
-                                    st_time,
+                                    st_time=st_time,
                                     xml_output=True)
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
