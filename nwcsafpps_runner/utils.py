@@ -496,7 +496,7 @@ def get_pps_inputfile(platform_name, ppsfiles):
     return None
 
 
-def get_outputfiles(path, platform_name, orb, **kwargs):
+def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
     """Finds outputfiles depending on certain input criteria.
 
     From the directory path and satellite id and orbit number,
@@ -509,7 +509,6 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     """
 
     filelist = []
-    st_time = kwargs.get('st_time', '')
     h5_output = kwargs.get('h5_output')
     if h5_output:
         h5_output = (os.path.join(path, 'S_NWC') + '*' +
