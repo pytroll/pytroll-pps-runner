@@ -28,10 +28,10 @@ def test_outputfiles(tmp_path):
     """Test get_outputfiles.
 
     get_outputfiles uses os.stat to test if a file is older than 90 min,
-    and is so disregard it. This behaviour can't be tested at the moment.
+    and if so disregard it. This behaviour can't be tested at the moment.
     To do so either one file needs to be created more than 90 mins ago
     or the os.stat should be modified so the so.stat thinks the file was
-     created more than 90 mins ago. The file should than not be found.
+    created more than 90 mins ago. The file should than not be found.
     """
     #: Create temp_path
     d = tmp_path / "export"
