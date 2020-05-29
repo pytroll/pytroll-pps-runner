@@ -21,24 +21,79 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Test utility functions."""
-
-from posttroll.message import Message
 from trollmoves.utils import (get_outputfiles)
-# from trollmoves.utils import (get_outputfiles)
-import unittest
-import os
-import copy
-import datetime
-import unittest
 
 
-class Test(unittest.TestCase):
+def test_outputfiles(tmp_path):
+    """Test get_outputfiles.
 
+    get_outputfiles uses os.stat to test if a file is older than 90 min,
+    and is so disregard it. This behaviour can't be tested at the moment.
+    To do so either one file needs to be created more than 90 mins ago
+    or the os.stat should be modified so the so.stat thinks the file was
+     created more than 90 mins ago. The file should than not be found.
+    """
+    #: Create temp_path
+    d = tmp_path / "export"
+    d.mkdir()
+    #: Print tmp_path
+    print(d.__str__())
 
-    def testName(self):
-        pass
+    #: Create test files
+    def create_files(d, typ):
+        #: These files should always be found
+        f1 = d / "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)
+        f1.write_text("correct orbit and time")
+        #: These files should be found if start time is not given
+        f2 = d / "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ)
+        f2.write_text("correct orbit and time within 90 min")
+        #: These files should not be found although the start time is correct
+        f3 = d / "S_NWC_CMAPROB_noaa15_54321_19810305T0715000Z_19810305T0730000Z.{}".format(typ)
+        f3.write_text("wrong orbit and correct time")
+        #: TODO: Create testfile older than 90 min but with correct orbitnumber
+
+    #: Test xml files without start time
+    typ = "xml"
+    create_files(d, typ)
+    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ),
+                "{}/S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(d.__str__(), typ)]
+    res = get_outputfiles(d.__str__(), "noaa15", 12345, xml_output=True)
+    assert len(res) == len(set(res))
+    assert set(res) == set(expected)
+    #: Test xml files with start time
+    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ)]
+    res = get_outputfiles(d.__str__(), "noaa15", 12345, st_time="19810305T0715", xml_output=True)
+    assert len(res) == len(set(res))
+    assert set(res) == set(expected)
+
+    #: Test h5 files without start time
+    typ = "h5"
+    create_files(d, typ)
+    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ),
+                "{}/S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(d.__str__(), typ)]
+    res = get_outputfiles(d.__str__(), "noaa15", 12345, h5_output=True)
+    assert len(res) == len(set(res))
+    assert set(res) == set(expected)
+    #: Test h5 files with start time
+    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ)]
+    res = get_outputfiles(d.__str__(), "noaa15", 12345, st_time="19810305T0715", h5_output=True)
+    assert len(res) == len(set(res))
+    assert set(res) == set(expected)
+
+    #: Test nc files without start time
+    typ = "nc"
+    create_files(d, typ)
+    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ),
+                "{}/S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(d.__str__(), typ)]
+    res = get_outputfiles(d.__str__(), "noaa15", 12345, nc_output=True)
+    assert len(res) == len(set(res))
+    assert set(res) == set(expected)
+    #: Test nc files with start time
+    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ)]
+    res = get_outputfiles(d.__str__(), "noaa15", 12345, st_time="19810305T0715", nc_output=True)
+    assert len(res) == len(set(res))
+    assert set(res) == set(expected)
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+    pass
