@@ -507,7 +507,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if the file is too old we discard it! For a more specific search patern the
     start time can be used, just add st_time=start-time
     """
-    
+
     filelist = []
     st_time = kwargs.get('st_time', '')
     h5_output = kwargs.get('h5_output')
