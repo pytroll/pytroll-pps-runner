@@ -22,7 +22,7 @@
 
 """Test utility functions."""
 from nwcsafpps_runner.utils import (get_outputfiles)
-
+import os
 
 def test_outputfiles(tmp_path):
     """Test get_outputfiles.
@@ -53,13 +53,13 @@ def test_outputfiles(tmp_path):
     #: Test xml files without start time
     typ = "xml"
     create_files(d, typ)
-    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ),
-                "{}/S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(d.__str__(), typ)]
+    expected = [os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
+                os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
     res = get_outputfiles(d.__str__(), "noaa15", 12345, xml_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
     #: Test xml files with start time
-    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ)]
+    expected = [os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
     res = get_outputfiles(d.__str__(), "noaa15", 12345, st_time="19810305T0715", xml_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
@@ -67,13 +67,13 @@ def test_outputfiles(tmp_path):
     #: Test h5 files without start time
     typ = "h5"
     create_files(d, typ)
-    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ),
-                "{}/S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(d.__str__(), typ)]
+    expected = [os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
+                os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
     res = get_outputfiles(d.__str__(), "noaa15", 12345, h5_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
     #: Test h5 files with start time
-    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ)]
+    expected = [os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
     res = get_outputfiles(d.__str__(), "noaa15", 12345, st_time="19810305T0715", h5_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
@@ -81,13 +81,13 @@ def test_outputfiles(tmp_path):
     #: Test nc files without start time
     typ = "nc"
     create_files(d, typ)
-    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ),
-                "{}/S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(d.__str__(), typ)]
+    expected = [os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
+                os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
     res = get_outputfiles(d.__str__(), "noaa15", 12345, nc_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
     #: Test nc files with start time
-    expected = ["{}/S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(d.__str__(), typ)]
+    expected = [os.path.join(d.__str__(), "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
     res = get_outputfiles(d.__str__(), "noaa15", 12345, st_time="19810305T0715", nc_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
