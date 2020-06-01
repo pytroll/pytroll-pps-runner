@@ -29,15 +29,14 @@ def test_outputfiles(tmp_path):
 
     get_outputfiles uses os.stat to test if a file is older than 90 min,
     and if so disregard it. This behaviour can't be tested at the moment.
-    To do so either one file needs to be created more than 90 mins ago
-    or the os.stat should be modified so the so.stat thinks the file was
-    created more than 90 mins ago. The file should than not be found.
+    TODO: either one file (correct orbit number and start-time) needs to
+    be created more than 90 mins ago or the os.stat should be modified
+    so the so.stat thinks the file was created more than 90 mins ago.
+    The file should than not be found.
     """
     #: Create temp_path
     d = tmp_path / "export"
     d.mkdir()
-    #: Print tmp_path
-    print(d.__str__())
 
     #: Create test files
     def create_files(d, typ):
@@ -50,7 +49,6 @@ def test_outputfiles(tmp_path):
         #: These files should not be found although the start time is correct
         f3 = d / "S_NWC_CMAPROB_noaa15_54321_19810305T0715000Z_19810305T0730000Z.{}".format(typ)
         f3.write_text("wrong orbit and correct time")
-        #: TODO: Create testfile older than 90 min but with correct orbitnumber
 
     #: Test xml files without start time
     typ = "xml"
