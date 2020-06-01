@@ -21,7 +21,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Test utility functions."""
-from trollmoves.utils import (get_outputfiles)
+from nwcsafpps_runner.utils import (get_outputfiles)
 
 
 def test_outputfiles(tmp_path):
