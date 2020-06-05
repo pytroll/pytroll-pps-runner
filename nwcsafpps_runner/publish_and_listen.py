@@ -20,7 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Publisher and Listener classes for the PPS runners
+"""Publisher and Listener classes for the PPS runners.
 """
 
 import posttroll.subscriber
@@ -42,7 +42,7 @@ class FileListener(threading.Thread):
         self.subscribe_topics = subscribe_topics
 
     def stop(self):
-        """Stops the file listener"""
+        """Stops the file listener."""
         self.loop = False
         self.queue.put(None)
 
@@ -84,9 +84,11 @@ class FileListener(threading.Thread):
 
 
 class FilePublisher(threading.Thread):
+    """A publisher for the PPS result files.
 
-    """A publisher for the PPS result files. Picks up the return value from the
-    pps_worker when ready, and publishes the files via posttroll"""
+    Picks up the return value from the
+    pps_worker when ready, and publishes the files via posttroll
+    """
 
     def __init__(self, queue, publish_topic, **kwargs):
         threading.Thread.__init__(self)
@@ -97,7 +99,7 @@ class FilePublisher(threading.Thread):
         self.runner_name = kwargs.get('runner_name', 'pps_runner')
 
     def stop(self):
-        """Stops the file publisher"""
+        """Stops the file publisher."""
         self.loop = False
         self.queue.put(None)
 
@@ -108,6 +110,6 @@ class FilePublisher(threading.Thread):
             while self.loop:
                 retv = self.queue.get()
 
-                if retv != None:
+                if retv is not None:
                     LOG.info("Publish the files...")
                     publisher.send(retv)

@@ -24,7 +24,6 @@
 """Setup for pps-runner.
 """
 from setuptools import setup, find_packages
-import imp
 
 try:
     # HACK: https://github.com/pypa/setuptools_scm/issues/190#issuecomment-351181286

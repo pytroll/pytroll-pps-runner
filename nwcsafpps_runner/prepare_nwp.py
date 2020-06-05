@@ -31,20 +31,11 @@ from trollsift import Parser
 import pygrib  # @UnresolvedImport
 from six.moves.configparser import NoOptionError
 
-
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import CONFIG_FILE
 from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport
 from nwcsafpps_runner.utils import run_command
 
-
-#===============================================================================
-# from config import get_config  # @UnresolvedImport
-# from config import CONFIG_FILE  # @UnresolvedImport
-# from config import CONFIG_PATH  # @UnresolvedImport
-# from utils import run_command
-#===============================================================================
-    
 import logging
 LOG = logging.getLogger(__name__)
 

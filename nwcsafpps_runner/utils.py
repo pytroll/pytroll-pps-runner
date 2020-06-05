@@ -20,7 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Utility functions for NWCSAF/pps runner(s)
+"""Utility functions for NWCSAF/pps runner(s).
 """
 
 import threading
@@ -105,7 +105,7 @@ METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
 
 
 def run_command(cmdstr):
-    """Run system command"""
+    """Run system command."""
     myargs = shlex.split(str(cmdstr))
 
     LOG.debug("Command: " + str(cmdstr))
@@ -219,7 +219,7 @@ def get_sceneid(platform_name, orbit_number, starttime):
 
 
 def ready2run(msg, files4pps, **kwargs):
-    """Check whether pps is ready to run or not"""
+    """Check whether pps is ready to run or not."""
     # """Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
 
@@ -244,7 +244,7 @@ def ready2run(msg, files4pps, **kwargs):
             msg.data['platform_name'] in SUPPORTED_JPSS_SATELLITES):
         LOG.info('Dataset: ' + str(msg.data['dataset']))
         LOG.info('Got a dataset on a JPSS/SNPP satellite')
-        if destination == None:
+        if destination is None:
             for obj in msg.data['dataset']:
                 uris.append(obj['uri'])
         else:
@@ -257,7 +257,7 @@ def ready2run(msg, files4pps, **kwargs):
                 uris.extend([mda['uri'] for mda in dataset['dataset']])
 
     elif msg.type == 'file':
-        if destination == None:
+        if destination is None:
             uris = [(msg.data['uri'])]
         else:
             uris = [os.path.join(destination, msg.data['uid'])]
@@ -385,8 +385,8 @@ def ready2run(msg, files4pps, **kwargs):
 
 
 def terminate_process(popen_obj, scene):
-    """Terminate a Popen process"""
-    if popen_obj.returncode == None:
+    """Terminate a Popen process."""
+    if popen_obj.returncode is None:
         popen_obj.kill()
         LOG.info(
             "Process timed out and pre-maturely terminated. Scene: " + str(scene))
@@ -397,7 +397,7 @@ def terminate_process(popen_obj, scene):
 
 
 def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
-    """Prepare the platform specific arguments to be passed to the PPS scripts/modules"""
+    """Prepare the platform specific arguments to be passed to the PPS scripts/modules."""
 
     orbit_number = kwargs.get('orbit_number')
     pps_args = {}
@@ -469,7 +469,7 @@ def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=Tr
 
 def get_pps_inputfile(platform_name, ppsfiles):
     """From the set of files picked up in the PostTroll messages decide the input
-       file used in the PPS call
+    file used in the PPS call
     """
 
     if platform_name in SUPPORTED_EOS_SATELLITES:
@@ -496,14 +496,16 @@ def get_pps_inputfile(platform_name, ppsfiles):
     return None
 
 
-def get_outputfiles(path, platform_name, orb, **kwargs):
-    """From the directory path and satellite id and orbit number scan the directory
-    and find all pps output files matching that scene and return the full
-    filenames. Since the orbit number is unstable there might be more than one
-    scene with the same orbit number and platform name. In order to avoid
-    picking up an older scene we check the file modifcation time, and if the
-    file is too old we discard it!
+def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
+    """Finds outputfiles depending on certain input criteria.
 
+    From the directory path and satellite id and orbit number,
+    scan the directory and find all pps output files matching that scene and
+    return the full filenames. Since the orbit number is unstable there might be
+    more than one scene with the same orbit number and platform name. In order
+    to avoid picking up an older scene we check the file modifcation time, and
+    if the file is too old we discard it! For a more specific search patern the
+    start time can be used, just add st_time=start-time
     """
 
     filelist = []
@@ -511,7 +513,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if h5_output:
         h5_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_*.h5')
+                     '_' + '%.5d' % int(orb) + '_%s*.h5' %st_time)
         LOG.info(
             "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
         filelist = filelist + glob(h5_output)
@@ -520,7 +522,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if nc_output:
         nc_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_*.nc')
+                     '_' + '%.5d' % int(orb) + '_%s*.nc' %st_time)
         LOG.info(
             "Match string to do a file globbing on netcdf output files: " + str(nc_output))
         filelist = filelist + glob(nc_output)
@@ -529,7 +531,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if xml_output:
         xml_output = (os.path.join(path, 'S_NWC') + '*' +
                       str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                      '_' + '%.5d' % int(orb) + '_*.xml')
+                      '_' + '%.5d' % int(orb) + '_%s*.xml' %st_time)
         LOG.info(
             "Match string to do a file globbing on xml output files: " + str(xml_output))
         filelist = filelist + glob(xml_output)
@@ -549,7 +551,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
 
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
     """
-    Publish messages for the files provided
+    Publish messages for the files provided.
     """
 
     environment = kwargs.get('environment')
