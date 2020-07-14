@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018, 2020 Pytroll Community
+# Copyright (c) 2013 - 2020 Pytroll Community
 
 # Author(s):
 
@@ -41,7 +41,7 @@ try:
 except IOError:
     long_description = ''
 
-NAME = "pps_runner"
+NAME = "nwcsafpps_runner"
 
 setup(name=NAME,
       description=description,

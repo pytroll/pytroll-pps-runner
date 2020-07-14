@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2019 Adam.Dybbroe
+# Copyright (c) 2014 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -27,7 +27,7 @@ import sys
 from glob import glob
 from subprocess import Popen, PIPE
 import threading
-import Queue
+from six.moves.queue import Queue, Empty
 from datetime import datetime, timedelta
 
 from nwcsafpps_runner.config import get_config
@@ -297,7 +297,7 @@ if __name__ == "__main__":
     LOG.debug("Pps_runner config file = " + CONFIG_FILE)
     OPTIONS = get_config(CONFIG_FILE)
 
-    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', 
+    _PPS_LOG_FILE = OPTIONS.get('pps_log_file',
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])

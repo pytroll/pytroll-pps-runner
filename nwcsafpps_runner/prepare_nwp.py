@@ -40,8 +40,8 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-LOG.debug("Path to prepare_nwp config file = " + CONFIG_PATH)
-LOG.debug("Prepare_nwp config file = " + CONFIG_FILE)
+LOG.debug("Path to prepare_nwp config file = %s", str(CONFIG_PATH))
+LOG.debug("Prepare_nwp config file = %s", str(CONFIG_FILE))
 OPTIONS = get_config(CONFIG_FILE)
 
 try:
@@ -86,10 +86,10 @@ def update_nwp(starttime, nlengths):
     tempfile.tempdir = nwp_outdir
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
-        LOG.info("No input files! dir = " + str(nhsf_path))
+        LOG.info("No input files! dir = %s", str(nhsf_path))
         return
 
-    LOG.debug('NHSF NWP files found = ' + str(filelist))
+    LOG.debug('NHSF NWP files found = %s', str(filelist))
     nfiles_error = 0
     for filename in filelist:
         #filename = os.path.basename(filename2)
@@ -138,15 +138,15 @@ def update_nwp(starttime, nlengths):
                 raise NwpPrepareError(
                     'Failed parsing forecast_step in file name. Check config and filename timestamp.')
 
-        LOG.debug(analysis_time, starttime)
+        LOG.debug("Analysis time and start time: %s %s", str(analysis_time), str(starttime))
         if analysis_time < starttime:
             print("skip analysis")
             continue
         if forecast_step not in nlengths:
-            LOG.debug("skip step", forecast_step, nlengths)
+            LOG.debug("Skip step. Forecast step and nlengths: %s %d", str(forecast_step), nlengths)
             continue
 
-        LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(forecast_step))
+        LOG.info("timestamp, step: %s %s", str(timestamp), str(forecast_step))
         result_file = os.path.join(
             nwp_outdir, nwp_output_prefix + timestamp + "+" + '%.3dH00M' % forecast_step)
         if os.path.exists(result_file):
