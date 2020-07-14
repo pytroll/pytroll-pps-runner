@@ -143,7 +143,7 @@ def update_nwp(starttime, nlengths):
             print("skip analysis")
             continue
         if forecast_step not in nlengths:
-            LOG.debug("Skip step. Forecast step and nlengths: %s %d", str(forecast_step), nlengths)
+            LOG.debug("Skip step. Forecast step and nlengths: %s %s", str(forecast_step), str(nlengths))
             continue
 
         LOG.info("timestamp, step: %s %s", str(timestamp), str(forecast_step))
