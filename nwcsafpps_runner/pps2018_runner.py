@@ -29,9 +29,9 @@ import sys
 from glob import glob
 from subprocess import Popen, PIPE
 import threading
-from six.moves.queue import Queue, Empty
 from datetime import datetime, timedelta
-
+import logging
+from six.moves.queue import Queue, Empty
 
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import MODE
@@ -52,7 +52,6 @@ from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 
 from nwcsafpps_runner.prepare_nwp import update_nwp
 
-import logging
 LOG = logging.getLogger(__name__)
 
 
@@ -199,6 +198,9 @@ def pps_worker(scene, publish_q, input_msg, options):
         #: Create the start time (format dateTtime) to be used in file findings
         if SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) == 'seviri':
             st_time = scene['starttime'].isoformat().replace('-', '').replace(':', '')
+        elif (SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) in ['viirs', 'modis'] or
+              'avhrr/3' in SENSOR_LIST.get(scene['platform_name'], scene['platform_name'])):
+            st_time = scene['starttime'].isoformat().replace('-', '').replace(':', '').split('.')[0]
         else:
             st_time = ''
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
@@ -233,6 +235,21 @@ def pps_worker(scene, publish_q, input_msg, options):
                                     scene['orbit_number'],
                                     st_time=st_time,
                                     xml_output=True)
+        if len(xml_files) == 0:
+            # Perhaps there is an orbit number mismatch?
+            nxmlfiles = 0
+            for idx in [1, -1, 2, -2, 3, -3, 4, -4, 5, -5]:
+                tmp_orbit = int(scene['orbit_number']) + idx
+                LOG.debug('Try with an orbitnumber of %d instead', tmp_orbit)
+                xml_files = get_outputfiles(pps_control_path,
+                                            SATELLITE_NAME[scene['platform_name']],
+                                            tmp_orbit,
+                                            st_time=st_time,
+                                            xml_output=True)
+                nxmlfiles = len(xml_files)
+                if nxmlfiles > 0:
+                    break
+
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
         # Now publish:

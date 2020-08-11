@@ -513,7 +513,7 @@ def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
     if h5_output:
         h5_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_%s*.h5' %st_time)
+                     '_' + '%.5d' % int(orb) + '_%s*.h5' % st_time)
         LOG.info(
             "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
         filelist = filelist + glob(h5_output)
@@ -522,7 +522,7 @@ def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
     if nc_output:
         nc_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_%s*.nc' %st_time)
+                     '_' + '%.5d' % int(orb) + '_%s*.nc' % st_time)
         LOG.info(
             "Match string to do a file globbing on netcdf output files: " + str(nc_output))
         filelist = filelist + glob(nc_output)
@@ -531,7 +531,7 @@ def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
     if xml_output:
         xml_output = (os.path.join(path, 'S_NWC') + '*' +
                       str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                      '_' + '%.5d' % int(orb) + '_%s*.xml' %st_time)
+                      '_' + '%.5d' % int(orb) + '_%s*.xml' % st_time)
         LOG.info(
             "Match string to do a file globbing on xml output files: " + str(xml_output))
         filelist = filelist + glob(xml_output)
@@ -606,7 +606,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
                          '/' + station + '/' + environment +
                          '/polar/direct_readout/',
                          "file", to_send).encode()
-        LOG.debug("sending: " + str(pubmsg))
+        #LOG.debug("sending: " + str(pubmsg))
         LOG.info("Sending: " + str(pubmsg))
         try:
             publish_q.put(pubmsg)
