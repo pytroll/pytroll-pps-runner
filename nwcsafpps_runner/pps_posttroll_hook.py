@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2019 Adam.Dybbroe
+# Copyright (c) 2018 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -50,6 +50,7 @@ PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
                        'ppsMakeNwp': 'NWP',
                        'ppsCmaskPrepare': 'CMA-PRE',
                        'ppsCmask': 'CMA',
+                       'ppsCmaskProb': 'CMAProb',
                        'ppsCtth': 'CTTH',
                        'ppsCtype': 'CT',
                        'ppsCpp': 'CPP',
