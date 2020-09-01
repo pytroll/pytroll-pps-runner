@@ -299,7 +299,7 @@ def prepare_nwp4pps(flens, nwp_handeling_module):
 
     starttime = datetime.utcnow() - timedelta(days=1)
     if nwp_handeling_module:
-        LOG.debug("Use custom nwp_handeling_function provided i config file...")
+        LOG.debug("Use custom nwp_handeling_function provided in config file...")
         LOG.debug("nwp_module_name = %s", str(nwp_handeling_module))
         try:
             name = "update_nwp"
@@ -318,7 +318,7 @@ def prepare_nwp4pps(flens, nwp_handeling_module):
         except AttributeError:
             LOG.debug("Could not get attribute %s from %s", str(name), str(module))
     else:
-        LOG.debug("No custom nwp_handeling_function provided i config file...")
+        LOG.debug("No custom nwp_handeling_function provided in config file...")
         LOG.debug("Use build in.")
         try:
             update_nwp(starttime, flens)

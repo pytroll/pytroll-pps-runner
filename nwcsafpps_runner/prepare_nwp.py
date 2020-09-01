@@ -83,6 +83,11 @@ def update_nwp(starttime, nlengths):
 
     """
 
+    LOG.info("Path to prepare_nwp config file = %s", str(CONFIG_PATH))
+    LOG.info("Prepare_nwp config file = %s", str(CONFIG_FILE))
+    LOG.info("Path to nhsf files: %s", str(nhsf_path))
+    LOG.info("Path to nhsp files: %s", str(nhsp_path))
+
     tempfile.tempdir = nwp_outdir
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
