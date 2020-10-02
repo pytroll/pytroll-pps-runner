@@ -575,6 +575,8 @@ def get_xml_outputfiles(path, platform_name, orb, st_time=''):
             if nxmlfiles > 0:
                 break
 
+    return filelist
+
 
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
     """
