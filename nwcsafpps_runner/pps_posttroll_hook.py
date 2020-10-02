@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2019 Adam.Dybbroe
+# Copyright (c) 2018 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -115,24 +115,31 @@ class PPSMessage(object):
         pass
 
     def __getstate__(self):
-        d__ = {'station': self.station,
-               'posttroll_topic': self.posttroll_topic,
-               'output_format': self.output_format,
-               'level': self.level}
+        """Example - metadata:
+        posttroll_topic: "PPSv2018"
+        station: "norrkoping"
+        output_format: "CF"
+        level: "2"
+        variant: DR
+        """
+        # d__ = {'station': self.station,
+        #        'posttroll_topic': self.posttroll_topic,
+        #        'output_format': self.output_format,
+        #        'level': self.level}
+        d__ = {'metadata': self.metadata}
         return d__
 
     def __setstate__(self, mydict):
-        self.station = mydict['station']
-        self.posttroll_topic = mydict['posttroll_topic']
-        self.output_format = mydict['output_format']
-        self.level = mydict['level']
+        self.metadata = mydict['metadata']
+        # self.station = mydict['station']
+        # self.posttroll_topic = mydict['posttroll_topic']
+        # self.output_format = mydict['output_format']
+        # self.level = mydict['level']
 
     def __call__(self, status, mda):
 
-        LOG.debug("Station = %s", str(self.station))
-        LOG.debug("PostTroll topic = %s", str(self.posttroll_topic))
-        LOG.debug("Output Format = %s", str(self.output_format))
-        LOG.debug("Level = %s", str(self.level))
+        for key in self.metadata:
+            LOG.debug("%s = %s", str(key), str(self.metadata[key]))
 
         if status != 0:
             # Error
@@ -185,10 +192,18 @@ class PPSMessage(object):
                 LOG.debug("Filename = %s", filename)
                 to_send['uid'] = os.path.basename(filename)
 
-        to_send['data_processing_level'] = self.level
-        to_send['format'] = self.output_format
-        to_send['status'] = status
-        station = self.station
+        # level, output_format and station are all required fields
+        for attr in ['level', 'output_format', 'station']
+        if not self.metadata.has_key(attr):
+            raise AttributeError("pps_hook must contain metadata attribute %s", attr)
+
+        for key in self.metadata:
+            if key in ['level']:
+                to_send['data_processing_level'] = self.metadata['level']
+            elif key in ['format']:
+                to_send['format'] = self.metadata['output_format']
+            else:
+                to_send[key] = self.metadata[key]
 
         pps_product = PPS_PRODUCT_FILE_ID.get(mda.get('module', 'unknown'), 'UNKNOWN')
         environment = MODE
