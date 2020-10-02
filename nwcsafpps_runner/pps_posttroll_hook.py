@@ -194,9 +194,9 @@ class PPSMessage(object):
                 to_send['uid'] = os.path.basename(filename)
 
         # level, output_format and station are all required fields
-        for attr in ['level', 'output_format', 'station']
-        if not self.metadata.has_key(attr):
-            raise AttributeError("pps_hook must contain metadata attribute %s", attr)
+        for attr in ['level', 'output_format', 'station']:
+            if not self.metadata.has_key(attr):
+                raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 
         for key in self.metadata:
             if key in ['level']:
