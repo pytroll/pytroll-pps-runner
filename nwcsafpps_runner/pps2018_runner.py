@@ -197,10 +197,10 @@ def pps_worker(scene, publish_q, input_msg, options):
             do_time_control = False
         #: Create the start time (format dateTtime) to be used in file findings
         if SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) == 'seviri':
-            st_time = scene['starttime'].isoformat().replace('-', '').replace(':', '')
+            st_time = scene['starttime'].strftime("%Y%m%dT%H%M%S.%f")
         elif (SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) in ['viirs', 'modis'] or
               'avhrr/3' in SENSOR_LIST.get(scene['platform_name'], scene['platform_name'])):
-            st_time = scene['starttime'].isoformat().replace('-', '').replace(':', '').split('.')[0]
+            st_time = scene['starttime'].strftime("%Y%m%dT%H%M%S")
         else:
             st_time = ''
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
@@ -228,27 +228,13 @@ def pps_worker(scene, publish_q, input_msg, options):
                 except Exception as e:  # TypeError as e:
                     LOG.warning('Not able to write time control xml file')
                     LOG.warning(e)
-        # The PPS post-hooks takes care of publishing the PPS PGEs
+        # The PPS post-hooks takes care of publishing the PPS cloud products
         # For the XML files we keep the publishing from here:
         xml_files = get_outputfiles(pps_control_path,
                                     SATELLITE_NAME[scene['platform_name']],
                                     scene['orbit_number'],
                                     st_time=st_time,
                                     xml_output=True)
-        if len(xml_files) == 0:
-            # Perhaps there is an orbit number mismatch?
-            nxmlfiles = 0
-            for idx in [1, -1, 2, -2, 3, -3, 4, -4, 5, -5]:
-                tmp_orbit = int(scene['orbit_number']) + idx
-                LOG.debug('Try with an orbitnumber of %d instead', tmp_orbit)
-                xml_files = get_outputfiles(pps_control_path,
-                                            SATELLITE_NAME[scene['platform_name']],
-                                            tmp_orbit,
-                                            st_time=st_time,
-                                            xml_output=True)
-                nxmlfiles = len(xml_files)
-                if nxmlfiles > 0:
-                    break
 
         LOG.info("PPS summary statistics files: " + str(xml_files))
 
@@ -374,11 +360,11 @@ def pps(options):
         #:-----------------------
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
-        if 'sensor' in msg.data.keys() and isinstance(msg.data['sensor'], list):
+        if 'sensor' in msg.data and isinstance(msg.data['sensor'], list):
             msg.data['sensor'] = msg.data['sensor'][0]
-        if 'orbit_number' not in msg.data.keys():
+        if 'orbit_number' not in msg.data:
             msg.data.update({'orbit_number': 99999})
-        if 'end_time' not in msg.data.keys():
+        if 'end_time' not in msg.data:
             msg.data.update({'end_time': 99999})
 
         orbit_number = int(msg.data['orbit_number'])

@@ -157,7 +157,7 @@ def update_nwp(starttime, nlengths):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        tmp_file = tempfile.mktemp(suffix="_" + timestamp + "+" + '%.3dH00M' % forecast_step, dir=nwp_outdir)
+        tmp_file = tempfile.mkstemp(suffix="_" + timestamp + "+" + '%.3dH00M' % forecast_step, dir=nwp_outdir)
         LOG.info("result and tmp files: " + str(result_file) + " " + str(tmp_file))
         nhsp_file = os.path.join(nhsp_path, nhsp_prefix + timeinfo)
         if not os.path.exists(nhsp_file):
@@ -181,7 +181,7 @@ def update_nwp(starttime, nlengths):
                       "topography available. Can't prepare NWP data")
             raise IOError('Failed getting static land-sea mask and topography')
 
-        tmpresult = tempfile.mktemp()
+        tmpresult = tempfile.mkstemp()
         cmd = ('cat ' + tmp_file + " " +
                os.path.join(nhsf_path, nhsf_prefix + timeinfo) +
                " " + nwp_lsmz_filename + " > " + tmpresult)
