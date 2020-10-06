@@ -634,10 +634,10 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
                          '/' + station + '/' + environment +
                          '/polar/direct_readout/',
                          "file", to_send).encode()
-        LOG.info("Sending: " + str(pubmsg))
+        LOG.info("Sending: %s", str(pubmsg))
         try:
             publish_q.put(pubmsg)
-        except:
+        except Exception:
             LOG.warning("Failed putting message on the queue, will send it now...")
             publish_q.send(pubmsg)
 
