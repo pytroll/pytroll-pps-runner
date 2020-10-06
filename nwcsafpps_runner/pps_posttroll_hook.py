@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2019 Adam.Dybbroe
+# Copyright (c) 2018 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -50,6 +50,7 @@ PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
                        'ppsMakeNwp': 'NWP',
                        'ppsCmaskPrepare': 'CMA-PRE',
                        'ppsCmask': 'CMA',
+                       'ppsCmaskProb': 'CMAProb',
                        'ppsCtth': 'CTTH',
                        'ppsCtype': 'CT',
                        'ppsCpp': 'CPP',
@@ -71,10 +72,9 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
 
 class PPSPublisher(threading.Thread):
 
-    """A publisher for the PPS modules"""
+    """A publisher for the PPS modules.
 
-    """
-    It publish a message via posttroll when a PPS module has finished
+    It publish a message via posttroll when a PPS module has finished.
 
     """
 
@@ -94,7 +94,7 @@ class PPSPublisher(threading.Thread):
             while True:
                 retv = self.queue.get()
 
-                if retv != None:
+                if retv is not None:
                     LOG.info("Publish the message...")
                     publisher.send(retv)
                     LOG.info("Message published!")

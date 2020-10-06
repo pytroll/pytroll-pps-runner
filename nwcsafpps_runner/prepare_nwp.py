@@ -40,8 +40,8 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-LOG.debug("Path to prepare_nwp config file = " + CONFIG_PATH)
-LOG.debug("Prepare_nwp config file = " + CONFIG_FILE)
+LOG.debug("Path to prepare_nwp config file = %s", str(CONFIG_PATH))
+LOG.debug("Prepare_nwp config file = %s", str(CONFIG_FILE))
 OPTIONS = get_config(CONFIG_FILE)
 
 try:
@@ -83,17 +83,22 @@ def update_nwp(starttime, nlengths):
 
     """
 
+    LOG.info("Path to prepare_nwp config file = %s", str(CONFIG_PATH))
+    LOG.info("Prepare_nwp config file = %s", str(CONFIG_FILE))
+    LOG.info("Path to nhsf files: %s", str(nhsf_path))
+    LOG.info("Path to nhsp files: %s", str(nhsp_path))
+
     tempfile.tempdir = nwp_outdir
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
-        LOG.info("No input files! dir = " + str(nhsf_path))
+        LOG.info("No input files! dir = %s", str(nhsf_path))
         return
 
-    LOG.debug('NHSF NWP files found = ' + str(filelist))
+    LOG.debug('NHSF NWP files found = %s', str(filelist))
     nfiles_error = 0
     for filename in filelist:
         #filename = os.path.basename(filename2)
-        if nhsf_file_name_sift == None:
+        if nhsf_file_name_sift is None:
             raise NwpPrepareError()
 
         try:
@@ -138,29 +143,29 @@ def update_nwp(starttime, nlengths):
                 raise NwpPrepareError(
                     'Failed parsing forecast_step in file name. Check config and filename timestamp.')
 
-        LOG.debug(analysis_time, starttime)
+        LOG.debug("Analysis time and start time: %s %s", str(analysis_time), str(starttime))
         if analysis_time < starttime:
-            print("skip analysis")
             continue
         if forecast_step not in nlengths:
-            LOG.debug("skip step", forecast_step, nlengths)
+            LOG.debug("Skip step. Forecast step and nlengths: %s %s", str(forecast_step), str(nlengths))
             continue
 
-        LOG.info("timestamp, step: " + str(timestamp) + ' ' + str(forecast_step))
+        LOG.info("timestamp, step: %s %s", str(timestamp), str(forecast_step))
         result_file = os.path.join(
             nwp_outdir, nwp_output_prefix + timestamp + "+" + '%.3dH00M' % forecast_step)
         if os.path.exists(result_file):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        tmp_file = tempfile.mktemp(suffix="_" + timestamp + "+" + '%.3dH00M' % forecast_step, dir=nwp_outdir)
-        LOG.info("result and tmp files: " + str(result_file) + " " + str(tmp_file))
+        dummy, tmp_filename = tempfile.mkstemp(suffix="_" + timestamp + "+" +
+                                               '%.3dH00M' % forecast_step, dir=nwp_outdir)
+        LOG.info("result and tmp files: " + str(result_file) + " " + str(tmp_filename))
         nhsp_file = os.path.join(nhsp_path, nhsp_prefix + timeinfo)
         if not os.path.exists(nhsp_file):
             LOG.warning("Corresponding nhsp-file not there: " + str(nhsp_file))
             continue
 
-        cmd = ("grib_copy -w gridType=regular_ll " + nhsp_file + " " + tmp_file)
+        cmd = ("grib_copy -w gridType=regular_ll " + nhsp_file + " " + tmp_filename)
         retv = run_command(cmd)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
@@ -177,35 +182,35 @@ def update_nwp(starttime, nlengths):
                       "topography available. Can't prepare NWP data")
             raise IOError('Failed getting static land-sea mask and topography')
 
-        tmpresult = tempfile.mktemp()
-        cmd = ('cat ' + tmp_file + " " +
+        dummy, tmp_result_filename = tempfile.mkstemp()
+        cmd = ('cat ' + tmp_filename + " " +
                os.path.join(nhsf_path, nhsf_prefix + timeinfo) +
-               " " + nwp_lsmz_filename + " > " + tmpresult)
+               " " + nwp_lsmz_filename + " > " + tmp_result_filename)
         LOG.debug("Add topography and land-sea mask to data:")
         LOG.debug("Command = " + str(cmd))
         retv = os.system(cmd)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
             LOG.warning("Failed generating nwp file %s ...", result_file)
-            if os.path.exists(tmpresult):
-                os.remove(tmpresult)
+            if os.path.exists(tmp_result_filename):
+                os.remove(tmp_result_filename)
             raise IOError("Failed adding topography and land-sea " +
                           "mask data to grib file")
 
-        if os.path.exists(tmp_file):
-            os.remove(tmp_file)
+        if os.path.exists(tmp_filename):
+            os.remove(tmp_filename)
         else:
-            LOG.warning("tmp file %s gone! Cannot clean it...", tmp_file)
+            LOG.warning("tmp file %s gone! Cannot clean it...", tmp_filename)
 
-        if check_nwp_content(tmpresult):
+        if check_nwp_content(tmp_result_filename):
             LOG.info('A check of the NWP file content has been attempted: %s',
                      result_file)
-            os.rename(tmpresult, result_file)
+            os.rename(tmp_result_filename, result_file)
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
-            if os.path.exists(tmpresult):
-                os.remove(tmpresult)
+            if os.path.exists(tmp_result_filename):
+                os.remove(tmp_result_filename)
 
     return
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2019 Adam.Dybbroe
+# Copyright (c) 2014 - 2020 Adam.Dybbroe
 
 # Author(s):
 
@@ -27,7 +27,7 @@ import sys
 from glob import glob
 from subprocess import Popen, PIPE
 import threading
-import Queue
+from six.moves.queue import Queue, Empty
 from datetime import datetime, timedelta
 
 from nwcsafpps_runner.config import get_config
@@ -51,7 +51,7 @@ LOG = logging.getLogger(__name__)
 
 
 PPS_SCRIPT = os.environ['PPS_SCRIPT']
-LOG.debug("PPS_SCRIPT = " + str(PPS_SCRIPT))
+LOG.debug("PPS_SCRIPT = %s", str(PPS_SCRIPT))
 
 NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
@@ -62,7 +62,7 @@ _DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 #: Default log format
 _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
 
-LOG.debug("PYTHONPATH: " + str(sys.path))
+LOG.debug("PYTHONPATH: %s", str(sys.path))
 
 
 class ThreadPool(object):
@@ -107,18 +107,18 @@ def pps_worker(scene, publish_q, input_msg, options):
         job_start_time = datetime.utcnow()
 
         pps_call_args = create_pps_call_command_sequence(PPS_SCRIPT, scene, options)
-        LOG.info("Command " + str(pps_call_args))
+        LOG.info("Command: %s", str(pps_call_args))
 
         my_env = os.environ.copy()
         # for envkey in my_env:
         # LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
 
         pps_output_dir = my_env.get('SM_PRODUCT_DIR', options.get(['pps_outdir'], './'))
-        LOG.debug("PPS_OUTPUT_DIR = " + str(pps_output_dir))
-        LOG.debug("...from config file = " + str(options['pps_outdir']))
+        LOG.debug("PPS_OUTPUT_DIR = %s", str(pps_output_dir))
+        LOG.debug("...from config file = %s", str(options['pps_outdir']))
         if not os.path.isfile(PPS_SCRIPT):
             raise IOError("PPS script" + PPS_SCRIPT + " is not there!")
-        elif not os.access(PPS_SCRIPT, os.X_OK):
+        if not os.access(PPS_SCRIPT, os.X_OK):
             raise IOError(
                 "PPS script" + PPS_SCRIPT + " cannot be executed!")
 
@@ -140,8 +140,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         out_reader.join()
         err_reader.join()
 
-        LOG.info(
-            "Ready with PPS level-2 processing on scene: " + str(scene))
+        LOG.info("Ready with PPS level-2 processing on scene: %s", str(scene))
 
         # Now try perform som time statistics editing with ppsTimeControl.py from
         # pps:
@@ -158,17 +157,16 @@ def pps_worker(scene, publish_q, input_msg, options):
             LOG.info("Read time control ascii file and generate XML")
             platform_id = SATELLITE_NAME.get(
                 scene['platform_name'], scene['platform_name'])
-            LOG.info("pps platform_id = " + str(platform_id))
+            LOG.info("pps platform_id = %s", str(platform_id))
             txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
                              str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
                              '_' + '%.5d' % scene['orbit_number'] + '*.txt')
-            LOG.info("glob string = " + str(txt_time_file))
+            LOG.info("glob string = %s", str(txt_time_file))
             infiles = glob(txt_time_file)
-            LOG.info(
-                "Time control ascii file candidates: " + str(infiles))
+            LOG.info("Time control ascii file candidates: %s", str(infiles))
             if len(infiles) == 1:
                 infile = infiles[0]
-                LOG.info("Time control ascii file: " + str(infile))
+                LOG.info("Time control ascii file: %s", str(infile))
                 ppstime_con = PPSTimeControl(infile)
                 ppstime_con.sum_up_processing_times()
                 ppstime_con.write_xml()
@@ -181,12 +179,12 @@ def pps_worker(scene, publish_q, input_msg, options):
                                        scene['orbit_number'],
                                        h5_output=True,
                                        nc_output=True)
-        LOG.info("PPS Output files: " + str(result_files))
+        LOG.info("PPS Output files: %s", str(result_files))
         xml_files = get_outputfiles(pps_control_path,
                                     SATELLITE_NAME[scene['platform_name']],
                                     scene['orbit_number'],
                                     xml_output=True)
-        LOG.info("PPS summary statistics files: " + str(xml_files))
+        LOG.info("PPS summary statistics files: %s", str(xml_files))
 
         # Now publish:
         publish_pps_files(input_msg, publish_q, scene,
@@ -196,7 +194,7 @@ def pps_worker(scene, publish_q, input_msg, options):
                           station=options['station'])
 
         dt_ = datetime.utcnow() - job_start_time
-        LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
+        LOG.info("PPS on scene %s finished. It took: %s", str(scene), str(dt_))
 
         t__.cancel()
 
@@ -210,8 +208,6 @@ def run_nwp_and_pps(scene, flens, publish_q, input_msg, options):
 
     prepare_nwp4pps(flens)
     pps_worker(scene, publish_q, input_msg, options)
-
-    return
 
 
 def prepare_nwp4pps(flens):
@@ -287,8 +283,6 @@ def pps(options):
     pub_thread.stop()
     listen_thread.stop()
 
-    return
-
 
 if __name__ == "__main__":
 
@@ -297,7 +291,7 @@ if __name__ == "__main__":
     LOG.debug("Pps_runner config file = " + CONFIG_FILE)
     OPTIONS = get_config(CONFIG_FILE)
 
-    _PPS_LOG_FILE = OPTIONS.get('pps_log_file', 
+    _PPS_LOG_FILE = OPTIONS.get('pps_log_file',
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))
     if _PPS_LOG_FILE:
         ndays = int(OPTIONS["log_rotation_days"])

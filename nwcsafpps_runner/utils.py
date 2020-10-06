@@ -64,7 +64,6 @@ DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis', 'seviri']
 REQUIRED_MW_SENSORS = {}
 REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
-# REQUIRED_MW_SENSORS['NOAA-18'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['NOAA-18'] = []
 REQUIRED_MW_SENSORS['NOAA-19'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['Metop-A'] = ['amsu-a', 'mhs']
@@ -101,7 +100,6 @@ for sat in SATELLITE_NAME:
 
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
-# METOP_NUMBER = {'b': '01', 'a': '02'}
 
 
 def run_command(cmdstr):
@@ -393,7 +391,6 @@ def terminate_process(popen_obj, scene):
     else:
         LOG.info(
             "Process finished before time out - workerScene: " + str(scene))
-    return
 
 
 def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
@@ -463,8 +460,8 @@ def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=Tr
                   " --hrptfile %s" % scene['file4pps'])
     if sequence:
         return shlex.split(str(cmdstr))
-    else:
-        return cmdstr
+
+    return cmdstr
 
 
 def get_pps_inputfile(platform_name, ppsfiles):
@@ -513,7 +510,7 @@ def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
     if h5_output:
         h5_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_%s*.h5' %st_time)
+                     '_' + '%.5d' % int(orb) + '_%s*.h5' % st_time)
         LOG.info(
             "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
         filelist = filelist + glob(h5_output)
@@ -522,19 +519,14 @@ def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
     if nc_output:
         nc_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_%s*.nc' %st_time)
+                     '_' + '%.5d' % int(orb) + '_%s*.nc' % st_time)
         LOG.info(
             "Match string to do a file globbing on netcdf output files: " + str(nc_output))
         filelist = filelist + glob(nc_output)
 
     xml_output = kwargs.get('xml_output')
     if xml_output:
-        xml_output = (os.path.join(path, 'S_NWC') + '*' +
-                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                      '_' + '%.5d' % int(orb) + '_%s*.xml' %st_time)
-        LOG.info(
-            "Match string to do a file globbing on xml output files: " + str(xml_output))
-        filelist = filelist + glob(xml_output)
+        filelist = filelist + get_xml_outputfiles(path, platform_name, orb, st_time)
 
     now = datetime.utcnow()
     time_threshold = timedelta(minutes=90.)
@@ -547,6 +539,42 @@ def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
             LOG.info("Found old PPS result: %s", fname)
 
     return filtered_flist
+
+
+def get_xml_outputfiles(path, platform_name, orb, st_time=''):
+    """Finds xml outputfiles depending on certain input criteria.
+
+    From the directory path and satellite id and orbit number,
+    scan the directory and find all pps xml output files matching that scene and
+    return the full filenames.
+
+    The search allow for small deviations in orbit numbers between the actual
+    filename and the message.
+    """
+
+    xml_output = (os.path.join(path, 'S_NWC') + '*' +
+                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
+                  '_' + '%.5d' % int(orb) + '_%s*.xml' % st_time)
+    LOG.info(
+        "Match string to do a file globbing on xml output files: " + str(xml_output))
+    filelist = glob(xml_output)
+
+    if len(filelist) == 0:
+        # Perhaps there is an orbit number mismatch?
+        nxmlfiles = 0
+        for idx in [1, -1, 2, -2, 3, -3, 4, -4, 5, -5]:
+            tmp_orbit = int(orb) + idx
+            LOG.debug('Try with an orbitnumber of %d instead', tmp_orbit)
+            xml_output = (os.path.join(path, 'S_NWC') + '*' +
+                          str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
+                          '_' + '%.5d' % int(tmp_orb) + '_%s*.xml' % st_time)
+
+            filelist = glob(xml_output)
+            nxmlfiles = len(filelist)
+            if nxmlfiles > 0:
+                break
+
+    return filelist
 
 
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
@@ -606,15 +634,12 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
                          '/' + station + '/' + environment +
                          '/polar/direct_readout/',
                          "file", to_send).encode()
-        LOG.debug("sending: " + str(pubmsg))
-        LOG.info("Sending: " + str(pubmsg))
+        LOG.info("Sending: %s", str(pubmsg))
         try:
             publish_q.put(pubmsg)
-        except:
+        except Exception:
             LOG.warning("Failed putting message on the queue, will send it now...")
             publish_q.send(pubmsg)
-
-    return
 
 
 def logreader(stream, log_func):
