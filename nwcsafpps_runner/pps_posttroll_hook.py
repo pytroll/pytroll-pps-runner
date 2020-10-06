@@ -72,9 +72,8 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
 
 class PPSPublisher(threading.Thread):
 
-    """A publisher for the PPS modules"""
+    """A publisher for the PPS modules.
 
-    """
     It publish a message via posttroll when a PPS module has finished.
 
     """
