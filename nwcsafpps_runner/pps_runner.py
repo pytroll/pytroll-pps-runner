@@ -118,7 +118,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("...from config file = %s", str(options['pps_outdir']))
         if not os.path.isfile(PPS_SCRIPT):
             raise IOError("PPS script" + PPS_SCRIPT + " is not there!")
-        elif not os.access(PPS_SCRIPT, os.X_OK):
+        if not os.access(PPS_SCRIPT, os.X_OK):
             raise IOError(
                 "PPS script" + PPS_SCRIPT + " cannot be executed!")
 
@@ -209,8 +209,6 @@ def run_nwp_and_pps(scene, flens, publish_q, input_msg, options):
     prepare_nwp4pps(flens)
     pps_worker(scene, publish_q, input_msg, options)
 
-    return
-
 
 def prepare_nwp4pps(flens):
     """Prepare NWP data for pps"""
@@ -284,8 +282,6 @@ def pps(options):
 
     pub_thread.stop()
     listen_thread.stop()
-
-    return
 
 
 if __name__ == "__main__":

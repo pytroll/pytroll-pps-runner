@@ -391,7 +391,6 @@ def terminate_process(popen_obj, scene):
     else:
         LOG.info(
             "Process finished before time out - workerScene: " + str(scene))
-    return
 
 
 def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
@@ -461,8 +460,8 @@ def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=Tr
                   " --hrptfile %s" % scene['file4pps'])
     if sequence:
         return shlex.split(str(cmdstr))
-    else:
-        return cmdstr
+
+    return cmdstr
 
 
 def get_pps_inputfile(platform_name, ppsfiles):
@@ -641,8 +640,6 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         except:
             LOG.warning("Failed putting message on the queue, will send it now...")
             publish_q.send(pubmsg)
-
-    return
 
 
 def logreader(stream, log_func):
