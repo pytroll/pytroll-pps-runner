@@ -98,7 +98,7 @@ def update_nwp(starttime, nlengths):
     nfiles_error = 0
     for filename in filelist:
         #filename = os.path.basename(filename2)
-        if nhsf_file_name_sift == None:
+        if nhsf_file_name_sift is None:
             raise NwpPrepareError()
 
         try:

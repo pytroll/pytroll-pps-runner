@@ -268,16 +268,12 @@ def check_threads(threads):
             thread.join()
             threads.remove(thread)
 
-    return
-
 
 def run_nwp_and_pps(scene, flens, publish_q, input_msg, options, nwp_handeling_module):
     """Run first the nwp-preparation and then pps. No parallel running here."""
 
     prepare_nwp4pps(flens, nwp_handeling_module)
     pps_worker(scene, publish_q, input_msg, options)
-
-    return
 
 
 def prepare_nwp4pps(flens, nwp_handeling_module):
@@ -420,8 +416,6 @@ def pps(options):
 
     pub_thread.stop()
     listen_thread.stop()
-
-    return
 
 
 if __name__ == "__main__":
