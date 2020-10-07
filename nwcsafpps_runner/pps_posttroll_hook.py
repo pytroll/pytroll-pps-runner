@@ -197,10 +197,14 @@ class PPSMessage(object):
             if not attr in self.metadata:
                 raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 
+        # Initialize:
+        for attr in ['data_processing_level', 'format', 'station']:
+            to_send[attr] = "UNKNOWN"
+
         for key in self.metadata:
             if key in ['level']:
                 to_send['data_processing_level'] = self.metadata['level']
-            elif key in ['format']:
+            elif key in ['output_format']:
                 to_send['format'] = self.metadata['output_format']
             else:
                 to_send[key] = self.metadata[key]
@@ -216,7 +220,7 @@ class PPSMessage(object):
         pub_message = Message(topic + to_send['format'] + '/' +
                               to_send['data_processing_level'] + '/' +
                               pps_product + '/' +
-                              station + '/' + environment +
+                              to_send['station'] + '/' + environment +
                               '/polar/direct_readout/',
                               "file", to_send).encode()
         return pub_message
