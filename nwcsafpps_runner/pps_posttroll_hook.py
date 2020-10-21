@@ -194,7 +194,7 @@ class PPSMessage(object):
 
         # level, output_format and station are all required fields
         for attr in ['level', 'output_format', 'station']:
-            if not attr in self.metadata:
+            if attr not in self.metadata:
                 raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 
         # Initialize:

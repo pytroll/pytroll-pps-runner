@@ -35,6 +35,7 @@ from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import CONFIG_FILE
 from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport
 from nwcsafpps_runner.utils import run_command
+from nwcsafpps_runner.utils import NwpPrepareError
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -61,10 +62,6 @@ nwp_outdir = OPTIONS.get('nwp_outdir', None)
 nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
 nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
 nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
-
-
-class NwpPrepareError(Exception):
-    pass
 
 
 def logreader(stream, log_func):
@@ -221,14 +218,14 @@ def check_nwp_content(gribfile):
 
     """
 
-    grbs = pygrib.open(gribfile)
-    entries = []
-    for grb in grbs:
-        entries.append("%s %s %s %s" % (grb['paramId'],
-                                        grb['name'],
-                                        grb['level'],
-                                        grb['typeOfLevel']))
-    entries.sort()
+    with pygrib.open(gribfile) as grbs:
+        entries = []
+        for grb in grbs:
+            entries.append("%s %s %s %s" % (grb['paramId'],
+                                            grb['name'],
+                                            grb['level'],
+                                            grb['typeOfLevel']))
+        entries.sort()
 
     try:
         with open(nwp_req_filename, 'r') as fpt:
