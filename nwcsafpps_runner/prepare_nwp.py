@@ -26,6 +26,7 @@
 from glob import glob
 import os
 from datetime import datetime
+import time
 import tempfile
 from trollsift import Parser
 import pygrib  # @UnresolvedImport
@@ -185,7 +186,10 @@ def update_nwp(starttime, nlengths):
                " " + nwp_lsmz_filename + " > " + tmp_result_filename)
         LOG.debug("Add topography and land-sea mask to data:")
         LOG.debug("Command = " + str(cmd))
+        _start = time.time()
         retv = os.system(cmd)
+        _end = time.time()
+        LOG.debug("os.system call took: %f seconds", _end - _start)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
             LOG.warning("Failed generating nwp file %s ...", result_file)
