@@ -164,7 +164,8 @@ def update_nwp(starttime, nlengths):
             continue
 
         cmd = ("grib_copy -w gridType=regular_ll " + nhsp_file + " " + tmp_filename)
-        retv = run_command(cmd)
+        #retv = run_command(cmd)
+        retv = os.system(cmd)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
             LOG.error(
