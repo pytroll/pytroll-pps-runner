@@ -190,11 +190,13 @@ def update_nwp(starttime, nlengths):
         if retv != 0:
             LOG.warning("Failed generating nwp file %s ...", result_file)
             if os.path.exists(tmp_result_filename):
+                LOG.debug("Remove file %s", tmp_result_filename)
                 os.remove(tmp_result_filename)
             raise IOError("Failed adding topography and land-sea " +
                           "mask data to grib file")
 
         if os.path.exists(tmp_filename):
+            LOG.debug("Remove file %s", tmp_filename)
             os.remove(tmp_filename)
         else:
             LOG.warning("tmp file %s gone! Cannot clean it...", tmp_filename)
@@ -202,11 +204,16 @@ def update_nwp(starttime, nlengths):
         if check_nwp_content(tmp_result_filename):
             LOG.info('A check of the NWP file content has been attempted: %s',
                      result_file)
+            LOG.debug("Rename file %s to %s:", tmp_result_filename, result_file)
+            _start = time.time()
             os.rename(tmp_result_filename, result_file)
+            _end = time.time()
+            LOG.debug("Rename file took: %f seconds", _end - _start)
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
             if os.path.exists(tmp_result_filename):
+                LOG.debug("Remove file %s", tmp_result_filename)
                 os.remove(tmp_result_filename)
 
     return
