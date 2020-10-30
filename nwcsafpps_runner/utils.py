@@ -567,7 +567,7 @@ def get_xml_outputfiles(path, platform_name, orb, st_time=''):
             LOG.debug('Try with an orbitnumber of %d instead', tmp_orbit)
             xml_output = (os.path.join(path, 'S_NWC') + '*' +
                           str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                          '_' + '%.5d' % int(tmp_orb) + '_%s*.xml' % st_time)
+                          '_' + '%.5d' % int(tmp_orbit) + '_%s*.xml' % st_time)
 
             filelist = glob(xml_output)
             nxmlfiles = len(filelist)
