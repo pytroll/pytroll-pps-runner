@@ -26,13 +26,12 @@ The message is created from metadata partly read from a yaml config file.
 """
 
 import os
+from datetime import datetime, timedelta
+import pytest
 import unittest
 from unittest.mock import patch, Mock, MagicMock
-from yaml import UnsafeLoader
-import posttroll
 import yaml
-import pytest
-from datetime import datetime, timedelta
+import posttroll
 import nwcsafpps_runner
 from nwcsafpps_runner.pps_posttroll_hook import MANDATORY_FIELDS_FROM_YAML
 
@@ -66,7 +65,7 @@ pps_hook:
 def create_instance_from_yaml(yaml_content_str):
     """Create a PPSMessage instance from a yaml file."""
     from nwcsafpps_runner.pps_posttroll_hook import PPSMessage
-    return yaml.load(yaml_content_str, Loader=UnsafeLoader)
+    return yaml.load(yaml_content_str, Loader=yaml.UnsafeLoader)
 
 
 class TestPPSMessage(unittest.TestCase):
@@ -94,12 +93,16 @@ class TestPostTrollMessage(unittest.TestCase):
         self.pps_message_instance_from_yaml_config_ok = create_instance_from_yaml(TEST_YAML_CONTENT_OK)
         self.pps_message_instance_from_yaml_config_fail = create_instance_from_yaml(TEST_YAML_CONTENT_INSUFFICIENT)
 
-        self.metadata = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping', 'output_format': 'CF',
+        self.metadata = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping',
+                         'output_format': 'CF',
                          'level': '2', 'variant': 'DR'}
-        self.metadata_with_filename = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping', 'output_format': 'CF',
+        self.metadata_with_filename = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping',
+                                       'output_format': 'CF',
                                        'level': '2', 'variant': 'DR', 'filename': '/tmp/xxx'}
-        self.metadata_with_start_and_end_times = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping', 'output_format': 'CF',
-                                                  'level': '2', 'variant': 'DR', 'start_time': None, 'end_time': None}
+        self.metadata_with_start_and_end_times = {'posttroll_topic': 'PPSv2018',
+                                                  'station': 'norrkoping', 'output_format': 'CF',
+                                                  'level': '2', 'variant': 'DR',
+                                                  'start_time': None, 'end_time': None}
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
@@ -135,7 +138,7 @@ class TestPostTrollMessage(unittest.TestCase):
             posttroll_message = PostTrollMessage(0, self.metadata)
 
         exception_raised = exec_info.value
-        self.assertTrue(str(exception_raised) == "'filename'")
+        self.assertEqual(str(exception_raised), "'filename'")
 
         posttroll_message = PostTrollMessage(0, self.metadata_with_filename)
 
@@ -202,7 +205,7 @@ class TestPostTrollMessage(unittest.TestCase):
 
         self.assertTrue(exec_info.type is TypeError)
         exception_raised = exec_info.value
-        self.assertTrue(str(exception_raised) == "unsupported operand type(s) for -: 'NoneType' and 'NoneType'")
+        self.assertEqual(str(exception_raised), "unsupported operand type(s) for -: 'NoneType' and 'NoneType'")
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
@@ -219,7 +222,7 @@ class TestPostTrollMessage(unittest.TestCase):
 
         posttroll_message = PostTrollMessage(0, metadata)
         delta_t = posttroll_message.get_granule_duration()
-        self.assertTrue(type(delta_t) == timedelta)
+        self.assertTrue(isinstance(delta_t, timedelta))
         self.assertAlmostEqual(delta_t.total_seconds(), 86.0, places=5)
 
     def test_metadata_contains_mandatory_fields(self):
@@ -246,7 +249,7 @@ class TestPostTrollMessage(unittest.TestCase):
 
         exception_raised = exec_info.value
         expected_exception_raised = "pps_hook must contain metadata attribute level"
-        self.assertTrue(str(exception_raised) == expected_exception_raised)
+        self.assertEqual(str(exception_raised), expected_exception_raised)
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
