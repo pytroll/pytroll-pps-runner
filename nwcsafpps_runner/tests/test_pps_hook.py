@@ -103,6 +103,12 @@ class TestPostTrollMessage(unittest.TestCase):
                                                   'station': 'norrkoping', 'output_format': 'CF',
                                                   'level': '2', 'variant': 'DR',
                                                   'start_time': None, 'end_time': None}
+        self.metadata_with_platform_name = {'posttroll_topic': 'PPSv2018',
+                                            'station': 'norrkoping', 'output_format': 'CF',
+                                            'level': '2', 'variant': 'DR',
+                                            'platform_name': 'npp'}
+
+        self.mandatory_fields = MANDATORY_FIELDS_FROM_YAML
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
@@ -149,11 +155,15 @@ class TestPostTrollMessage(unittest.TestCase):
 
         socket_gethostname.return_value = 'TEST_SERVERNAME'
 
-        metadata = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping', 'output_format': 'CF',
-                    'level': '2', 'variant': 'DR',
+        metadata = {'posttroll_topic': 'PPSv2018',
+                    'station': 'norrkoping',
+                    'output_format': 'CF',
+                    'level': '2',
+                    'variant': 'DR',
                     'start_time': START_TIME1, 'end_time': END_TIME1,
                     'sensor': 'viirs',
-                    'filename': '/tmp/xxx'}
+                    'filename': '/tmp/xxx',
+                    'platform_name': 'npp'}
 
         posttroll_message = PostTrollMessage(0, metadata)
         uid = os.path.basename(metadata.get('filename'))
@@ -165,8 +175,6 @@ class TestPostTrollMessage(unittest.TestCase):
         message_header = "/segment/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
         message_content = {'posttroll_topic': 'PPSv2018',
                            'station': 'norrkoping',
-                           'output_format': 'CF',
-                           'level': '2',
                            'variant': 'DR',
                            'start_time': START_TIME1,
                            'end_time': END_TIME1,
@@ -175,12 +183,12 @@ class TestPostTrollMessage(unittest.TestCase):
                            'uid': uid,
                            'data_processing_level': '2',
                            'format': 'CF',
-                           'filename': '/tmp/xxx',
-                           'status': 'OK'}
+                           'status': 'OK',
+                           'platform_name': 'Suomi-NPP'}
         message_type = 'file'
-        mymessage = {'header': message_header, 'type': message_type, 'content': message_content}
+        expected_message = {'header': message_header, 'type': message_type, 'content': message_content}
 
-        self.assertDictEqual(mymessage, result_message)
+        self.assertDictEqual(expected_message, result_message)
 
         with patch.object(PostTrollMessage, 'is_segment', return_value=False) as mock_method:
             result_message = posttroll_message.create_message('OK')
@@ -303,3 +311,81 @@ class TestPostTrollMessage(unittest.TestCase):
         posttroll_message = PostTrollMessage(0, metadata)
         is_viirs = posttroll_message.sensor_is_viirs()
         self.assertTrue(is_viirs)
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_create_message_content_from_metadata(self, mandatory_param, filename):
+        """Test the creation of the message content from the inout metadata."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+
+        metadata = self.metadata_with_platform_name
+        posttroll_message = PostTrollMessage(0, metadata)
+        msg_content = posttroll_message.create_message_content_from_metadata()
+        self.assertTrue('platform_name' in msg_content)
+        self.assertEqual(msg_content['platform_name'], 'Suomi-NPP')
+
+        metadata.update({'platform_name': 'noaa20'})
+        posttroll_message = PostTrollMessage(0, metadata)
+        msg_content = posttroll_message.create_message_content_from_metadata()
+        self.assertEqual(msg_content['platform_name'], 'NOAA-20')
+
+        metadata.update({'platform_name': 'NOAA-20'})
+        posttroll_message = PostTrollMessage(0, metadata)
+        msg_content = posttroll_message.create_message_content_from_metadata()
+        self.assertEqual(msg_content['platform_name'], 'NOAA-20')
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_fix_mandatory_fields_in_message(self, mandatory_param, filename):
+        """Test the fix of the right output message keyword names from the mandatory fields from the yaml file."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+
+        metadata = self.metadata_with_platform_name
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        posttroll_message._to_send = {}
+        posttroll_message.fix_mandatory_fields_in_message()
+
+        expected = {'data_processing_level': '2', 'format': 'CF', 'station': 'norrkoping'}
+        self.assertDictEqual(posttroll_message._to_send, expected)
+
+        posttroll_message._to_send = {'level': '2',
+                                      'output_format': 'CF',
+                                      'station': 'norrkoping'}
+        posttroll_message.fix_mandatory_fields_in_message()
+
+        expected = {'data_processing_level': '2',
+                    'level': '2',
+                    'output_format': 'CF',
+                    'format': 'CF',
+                    'station': 'norrkoping'}
+        self.assertDictEqual(posttroll_message._to_send, expected)
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_clean_unused_keys_in_message(self, mandatory_param, filename):
+        """Test cleaning up the unused key/value pairs in the message."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+
+        metadata = self.metadata_with_platform_name
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        posttroll_message._to_send = {'data_processing_level': '2',
+                                      'level': '2',
+                                      'output_format': 'CF',
+                                      'format': 'CF',
+                                      'station': 'norrkoping'}
+        posttroll_message.clean_unused_keys_in_message()
+        expected = {'data_processing_level': '2',
+                    'format': 'CF',
+                    'station': 'norrkoping'}
+        self.assertDictEqual(posttroll_message._to_send, expected)

@@ -151,6 +151,7 @@ class PostTrollMessage(object):
         """Initialize the object."""
         self.metadata = metadata
         self.status = status
+        self._to_send = {}
         self.viirs_granule_time_bounds = (timedelta(seconds=84), timedelta(seconds=87))
 
         # Check that the metadata has what is required:
@@ -176,7 +177,7 @@ class PostTrollMessage(object):
 
     def check_mandatory_fields(self):
         # level, output_format and station are all required fields
-        for attr in ['level', 'output_format', 'station']:
+        for attr in MANDATORY_FIELDS_FROM_YAML.keys():
             if not attr in self.metadata:
                 raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 
@@ -210,12 +211,13 @@ class PostTrollMessage(object):
     def create_message(self, status):
         """Create the posttroll message from the PPS metadata"""
 
-        to_send = self.create_message_content_from_metadata()
-        to_send.update({'status': status})
+        self._to_send = self.create_message_content_from_metadata()
+        self._to_send.update({'status': status})
+        # Add uri/uids to message content
+        self._to_send.update(self.get_message_with_uri_and_uid())
 
-        # Add uri/uids and mandatory fields to message content
-        to_send.update(self.get_message_with_uri_and_uid())
-        to_send.update(self.get_message_with_mandatory_fields_from_yaml())
+        self.fix_mandatory_fields_in_message()
+        self.clean_unused_keys_in_message()
 
         pps_product = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
         environment = MODE
@@ -225,13 +227,13 @@ class PostTrollMessage(object):
         else:
             topic = '/'
 
-        header_str = (topic + to_send['format'] + '/' +
-                      to_send['data_processing_level'] + '/' +
+        header_str = (topic + self._to_send['format'] + '/' +
+                      self._to_send['data_processing_level'] + '/' +
                       pps_product + '/' +
-                      to_send['station'] + '/' + environment +
+                      self._to_send['station'] + '/' + environment +
                       '/polar/direct_readout/')
 
-        return {'header': header_str, 'type': 'file', 'content': to_send}
+        return {'header': header_str, 'type': 'file', 'content': self._to_send}
 
     def create_message_content_from_metadata(self):
         """Create message content from the metadata."""
@@ -246,24 +248,21 @@ class PostTrollMessage(object):
 
         return msg
 
-    def get_message_with_mandatory_fields_from_yaml(self):
-        """Generate a dict with the mandatory fields extracted from yaml config and return."""
+    def fix_mandatory_fields_in_message(self):
+        """Fix the message keywords from the mandatory fields."""
         self.check_mandatory_fields()
 
-        msg = {}
+        message = {}
         # Initialize:
         for attr in MANDATORY_FIELDS_FROM_YAML:
-            msg[MANDATORY_FIELDS_FROM_YAML.get(attr)] = "UNKNOWN"
+            self._to_send[MANDATORY_FIELDS_FROM_YAML.get(attr)] = self.metadata[attr]
 
-        for key in self.metadata:
-            if key in ['level']:
-                msg['data_processing_level'] = self.metadata['level']
-            elif key in ['output_format']:
-                msg['format'] = self.metadata['output_format']
-            else:
-                msg[key] = self.metadata[key]
+    def clean_unused_keys_in_message(self):
+        """Clean away the unused keyword names from message."""
 
-        return msg
+        for attr in MANDATORY_FIELDS_FROM_YAML:
+            if attr not in MANDATORY_FIELDS_FROM_YAML.values():
+                del self._to_send[attr]
 
     def get_message_with_uri_and_uid(self):
         """Generate a dict with the uri and uid's and return it."""
