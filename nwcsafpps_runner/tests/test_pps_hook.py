@@ -230,7 +230,8 @@ class TestPostTrollMessage(unittest.TestCase):
 
         posttroll_message = PostTrollMessage(0, metadata)
         delta_t = posttroll_message.get_granule_duration()
-        self.assertTrue(isinstance(delta_t, timedelta))
+        self.assertIsInstance(delta_t, timedelta)
+
         self.assertAlmostEqual(delta_t.total_seconds(), 86.0, places=5)
 
     def test_metadata_contains_mandatory_fields(self):
@@ -238,7 +239,7 @@ class TestPostTrollMessage(unittest.TestCase):
         # level, output_format and station are all required fields
         mda = self.pps_message_instance_from_yaml_config_ok['pps_hook']['post_hook'].metadata
         for attr in MANDATORY_FIELDS_FROM_YAML:
-            self.assertTrue(attr in mda)
+            self.assertIn(attr, mda)
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
@@ -324,7 +325,7 @@ class TestPostTrollMessage(unittest.TestCase):
         metadata = self.metadata_with_platform_name
         posttroll_message = PostTrollMessage(0, metadata)
         msg_content = posttroll_message.create_message_content_from_metadata()
-        self.assertTrue('platform_name' in msg_content)
+        self.assertIn('platform_name', msg_content)
         self.assertEqual(msg_content['platform_name'], 'Suomi-NPP')
 
         metadata.update({'platform_name': 'noaa20'})
