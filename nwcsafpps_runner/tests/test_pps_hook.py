@@ -31,7 +31,6 @@ import pytest
 import unittest
 from unittest.mock import patch, Mock, MagicMock
 import yaml
-import posttroll
 import nwcsafpps_runner
 from nwcsafpps_runner.pps_posttroll_hook import MANDATORY_FIELDS_FROM_YAML
 
