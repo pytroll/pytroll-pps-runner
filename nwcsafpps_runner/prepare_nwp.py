@@ -26,6 +26,7 @@
 from glob import glob
 import os
 from datetime import datetime
+import time
 import tempfile
 from trollsift import Parser
 import pygrib  # @UnresolvedImport
@@ -35,6 +36,7 @@ from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.config import CONFIG_FILE
 from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport
 from nwcsafpps_runner.utils import run_command
+from nwcsafpps_runner.utils import NwpPrepareError
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -63,10 +65,6 @@ nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
 nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
 
 
-class NwpPrepareError(Exception):
-    pass
-
-
 def logreader(stream, log_func):
     while True:
         s = stream.readline()
@@ -74,6 +72,12 @@ def logreader(stream, log_func):
             break
         log_func(s.strip())
     stream.close()
+
+
+def make_temp_filename(*args, **kwargs):
+    tmp_filename_handle, tmp_filename = tempfile.mkstemp(*args, **kwargs)
+    os.close(tmp_filename_handle)
+    return tmp_filename
 
 
 def update_nwp(starttime, nlengths):
@@ -97,7 +101,6 @@ def update_nwp(starttime, nlengths):
     LOG.debug('NHSF NWP files found = %s', str(filelist))
     nfiles_error = 0
     for filename in filelist:
-        #filename = os.path.basename(filename2)
         if nhsf_file_name_sift is None:
             raise NwpPrepareError()
 
@@ -114,10 +117,7 @@ def update_nwp(starttime, nlengths):
         LOG.info("{}".format(res))
         if 'analysis_time' in res:
             if res['analysis_time'].year == 1900:
-                #year_now = datetime.utcnow().year
-                # print year_now
                 res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
-                #res['analysis_time'].year = datetime.utcnow().year
 
             analysis_time = res['analysis_time']
             timestamp = analysis_time.strftime("%Y%m%d%H%M")
@@ -134,7 +134,7 @@ def update_nwp(starttime, nlengths):
                 "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
         else:
             LOG.info("Can not parse forecast_time in file name. Try forecast step...")
-            # This needs to be done more solid suing the sift pattern! FIXME!
+            # This needs to be done more solid using the sift pattern! FIXME!
             timeinfo = filename.rsplit("_", 1)[-1]
             # Forecast step in hours:
             if 'forecast_step' in res:
@@ -157,8 +157,9 @@ def update_nwp(starttime, nlengths):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        dummy, tmp_filename = tempfile.mkstemp(suffix="_" + timestamp + "+" +
-                                               '%.3dH00M' % forecast_step, dir=nwp_outdir)
+        tmp_filename = make_temp_filename(suffix="_" + timestamp + "+" +
+                                          '%.3dH00M' % forecast_step, dir=nwp_outdir)
+
         LOG.info("result and tmp files: " + str(result_file) + " " + str(tmp_filename))
         nhsp_file = os.path.join(nhsp_path, nhsp_prefix + timeinfo)
         if not os.path.exists(nhsp_file):
@@ -182,13 +183,16 @@ def update_nwp(starttime, nlengths):
                       "topography available. Can't prepare NWP data")
             raise IOError('Failed getting static land-sea mask and topography')
 
-        dummy, tmp_result_filename = tempfile.mkstemp()
+        tmp_result_filename = make_temp_filename()
         cmd = ('cat ' + tmp_filename + " " +
                os.path.join(nhsf_path, nhsf_prefix + timeinfo) +
                " " + nwp_lsmz_filename + " > " + tmp_result_filename)
         LOG.debug("Add topography and land-sea mask to data:")
         LOG.debug("Command = " + str(cmd))
+        _start = time.time()
         retv = os.system(cmd)
+        _end = time.time()
+        LOG.debug("os.system call took: %f seconds", _end - _start)
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
             LOG.warning("Failed generating nwp file %s ...", result_file)
@@ -205,7 +209,11 @@ def update_nwp(starttime, nlengths):
         if check_nwp_content(tmp_result_filename):
             LOG.info('A check of the NWP file content has been attempted: %s',
                      result_file)
+            _start = time.time()
             os.rename(tmp_result_filename, result_file)
+            _end = time.time()
+            LOG.debug("Rename file %s to %s: This took %f seconds",
+                      tmp_result_filename, result_file, _end - _start)
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
@@ -221,14 +229,14 @@ def check_nwp_content(gribfile):
 
     """
 
-    grbs = pygrib.open(gribfile)
-    entries = []
-    for grb in grbs:
-        entries.append("%s %s %s %s" % (grb['paramId'],
-                                        grb['name'],
-                                        grb['level'],
-                                        grb['typeOfLevel']))
-    entries.sort()
+    with pygrib.open(gribfile) as grbs:
+        entries = []
+        for grb in grbs:
+            entries.append("%s %s %s %s" % (grb['paramId'],
+                                            grb['name'],
+                                            grb['level'],
+                                            grb['typeOfLevel']))
+        entries.sort()
 
     try:
         with open(nwp_req_filename, 'r') as fpt:
