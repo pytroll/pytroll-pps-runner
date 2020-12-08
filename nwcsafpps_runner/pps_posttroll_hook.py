@@ -69,6 +69,10 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
                                  'eos2': 'EOS-Aqua',
                                  }
 
+MANDATORY_FIELDS_FROM_YAML = {'level': 'data_processing_level',
+                              'output_format': 'format',
+                              'station': 'station'}
+
 
 class PPSPublisher(threading.Thread):
 
@@ -104,7 +108,7 @@ class PPSPublisher(threading.Thread):
 
 class PPSMessage(object):
 
-    """A Posttroll message class to trigger the sending of a notifcation that a PPS PGE os ready
+    """A Posttroll message class to trigger the sending of a notifcation that a PPS PGE is ready
 
     """
 
@@ -122,125 +126,202 @@ class PPSMessage(object):
         level: "2"
         variant: DR
         """
-        # d__ = {'station': self.station,
-        #        'posttroll_topic': self.posttroll_topic,
-        #        'output_format': self.output_format,
-        #        'level': self.level}
         d__ = {'metadata': self.metadata}
         return d__
 
     def __setstate__(self, mydict):
         self.metadata = mydict['metadata']
-        # self.station = mydict['station']
-        # self.posttroll_topic = mydict['posttroll_topic']
-        # self.output_format = mydict['output_format']
-        # self.level = mydict['level']
 
     def __call__(self, status, mda):
+        """Send the message based on the metadata and the fields picked up from the yaml config."""
+
+        self._collect_all_metadata(mda)
+        message = PostTrollMessage(status, self.metadata)
+        message.send()
+
+    def _collect_all_metadata(self, mda):
+        """Collect the static (from yaml config) and dynamic metadata into one dict."""
+        self.metadata.update(mda)
+
+
+class PostTrollMessage(object):
+    """Create a Posttroll message from metadata."""
+
+    def __init__(self, status, metadata):
+        """Initialize the object."""
+        self.metadata = metadata
+        self.status = status
+        self._to_send = {}
+        self.viirs_granule_time_bounds = (timedelta(seconds=84), timedelta(seconds=87))
+
+        # Check that the metadata has what is required:
+        self.check_metadata_contains_mandatory_parameters()
+        self.check_metadata_contains_filename()
 
         for key in self.metadata:
             LOG.debug("%s = %s", str(key), str(self.metadata[key]))
 
-        if status != 0:
-            # Error
-            # pubmsg = self.create_message("FAILED", mda)
-            LOG.warning("Module %s failed, so no message sent", mda.get('module', 'unknown'))
-        else:
-            # Ok
-            pubmsg = self.create_message("OK", mda)
+    def check_metadata_contains_mandatory_parameters(self):
+        """Check that all necessary metadata attributes are available."""
 
-            manager = Manager()
-            publisher_q = manager.Queue()
+        attributes = ['start_time', 'end_time']
+        for attr in attributes:
+            if not attr in self.metadata:
+                raise AttributeError("%s is a required attribute but is missing in metadata!" % attr)
 
-            pub_thread = PPSPublisher(publisher_q)
-            pub_thread.start()
-            LOG.info("Sending: " + str(pubmsg))
-            publisher_q.put(pubmsg)
-            pub_thread.stop()
+    def check_metadata_contains_filename(self):
+        """Check that the input metadata structure contains filename."""
 
-    def create_message(self, status, mda):
-        """Create the posttroll message from the PPS metadata"""
+        if not 'filename' in self.metadata:
+            raise KeyError('filename')
 
-        import socket
-
-        servername = socket.gethostname()
-        LOG.debug("Servername = %s", str(servername))
-
-        to_send = {}
-        for key in mda:
-            # Disregard the PPS keyword "filename". We will use URI/UID instead - see below:
-            if key not in to_send and key != 'filename':
-                to_send[key] = mda[key]
-
-            if key == 'platform_name':
-                to_send[key] = PLATFORM_CONVERSION_PPS2OSCAR.get(mda[key], mda[key])
-
-        if isinstance(mda['filename'], list):
-            dataset = []
-            for filename in mda['filename']:
-                uri = 'ssh://{server}{path}'.format(server=servername, path=os.path.abspath(filename))
-                uid = os.path.basename(filename)
-                dataset.append({'uri': uri, 'uid': uid})
-            to_send['dataset'] = dataset
-        else:
-            filename = mda['filename']
-
-            uri = 'ssh://{server}{path}'.format(server=servername, path=os.path.abspath(filename))
-            to_send['uri'] = uri
-            if 'uid' not in to_send:
-                LOG.debug("Add uid as it was not included in the metadata from PPS")
-                LOG.debug("Filename = %s", filename)
-                to_send['uid'] = os.path.basename(filename)
-
+    def check_mandatory_fields(self):
         # level, output_format and station are all required fields
-        for attr in ['level', 'output_format', 'station']:
-            if attr not in self.metadata:
+        for attr in MANDATORY_FIELDS_FROM_YAML.keys():
+            if not attr in self.metadata:
                 raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 
-        # Initialize:
-        for attr in ['data_processing_level', 'format', 'station']:
-            to_send[attr] = "UNKNOWN"
+    def send(self):
+        """Create and publish (send) the message."""
 
-        for key in self.metadata:
-            if key in ['level']:
-                to_send['data_processing_level'] = self.metadata['level']
-            elif key in ['output_format']:
-                to_send['format'] = self.metadata['output_format']
-            else:
-                to_send[key] = self.metadata[key]
+        if self.status != 0:
+            # Error
+            # pubmsg = self.create_message("FAILED", self.metadata)
+            LOG.warning("Module %s failed, so no message sent", self.metadata.get('module', 'unknown'))
+        else:
+            # Ok
+            pubmsg = self.create_message("OK")
+            self.publish_message(pubmsg)
 
-        pps_product = PPS_PRODUCT_FILE_ID.get(mda.get('module', 'unknown'), 'UNKNOWN')
+    def publish_message(self, mymessage):
+        """Publish the message."""
+
+        posttroll_msg = Message(mymessage['header'], mymessage['type'], mymessage['content'])
+        msg_to_publish = posttroll_msg.encode()
+
+        manager = Manager()
+        publisher_q = manager.Queue()
+
+        pub_thread = PPSPublisher(publisher_q)
+        pub_thread.start()
+        LOG.info("Sending: " + str(msg_to_publish))
+        publisher_q.put(msg_to_publish)
+        pub_thread.stop()
+
+    def create_message(self, status):
+        """Create the posttroll message from the PPS metadata"""
+
+        self._to_send = self.create_message_content_from_metadata()
+        self._to_send.update({'status': status})
+        # Add uri/uids to message content
+        self._to_send.update(self.get_message_with_uri_and_uid())
+
+        self.fix_mandatory_fields_in_message()
+        self.clean_unused_keys_in_message()
+
+        pps_product = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
         environment = MODE
 
-        if is_segment(mda):
+        if self.is_segment():
             topic = '/segment/'
         else:
             topic = '/'
 
-        pub_message = Message(topic + to_send['format'] + '/' +
-                              to_send['data_processing_level'] + '/' +
-                              pps_product + '/' +
-                              to_send['station'] + '/' + environment +
-                              '/polar/direct_readout/',
-                              "file", to_send).encode()
-        return pub_message
+        header_str = (topic + self._to_send['format'] + '/' +
+                      self._to_send['data_processing_level'] + '/' +
+                      pps_product + '/' +
+                      self._to_send['station'] + '/' + environment +
+                      '/polar/direct_readout/')
 
+        return {'header': header_str, 'type': 'file', 'content': self._to_send}
 
-def is_segment(pps_info):
-    """Determine if the scene is a 'segment' (that is a sensor data granule,
-       e.g. 85 seconds of VIIRS)
-    """
+    def create_message_content_from_metadata(self):
+        """Create message content from the metadata."""
+        msg = {}
+        for key in self.metadata:
+            # Disregard the PPS keyword "filename". We will use URI/UID instead - see below:
+            if key not in msg and key != 'filename':
+                msg[key] = self.metadata[key]
 
-    starttime = pps_info['start_time']
-    endtime = pps_info['end_time']
-    sensor = pps_info.get('sensor')
-    LOG.debug("Sensor = %s", str(sensor))
-    if sensor and sensor == 'viirs':
-        delta_t = (endtime - starttime)
+            if key == 'platform_name':
+                msg[key] = PLATFORM_CONVERSION_PPS2OSCAR.get(self.metadata[key], self.metadata[key])
+
+        return msg
+
+    def fix_mandatory_fields_in_message(self):
+        """Fix the message keywords from the mandatory fields."""
+        self.check_mandatory_fields()
+
+        message = {}
+        # Initialize:
+        for attr in MANDATORY_FIELDS_FROM_YAML:
+            self._to_send[MANDATORY_FIELDS_FROM_YAML.get(attr)] = self.metadata[attr]
+
+    def clean_unused_keys_in_message(self):
+        """Clean away the unused keyword names from message."""
+
+        for attr in MANDATORY_FIELDS_FROM_YAML:
+            if attr not in MANDATORY_FIELDS_FROM_YAML.values():
+                del self._to_send[attr]
+
+    def get_message_with_uri_and_uid(self):
+        """Generate a dict with the uri and uid's and return it."""
+        import socket
+
+        if not 'filename' in self.metadata:
+            return {}
+
+        servername = socket.gethostname()
+        LOG.debug("Servername = %s", str(servername))
+
+        msg = {}
+        if isinstance(self.metadata['filename'], list):
+            dataset = []
+            for filename in self.metadata['filename']:
+                uri = 'ssh://{server}{path}'.format(server=servername, path=os.path.abspath(filename))
+                uid = os.path.basename(filename)
+                dataset.append({'uri': uri, 'uid': uid})
+            msg['dataset'] = dataset
+        else:
+            filename = self.metadata['filename']
+            uri = 'ssh://{server}{path}'.format(server=servername, path=os.path.abspath(filename))
+            msg['uri'] = uri
+            if 'uid' not in self.metadata:
+                LOG.debug("Add uid as it was not included in the metadata from PPS")
+                LOG.debug("Filename = %s", filename)
+                msg['uid'] = os.path.basename(filename)
+
+        return msg
+
+    def is_segment(self):
+        """Determine if the scene is a 'segment' (that is a sensor data granule,
+        e.g. 85 seconds of VIIRS)
+        """
+
+        if not self.sensor_is_viirs():
+            LOG.debug("Scene is not a VIIRS scene - and we assume then not a segment of a larger scene")
+            return False
+
+        delta_t = self.get_granule_duration()
         LOG.debug("Scene length: %s", str(delta_t))
-        if delta_t < VIIRS_TIME_THR2 and delta_t > VIIRS_TIME_THR1:
+        if self.viirs_granule_time_bounds[0] < delta_t < self.viirs_granule_time_bounds[1]:
             LOG.info("VIIRS scene is a segment. Scene length = %s", str(delta_t))
             return True
 
-    LOG.debug("Scene is not a segment")
-    return False
+        LOG.debug("VIIRS scene is not a segment")
+        return False
+
+    def sensor_is_viirs(self):
+        """Check if the sensor is equal to VIIRS."""
+        sensor = self.metadata.get('sensor')
+        LOG.debug("Sensor = %s", str(sensor))
+        if sensor and sensor == 'viirs':
+            return True
+
+        return False
+
+    def get_granule_duration(self):
+        """Derive the scene/granule duration as a timedelta object."""
+        starttime = self.metadata['start_time']
+        endtime = self.metadata['end_time']
+        return (endtime - starttime)
