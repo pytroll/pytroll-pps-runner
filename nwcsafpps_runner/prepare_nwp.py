@@ -74,6 +74,12 @@ def logreader(stream, log_func):
     stream.close()
 
 
+def make_temp_filename(*args, **kwargs):
+    tmp_filename_handle, tmp_filename = tempfile.mkstemp(*args, **kwargs)
+    os.close(tmp_filename_handle)
+    return tmp_filename
+
+
 def update_nwp(starttime, nlengths):
     """Prepare NWP grib files for PPS. Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
@@ -95,7 +101,6 @@ def update_nwp(starttime, nlengths):
     LOG.debug('NHSF NWP files found = %s', str(filelist))
     nfiles_error = 0
     for filename in filelist:
-        #filename = os.path.basename(filename2)
         if nhsf_file_name_sift is None:
             raise NwpPrepareError()
 
@@ -112,10 +117,7 @@ def update_nwp(starttime, nlengths):
         LOG.info("{}".format(res))
         if 'analysis_time' in res:
             if res['analysis_time'].year == 1900:
-                #year_now = datetime.utcnow().year
-                # print year_now
                 res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
-                #res['analysis_time'].year = datetime.utcnow().year
 
             analysis_time = res['analysis_time']
             timestamp = analysis_time.strftime("%Y%m%d%H%M")
@@ -132,7 +134,7 @@ def update_nwp(starttime, nlengths):
                 "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
         else:
             LOG.info("Can not parse forecast_time in file name. Try forecast step...")
-            # This needs to be done more solid suing the sift pattern! FIXME!
+            # This needs to be done more solid using the sift pattern! FIXME!
             timeinfo = filename.rsplit("_", 1)[-1]
             # Forecast step in hours:
             if 'forecast_step' in res:
@@ -155,9 +157,8 @@ def update_nwp(starttime, nlengths):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        tmp_filename_handle, tmp_filename = tempfile.mkstemp(suffix="_" + timestamp + "+" +
-                                                             '%.3dH00M' % forecast_step, dir=nwp_outdir)
-        os.close(tmp_filename_handle)
+        tmp_filename = make_temp_filename(suffix="_" + timestamp + "+" +
+                                          '%.3dH00M' % forecast_step, dir=nwp_outdir)
 
         LOG.info("result and tmp files: " + str(result_file) + " " + str(tmp_filename))
         nhsp_file = os.path.join(nhsp_path, nhsp_prefix + timeinfo)
@@ -182,9 +183,7 @@ def update_nwp(starttime, nlengths):
                       "topography available. Can't prepare NWP data")
             raise IOError('Failed getting static land-sea mask and topography')
 
-        tmp_result_filename_handle, tmp_result_filename = tempfile.mkstemp()
-        os.close(tmp_result_filename_handle)
-
+        tmp_result_filename = make_temp_filename()
         cmd = ('cat ' + tmp_filename + " " +
                os.path.join(nhsf_path, nhsf_prefix + timeinfo) +
                " " + nwp_lsmz_filename + " > " + tmp_result_filename)
