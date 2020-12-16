@@ -38,7 +38,7 @@ LOG = logging.getLogger(__name__)
 
 VIIRS_TIME_THR1 = timedelta(seconds=81)
 VIIRS_TIME_THR2 = timedelta(seconds=87)
-WAIT_NSECS_PPS_PUBLISH = 1
+WAIT_SECONDS_TO_ALLOW_PUBLISHER_TO_BE_REGISTERED = 2.2
 
 MODE = os.getenv("SMHI_MODE")
 if MODE is None:
@@ -93,7 +93,7 @@ class PPSPublisher(threading.Thread):
     def run(self):
 
         with Publish('PPS', 0, ) as publisher:
-            time.sleep(WAIT_NSECS_PPS_PUBLISH)
+            time.sleep(WAIT_SECONDS_TO_ALLOW_PUBLISHER_TO_BE_REGISTERED)
 
             while True:
                 retv = self.queue.get()
