@@ -103,6 +103,7 @@ class PPSPublisher(threading.Thread):
                     publisher.send(retv)
                     LOG.info("Message published!")
                 else:
+                    time.sleep(1.0)
                     break
 
 
