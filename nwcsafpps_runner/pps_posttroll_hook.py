@@ -73,6 +73,12 @@ MANDATORY_FIELDS_FROM_YAML = {'level': 'data_processing_level',
                               'output_format': 'format',
                               'station': 'station'}
 
+MIN_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=60)
+MAX_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=90)
+# One nominal VIIRS granule is 48 scans. The duration of one scan is 1.779 seconds.
+# Thus one granule is 1.779*48 = 85.4 seconds long.
+# Sometimes an SDR granule may be shorter if one or more scans are missing.
+
 
 class PPSPublisher(threading.Thread):
 
@@ -153,8 +159,8 @@ class PostTrollMessage(object):
         self.metadata = metadata
         self.status = status
         self._to_send = {}
-        self.viirs_granule_time_bounds = (timedelta(seconds=84), timedelta(seconds=87))
-
+        self.viirs_granule_time_bounds = (MIN_VIIRS_GRANULE_LENGTH_SECONDS,
+                                          MAX_VIIRS_GRANULE_LENGTH_SECONDS)
         # Check that the metadata has what is required:
         self.check_metadata_contains_mandatory_parameters()
         self.check_metadata_contains_filename()

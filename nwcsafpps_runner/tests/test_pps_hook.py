@@ -35,8 +35,12 @@ import nwcsafpps_runner
 from nwcsafpps_runner.pps_posttroll_hook import MANDATORY_FIELDS_FROM_YAML
 
 
-START_TIME1 = datetime(2020, 10, 28, 12, 0, 0)
-END_TIME1 = datetime(2020, 10, 28, 12, 0, 0) + timedelta(seconds=86)
+START_TIME1 = datetime.fromisoformat("2020-12-17T14:08:25.800000")
+END_TIME1 = datetime.fromisoformat("2020-12-17T14:09:50")
+
+START_TIME2 = datetime.fromisoformat("2020-12-17T13:25:45.900000")
+END_TIME2 = datetime.fromisoformat("2020-12-17T13:27:08.700000")
+
 
 # Test yaml content:
 TEST_YAML_CONTENT_OK = """
@@ -231,7 +235,42 @@ class TestPostTrollMessage(unittest.TestCase):
         delta_t = posttroll_message.get_granule_duration()
         self.assertIsInstance(delta_t, timedelta)
 
-        self.assertAlmostEqual(delta_t.total_seconds(), 86.0, places=5)
+        self.assertAlmostEqual(delta_t.total_seconds(), 84.2, places=5)
+
+        metadata['start_time'] = START_TIME2
+        metadata['end_time'] = END_TIME2
+
+        posttroll_message = PostTrollMessage(0, metadata)
+        delta_t = posttroll_message.get_granule_duration()
+
+        self.assertAlmostEqual(delta_t.total_seconds(), 82.8, places=5)
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.sensor_is_viirs')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_is_segment(self, mandatory_param, filename, sensor_is_viirs):
+        """Test the determination of whether data is a segment or not."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+        sensor_is_viirs.return_value = True
+
+        metadata = self.metadata_with_start_and_end_times
+
+        posttroll_message = PostTrollMessage(0, metadata)
+        delta_t = timedelta(seconds=82.8)
+
+        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t) as mock_method:
+            result = posttroll_message.is_segment()
+            self.assertTrue(result)
+
+        posttroll_message = PostTrollMessage(0, metadata)
+        delta_t = timedelta(seconds=15*86.)
+
+        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t) as mock_method:
+            result = posttroll_message.is_segment()
+            self.assertFalse(result)
 
     def test_metadata_contains_mandatory_fields(self):
         """Test that the metadata contains the mandatory fields read from yaml configuration file."""
