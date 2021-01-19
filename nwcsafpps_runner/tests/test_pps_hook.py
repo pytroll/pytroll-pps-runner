@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2020 Pytroll developers
+# Copyright (c) 2020, 2021 Pytroll developers
 
 # Author(s):
 
@@ -33,7 +33,7 @@ from unittest.mock import patch, Mock, MagicMock
 import yaml
 import nwcsafpps_runner
 from nwcsafpps_runner.pps_posttroll_hook import MANDATORY_FIELDS_FROM_YAML
-
+from nwcsafpps_runner.pps_posttroll_hook import SEC_DURATION_ONE_GRANULE
 
 START_TIME1 = datetime.fromisoformat("2020-12-17T14:08:25.800000")
 END_TIME1 = datetime.fromisoformat("2020-12-17T14:09:50")
@@ -235,7 +235,7 @@ class TestPostTrollMessage(unittest.TestCase):
         delta_t = posttroll_message.get_granule_duration()
         self.assertIsInstance(delta_t, timedelta)
 
-        self.assertAlmostEqual(delta_t.total_seconds(), 84.2, places=5)
+        self.assertAlmostEqual(delta_t.total_seconds(), 85.979, places=5)
 
         metadata['start_time'] = START_TIME2
         metadata['end_time'] = END_TIME2
@@ -243,7 +243,7 @@ class TestPostTrollMessage(unittest.TestCase):
         posttroll_message = PostTrollMessage(0, metadata)
         delta_t = posttroll_message.get_granule_duration()
 
-        self.assertAlmostEqual(delta_t.total_seconds(), 82.8, places=5)
+        self.assertAlmostEqual(delta_t.total_seconds(), 84.579, places=5)
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.sensor_is_viirs')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
@@ -259,7 +259,14 @@ class TestPostTrollMessage(unittest.TestCase):
         metadata = self.metadata_with_start_and_end_times
 
         posttroll_message = PostTrollMessage(0, metadata)
-        delta_t = timedelta(seconds=82.8)
+        delta_t = timedelta(seconds=48*SEC_DURATION_ONE_GRANULE)  # 48 scans
+
+        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t) as mock_method:
+            result = posttroll_message.is_segment()
+            self.assertTrue(result)
+
+        posttroll_message = PostTrollMessage(0, metadata)
+        delta_t = timedelta(seconds=47*SEC_DURATION_ONE_GRANULE)  # 47 scans
 
         with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t) as mock_method:
             result = posttroll_message.is_segment()

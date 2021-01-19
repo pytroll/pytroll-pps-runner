@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2020 Adam.Dybbroe
+# Copyright (c) 2018 - 2021 Adam.Dybbroe
 
 # Author(s):
 
@@ -73,12 +73,14 @@ MANDATORY_FIELDS_FROM_YAML = {'level': 'data_processing_level',
                               'output_format': 'format',
                               'station': 'station'}
 
+SEC_DURATION_ONE_GRANULE = 1.779
 MIN_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=60)
-MAX_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=90)
+MAX_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=88)
 # One nominal VIIRS granule is 48 scans. The duration of one scan is 1.779 seconds.
 # Thus one granule is 1.779*48 = 85.4 seconds long.
 # Sometimes an SDR granule may be shorter if one or more scans are missing.
 # https://ncc.nesdis.noaa.gov/documents/documentation/viirs-users-guide-tech-report-142a-v1.3.pdf
+# Check page 37!
 #
 
 
@@ -332,4 +334,4 @@ class PostTrollMessage(object):
         """Derive the scene/granule duration as a timedelta object."""
         starttime = self.metadata['start_time']
         endtime = self.metadata['end_time']
-        return (endtime - starttime)
+        return (endtime - starttime + timedelta(seconds=SEC_DURATION_ONE_GRANULE))
