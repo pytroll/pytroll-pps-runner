@@ -78,6 +78,8 @@ MAX_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=90)
 # One nominal VIIRS granule is 48 scans. The duration of one scan is 1.779 seconds.
 # Thus one granule is 1.779*48 = 85.4 seconds long.
 # Sometimes an SDR granule may be shorter if one or more scans are missing.
+# https://ncc.nesdis.noaa.gov/documents/documentation/viirs-users-guide-tech-report-142a-v1.3.pdf
+#
 
 
 class PPSPublisher(threading.Thread):
@@ -309,7 +311,7 @@ class PostTrollMessage(object):
             return False
 
         delta_t = self.get_granule_duration()
-        LOG.debug("Scene length: %s", str(delta_t))
+        LOG.debug("Scene length: %s", str(delta_t.total_seconds()))
         if self.viirs_granule_time_bounds[0] < delta_t < self.viirs_granule_time_bounds[1]:
             LOG.info("VIIRS scene is a segment. Scene length = %s", str(delta_t))
             return True
