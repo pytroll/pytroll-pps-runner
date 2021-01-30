@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2020 Adam.Dybbroe
+# Copyright (c) 2018 - 2021 Adam.Dybbroe
 
 # Author(s):
 
@@ -71,7 +71,11 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
 
 MANDATORY_FIELDS_FROM_YAML = {'level': 'data_processing_level',
                               'output_format': 'format',
-                              'station': 'station'}
+                              'variant': 'variant',
+                              'geo_or_polar': 'geo_or_polar',
+                              'software': 'software'}
+
+VARIANT_TRANSLATE = {'DR': 'direct_readout'}
 
 
 class PPSPublisher(threading.Thread):
@@ -112,7 +116,8 @@ class PPSMessage(object):
 
     """
 
-    def __init__(self, station, posttroll_topic, output_format, level):
+    # def __init__(self, software, geo_or_polar, variant, output_format, level):
+    def __init__(self, description, metadata):
 
         # __init__ is not run when created from yaml
         # See http://pyyaml.org/ticket/48
@@ -120,11 +125,12 @@ class PPSMessage(object):
 
     def __getstate__(self):
         """Example - metadata:
-        posttroll_topic: "PPSv2018"
         station: "norrkoping"
         output_format: "CF"
         level: "2"
         variant: DR
+        geo_or_polar: "polar"
+        software: "NWCSAF-PPSv2018"
         """
         d__ = {'metadata': self.metadata}
         return d__
@@ -227,11 +233,16 @@ class PostTrollMessage(object):
         else:
             topic = '/'
 
-        header_str = (topic + self._to_send['format'] + '/' +
+        # Publish topics - Examples:
+        # pytroll://geo/0deg/test/CF/2/NWCSAF-PPS/CTTH
+        # pytroll://polar/direct_readout/test/CF/2/NWCSAF-PPS/CTTH/
+        header_str = (topic +
+                      self._to_send['geo_or_polar'] + '/' +
+                      VARIANT_TRANSLATE.get(self._to_send['variant'], self._to_send['variant']) + '/' +
+                      self._to_send['format'] + '/' +
                       self._to_send['data_processing_level'] + '/' +
                       pps_product + '/' +
-                      self._to_send['station'] + '/' + environment +
-                      '/polar/direct_readout/')
+                      self._to_send['software'] + '/' + environment + '/')
 
         return {'header': header_str, 'type': 'file', 'content': self._to_send}
 

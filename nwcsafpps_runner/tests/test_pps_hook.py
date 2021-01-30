@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2020 Pytroll developers
+# Copyright (c) 2020, 2021 Pytroll developers
 
 # Author(s):
 
@@ -39,17 +39,31 @@ START_TIME1 = datetime(2020, 10, 28, 12, 0, 0)
 END_TIME1 = datetime(2020, 10, 28, 12, 0, 0) + timedelta(seconds=86)
 
 # Test yaml content:
+# TEST_YAML_CONTENT_OK = """
+# pps_hook:
+#     post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
+#       description: "This is a pps post hook for PostTroll messaging"
+#       metadata:
+#         posttroll_topic: "PPSv2018"
+#         station: "norrkoping"
+#         output_format: "CF"
+#         level: "2"
+#         variant: DR
+# """
+
 TEST_YAML_CONTENT_OK = """
 pps_hook:
     post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
       description: "This is a pps post hook for PostTroll messaging"
       metadata:
-        posttroll_topic: "PPSv2018"
         station: "norrkoping"
         output_format: "CF"
         level: "2"
         variant: DR
+        geo_or_polar: "polar"
+        software: "NWCSAF-PPSv2018"
 """
+
 TEST_YAML_CONTENT_INSUFFICIENT = """
 pps_hook:
     post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
@@ -92,19 +106,25 @@ class TestPostTrollMessage(unittest.TestCase):
         self.pps_message_instance_from_yaml_config_ok = create_instance_from_yaml(TEST_YAML_CONTENT_OK)
         self.pps_message_instance_from_yaml_config_fail = create_instance_from_yaml(TEST_YAML_CONTENT_INSUFFICIENT)
 
-        self.metadata = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping',
+        self.metadata = {'station': 'norrkoping',
                          'output_format': 'CF',
+                         'geo_or_polar': 'polar',
+                         'software': 'NWCSAF-PPSv2018',
                          'level': '2', 'variant': 'DR'}
-        self.metadata_with_filename = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping',
+        self.metadata_with_filename = {'station': 'norrkoping',
                                        'output_format': 'CF',
+                                       'geo_or_polar': 'polar',
+                                       'software': 'NWCSAF-PPSv2018',
                                        'level': '2', 'variant': 'DR', 'filename': '/tmp/xxx'}
-        self.metadata_with_start_and_end_times = {'posttroll_topic': 'PPSv2018',
-                                                  'station': 'norrkoping', 'output_format': 'CF',
+        self.metadata_with_start_and_end_times = {'station': 'norrkoping', 'output_format': 'CF',
                                                   'level': '2', 'variant': 'DR',
+                                                  'geo_or_polar': 'polar',
+                                                  'software': 'NWCSAF-PPSv2018',
                                                   'start_time': None, 'end_time': None}
-        self.metadata_with_platform_name = {'posttroll_topic': 'PPSv2018',
-                                            'station': 'norrkoping', 'output_format': 'CF',
+        self.metadata_with_platform_name = {'station': 'norrkoping', 'output_format': 'CF',
                                             'level': '2', 'variant': 'DR',
+                                            'geo_or_polar': 'polar',
+                                            'software': 'NWCSAF-PPSv2018',
                                             'platform_name': 'npp'}
 
         self.mandatory_fields = MANDATORY_FIELDS_FROM_YAML
@@ -154,11 +174,11 @@ class TestPostTrollMessage(unittest.TestCase):
 
         socket_gethostname.return_value = 'TEST_SERVERNAME'
 
-        metadata = {'posttroll_topic': 'PPSv2018',
-                    'station': 'norrkoping',
-                    'output_format': 'CF',
+        metadata = {'output_format': 'CF',
                     'level': '2',
                     'variant': 'DR',
+                    'geo_or_polar': 'polar',
+                    'software': 'NWCSAF-PPSv2018',
                     'start_time': START_TIME1, 'end_time': END_TIME1,
                     'sensor': 'viirs',
                     'filename': '/tmp/xxx',
@@ -171,28 +191,28 @@ class TestPostTrollMessage(unittest.TestCase):
             result_message = posttroll_message.create_message('OK')
 
         mock_method.assert_called_once()
-        message_header = "/segment/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
-        message_content = {'posttroll_topic': 'PPSv2018',
-                           'station': 'norrkoping',
-                           'variant': 'DR',
-                           'start_time': START_TIME1,
-                           'end_time': END_TIME1,
-                           'sensor': 'viirs',
-                           'uri': 'ssh://TEST_SERVERNAME' + metadata['filename'],
-                           'uid': uid,
-                           'data_processing_level': '2',
-                           'format': 'CF',
-                           'status': 'OK',
-                           'platform_name': 'Suomi-NPP'}
+        #message_header = "/segment/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
+        message_header = "/segment/polar/direct_readout/CF/2/UNKNOWN/NWCSAF-PPSv2018/offline/"
+        message_content = {'variant': 'DR', 'geo_or_polar': 'polar',
+                           'software': 'NWCSAF-PPSv2018',
+                           'start_time': datetime(2020, 10, 28, 12, 0),
+                           'end_time': datetime(2020, 10, 28, 12, 1, 26),
+                           'sensor': 'viirs', 'platform_name': 'Suomi-NPP',
+                           'status': 'OK', 'uri': 'ssh://TEST_SERVERNAME/tmp/xxx',
+                           'uid': 'xxx', 'data_processing_level': '2', 'format': 'CF'}
+
         message_type = 'file'
         expected_message = {'header': message_header, 'type': message_type, 'content': message_content}
 
-        self.assertDictEqual(expected_message, result_message)
+        self.assertEqual(expected_message['header'], result_message['header'])
+        self.assertEqual(expected_message['type'], result_message['type'])
+        self.assertDictEqual(expected_message['content'], result_message['content'])
 
         with patch.object(PostTrollMessage, 'is_segment', return_value=False) as mock_method:
             result_message = posttroll_message.create_message('OK')
 
-        message_header = "/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
+        #message_header = "/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
+        message_header = "/polar/direct_readout/CF/2/UNKNOWN/NWCSAF-PPSv2018/offline/"
         mymessage = {'header': message_header, 'type': message_type, 'content': message_content}
 
         self.assertDictEqual(mymessage, result_message)
@@ -352,19 +372,18 @@ class TestPostTrollMessage(unittest.TestCase):
         posttroll_message._to_send = {}
         posttroll_message.fix_mandatory_fields_in_message()
 
-        expected = {'data_processing_level': '2', 'format': 'CF', 'station': 'norrkoping'}
+        expected = {'data_processing_level': '2', 'format': 'CF', 'variant': 'DR',
+                    'geo_or_polar': 'polar', 'software': 'NWCSAF-PPSv2018'}
         self.assertDictEqual(posttroll_message._to_send, expected)
 
         posttroll_message._to_send = {'level': '2',
-                                      'output_format': 'CF',
-                                      'station': 'norrkoping'}
+                                      'output_format': 'CF'}
+
         posttroll_message.fix_mandatory_fields_in_message()
 
-        expected = {'data_processing_level': '2',
-                    'level': '2',
-                    'output_format': 'CF',
-                    'format': 'CF',
-                    'station': 'norrkoping'}
+        expected = {'level': '2', 'output_format': 'CF',
+                    'data_processing_level': '2', 'format': 'CF',
+                    'variant': 'DR', 'geo_or_polar': 'polar', 'software': 'NWCSAF-PPSv2018'}
         self.assertDictEqual(posttroll_message._to_send, expected)
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
