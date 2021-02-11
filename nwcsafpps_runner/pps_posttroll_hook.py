@@ -77,6 +77,16 @@ MANDATORY_FIELDS_FROM_YAML = {'level': 'data_processing_level',
 
 VARIANT_TRANSLATE = {'DR': 'direct_readout'}
 
+SEC_DURATION_ONE_GRANULE = 1.779
+MIN_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=60)
+MAX_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=88)
+# One nominal VIIRS granule is 48 scans. The duration of one scan is 1.779 seconds.
+# Thus one granule is 1.779*48 = 85.4 seconds long.
+# Sometimes an SDR granule may be shorter if one or more scans are missing.
+# https://ncc.nesdis.noaa.gov/documents/documentation/viirs-users-guide-tech-report-142a-v1.3.pdf
+# Check page 37!
+#
+
 
 class PPSPublisher(threading.Thread):
 
@@ -158,8 +168,8 @@ class PostTrollMessage(object):
         self.metadata = metadata
         self.status = status
         self._to_send = {}
-        self.viirs_granule_time_bounds = (timedelta(seconds=84), timedelta(seconds=87))
-
+        self.viirs_granule_time_bounds = (MIN_VIIRS_GRANULE_LENGTH_SECONDS,
+                                          MAX_VIIRS_GRANULE_LENGTH_SECONDS)
         # Check that the metadata has what is required:
         self.check_metadata_contains_mandatory_parameters()
         self.check_metadata_contains_filename()
@@ -314,7 +324,7 @@ class PostTrollMessage(object):
             return False
 
         delta_t = self.get_granule_duration()
-        LOG.debug("Scene length: %s", str(delta_t))
+        LOG.debug("Scene length: %s", str(delta_t.total_seconds()))
         if self.viirs_granule_time_bounds[0] < delta_t < self.viirs_granule_time_bounds[1]:
             LOG.info("VIIRS scene is a segment. Scene length = %s", str(delta_t))
             return True
@@ -335,4 +345,4 @@ class PostTrollMessage(object):
         """Derive the scene/granule duration as a timedelta object."""
         starttime = self.metadata['start_time']
         endtime = self.metadata['end_time']
-        return (endtime - starttime)
+        return (endtime - starttime + timedelta(seconds=SEC_DURATION_ONE_GRANULE))
