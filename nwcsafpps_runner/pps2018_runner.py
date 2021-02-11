@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2020 Adam.Dybbroe
+# Copyright (c) 2014 - 2021 Adam.Dybbroe
 
 # Author(s):
 
@@ -329,7 +329,6 @@ def pps(options):
     LOG.info("Number of threads: %d", options['number_of_threads'])
     thread_pool = ThreadPool(options['number_of_threads'])
 
-    #:-----------------------
     listener_q = Queue()
     publisher_q = Queue()
 
@@ -337,23 +336,13 @@ def pps(options):
     pub_thread.start()
     listen_thread = FileListener(listener_q, options['subscribe_topics'])
     listen_thread.start()
-    #:-----------------------
 
-    # ===========================================================================
-    # from posttroll.subscriber import Subscribe  # @UnresolvedImport
-    # from posttroll.publisher import Publish  # @UnresolvedImport
-    # with Subscribe('', options['subscribe_topics'], True) as sub:
-    #     with Publish('seviri_l1c_runner', 0) as publisher_q:
-    #         while True:
-    #             for msg in sub.recv():
-    # ===========================================================================
-    #:-----------------------
     while True:
         try:
             msg = listener_q.get()
         except Empty:
             continue
-        #:-----------------------
+
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
         if 'sensor' in msg.data and isinstance(msg.data['sensor'], list):

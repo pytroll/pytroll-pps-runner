@@ -26,6 +26,7 @@ Posttroll and sends messages notifying the completion of a PGE
 """
 
 import os
+import socket
 import logging
 from posttroll.publisher import Publish
 from posttroll.message import Message
@@ -182,19 +183,19 @@ class PostTrollMessage(object):
 
         attributes = ['start_time', 'end_time']
         for attr in attributes:
-            if not attr in self.metadata:
+            if attr not in self.metadata:
                 raise AttributeError("%s is a required attribute but is missing in metadata!" % attr)
 
     def check_metadata_contains_filename(self):
         """Check that the input metadata structure contains filename."""
 
-        if not 'filename' in self.metadata:
+        if 'filename' not in self.metadata:
             raise KeyError('filename')
 
     def check_mandatory_fields(self):
         # level, output_format and station are all required fields
         for attr in MANDATORY_FIELDS_FROM_YAML.keys():
-            if not attr in self.metadata:
+            if attr not in self.metadata:
                 raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 
     def send(self):
@@ -273,7 +274,6 @@ class PostTrollMessage(object):
         """Fix the message keywords from the mandatory fields."""
         self.check_mandatory_fields()
 
-        message = {}
         # Initialize:
         for attr in MANDATORY_FIELDS_FROM_YAML:
             self._to_send[MANDATORY_FIELDS_FROM_YAML.get(attr)] = self.metadata[attr]
@@ -287,9 +287,7 @@ class PostTrollMessage(object):
 
     def get_message_with_uri_and_uid(self):
         """Generate a dict with the uri and uid's and return it."""
-        import socket
-
-        if not 'filename' in self.metadata:
+        if 'filename' not in self.metadata:
             return {}
 
         servername = socket.gethostname()

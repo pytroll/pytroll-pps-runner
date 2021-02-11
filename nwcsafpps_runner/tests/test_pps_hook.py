@@ -170,6 +170,7 @@ class TestPostTrollMessage(unittest.TestCase):
         self.assertEqual(str(exception_raised), "'filename'")
 
         posttroll_message = PostTrollMessage(0, self.metadata_with_filename)
+        self.assertIsInstance(posttroll_message, PostTrollMessage)
 
     @patch('socket.gethostname')
     def test_create_message(self, socket_gethostname):
@@ -191,16 +192,15 @@ class TestPostTrollMessage(unittest.TestCase):
         posttroll_message = PostTrollMessage(0, metadata)
         uid = os.path.basename(metadata.get('filename'))
 
-        with patch.object(nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage, 'is_segment', return_value=True) as mock_method:
+        with patch.object(nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage,
+                          'is_segment', return_value=True) as mock_method:
             result_message = posttroll_message.create_message('OK')
 
         mock_method.assert_called_once()
-        #message_header = "/segment/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
         message_header = "/segment/polar/direct_readout/CF/2/UNKNOWN/NWCSAF-PPSv2018/offline/"
         message_content = {'variant': 'DR', 'geo_or_polar': 'polar',
                            'software': 'NWCSAF-PPSv2018',
-                           'start_time': datetime(2020, 10, 28, 12, 0),
-                           'end_time': datetime(2020, 10, 28, 12, 1, 26),
+                           'start_time': START_TIME1, 'end_time': END_TIME1,
                            'sensor': 'viirs', 'platform_name': 'Suomi-NPP',
                            'status': 'OK', 'uri': 'ssh://TEST_SERVERNAME/tmp/xxx',
                            'uid': 'xxx', 'data_processing_level': '2', 'format': 'CF'}
@@ -215,7 +215,6 @@ class TestPostTrollMessage(unittest.TestCase):
         with patch.object(PostTrollMessage, 'is_segment', return_value=False) as mock_method:
             result_message = posttroll_message.create_message('OK')
 
-        #message_header = "/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
         message_header = "/polar/direct_readout/CF/2/UNKNOWN/NWCSAF-PPSv2018/offline/"
         mymessage = {'header': message_header, 'type': message_type, 'content': message_content}
 

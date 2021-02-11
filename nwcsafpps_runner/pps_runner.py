@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2020 Adam.Dybbroe
+# Copyright (c) 2014 - 2021 Adam.Dybbroe
 
 # Author(s):
 
@@ -27,7 +27,7 @@ import sys
 from glob import glob
 from subprocess import Popen, PIPE
 import threading
-from six.moves.queue import Queue, Empty
+from six.moves.queue import Queue
 from datetime import datetime, timedelta
 
 from nwcsafpps_runner.config import get_config
