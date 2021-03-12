@@ -25,7 +25,6 @@
 The message is created from metadata partly read from a yaml config file.
 """
 
-import os
 from datetime import datetime, timedelta
 import pytest
 import unittest
@@ -98,7 +97,7 @@ class TestPPSMessage(unittest.TestCase):
 
         test_mda = {'filename': 'xxx', 'start_time': None, 'end_time': None, 'sensor': 'viirs'}
         with patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage', return_value=mymock) as mypatch:
-            value = self.pps_message_instance_from_yaml_config['pps_hook']['post_hook'](0, test_mda)
+            _ = self.pps_message_instance_from_yaml_config['pps_hook']['post_hook'](0, test_mda)
 
         mypatch.assert_called_once()
 
@@ -190,7 +189,6 @@ class TestPostTrollMessage(unittest.TestCase):
                     'platform_name': 'npp'}
 
         posttroll_message = PostTrollMessage(0, metadata)
-        uid = os.path.basename(metadata.get('filename'))
 
         with patch.object(nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage,
                           'is_segment', return_value=True) as mock_method:
