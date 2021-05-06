@@ -25,7 +25,6 @@
 The message is created from metadata partly read from a yaml config file.
 """
 
-import os
 from datetime import datetime, timedelta
 import pytest
 import unittest
@@ -43,25 +42,46 @@ END_TIME2 = datetime.fromisoformat("2020-12-17T13:27:08.700000")
 
 
 # Test yaml content:
+# TEST_YAML_CONTENT_OK = """
+# pps_hook:
+#     post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
+#       description: "This is a pps post hook for PostTroll messaging"
+#       metadata:
+#         posttroll_topic: "PPSv2018"
+#         station: "norrkoping"
+#         output_format: "CF"
+#         level: "2"
+#         variant: DR
+# """
+
 TEST_YAML_CONTENT_OK = """
 pps_hook:
     post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
       description: "This is a pps post hook for PostTroll messaging"
       metadata:
-        posttroll_topic: "PPSv2018"
         station: "norrkoping"
         output_format: "CF"
         level: "2"
         variant: DR
+        geo_or_polar: "polar"
+        software: "NWCSAF-PPSv2018"
 """
+
 TEST_YAML_CONTENT_INSUFFICIENT = """
 pps_hook:
     post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
       description: "This is a pps post hook for PostTroll messaging"
       metadata:
-        posttroll_topic: "PPSv2018"
         station: "norrkoping"
         variant: DR
+"""
+
+TEST_YAML_CONTENT_SPECIFY_PUBLISH_TOPIC_OK = """
+pps_hook:
+    post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
+      description: "This is a pps post hook for PostTroll messaging"
+      metadata:
+        posttroll_topic: "/PPSv2018"
 """
 
 
@@ -84,7 +104,7 @@ class TestPPSMessage(unittest.TestCase):
 
         test_mda = {'filename': 'xxx', 'start_time': None, 'end_time': None, 'sensor': 'viirs'}
         with patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage', return_value=mymock) as mypatch:
-            value = self.pps_message_instance_from_yaml_config['pps_hook']['post_hook'](0, test_mda)
+            _ = self.pps_message_instance_from_yaml_config['pps_hook']['post_hook'](0, test_mda)
 
         mypatch.assert_called_once()
 
@@ -95,20 +115,28 @@ class TestPostTrollMessage(unittest.TestCase):
     def setUp(self):
         self.pps_message_instance_from_yaml_config_ok = create_instance_from_yaml(TEST_YAML_CONTENT_OK)
         self.pps_message_instance_from_yaml_config_fail = create_instance_from_yaml(TEST_YAML_CONTENT_INSUFFICIENT)
+        self.pps_message_instance_from_yaml_config_ok_publish_topic = create_instance_from_yaml(
+            TEST_YAML_CONTENT_SPECIFY_PUBLISH_TOPIC_OK)
 
-        self.metadata = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping',
+        self.metadata = {'station': 'norrkoping',
                          'output_format': 'CF',
+                         'geo_or_polar': 'polar',
+                         'software': 'NWCSAF-PPSv2018',
                          'level': '2', 'variant': 'DR'}
-        self.metadata_with_filename = {'posttroll_topic': 'PPSv2018', 'station': 'norrkoping',
+        self.metadata_with_filename = {'station': 'norrkoping',
                                        'output_format': 'CF',
+                                       'geo_or_polar': 'polar',
+                                       'software': 'NWCSAF-PPSv2018',
                                        'level': '2', 'variant': 'DR', 'filename': '/tmp/xxx'}
-        self.metadata_with_start_and_end_times = {'posttroll_topic': 'PPSv2018',
-                                                  'station': 'norrkoping', 'output_format': 'CF',
+        self.metadata_with_start_and_end_times = {'station': 'norrkoping', 'output_format': 'CF',
                                                   'level': '2', 'variant': 'DR',
+                                                  'geo_or_polar': 'polar',
+                                                  'software': 'NWCSAF-PPSv2018',
                                                   'start_time': None, 'end_time': None}
-        self.metadata_with_platform_name = {'posttroll_topic': 'PPSv2018',
-                                            'station': 'norrkoping', 'output_format': 'CF',
+        self.metadata_with_platform_name = {'station': 'norrkoping', 'output_format': 'CF',
                                             'level': '2', 'variant': 'DR',
+                                            'geo_or_polar': 'polar',
+                                            'software': 'NWCSAF-PPSv2018',
                                             'platform_name': 'npp'}
 
         self.mandatory_fields = MANDATORY_FIELDS_FROM_YAML
@@ -150,56 +178,98 @@ class TestPostTrollMessage(unittest.TestCase):
         self.assertEqual(str(exception_raised), "'filename'")
 
         posttroll_message = PostTrollMessage(0, self.metadata_with_filename)
+        self.assertIsInstance(posttroll_message, PostTrollMessage)
 
     @patch('socket.gethostname')
-    def test_create_message(self, socket_gethostname):
+    def test_create_message_notopic_metadata_issegment(self, socket_gethostname):
         """Test creating a message with header/topic, type and content."""
         from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
 
         socket_gethostname.return_value = 'TEST_SERVERNAME'
 
-        metadata = {'posttroll_topic': 'PPSv2018',
-                    'station': 'norrkoping',
-                    'output_format': 'CF',
+        metadata = {'output_format': 'CF',
                     'level': '2',
                     'variant': 'DR',
+                    'geo_or_polar': 'polar',
+                    'software': 'NWCSAF-PPSv2018',
                     'start_time': START_TIME1, 'end_time': END_TIME1,
                     'sensor': 'viirs',
                     'filename': '/tmp/xxx',
                     'platform_name': 'npp'}
 
         posttroll_message = PostTrollMessage(0, metadata)
-        uid = os.path.basename(metadata.get('filename'))
 
-        with patch.object(nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage, 'is_segment', return_value=True) as mock_method:
+        with patch.object(nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage,
+                          'is_segment', return_value=True) as mock_method:
             result_message = posttroll_message.create_message('OK')
 
         mock_method.assert_called_once()
-        message_header = "/segment/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
-        message_content = {'posttroll_topic': 'PPSv2018',
-                           'station': 'norrkoping',
-                           'variant': 'DR',
-                           'start_time': START_TIME1,
-                           'end_time': END_TIME1,
-                           'sensor': 'viirs',
-                           'uri': 'ssh://TEST_SERVERNAME' + metadata['filename'],
-                           'uid': uid,
-                           'data_processing_level': '2',
-                           'format': 'CF',
-                           'status': 'OK',
-                           'platform_name': 'Suomi-NPP'}
+        message_header = "/segment/polar/direct_readout/CF/2/UNKNOWN/NWCSAF-PPSv2018/"
+        message_content = {'variant': 'DR', 'geo_or_polar': 'polar',
+                           'software': 'NWCSAF-PPSv2018',
+                           'start_time': START_TIME1, 'end_time': END_TIME1,
+                           'sensor': 'viirs', 'platform_name': 'Suomi-NPP',
+                           'status': 'OK', 'uri': 'ssh://TEST_SERVERNAME/tmp/xxx',
+                           'uid': 'xxx', 'data_processing_level': '2', 'format': 'CF'}
+
         message_type = 'file'
         expected_message = {'header': message_header, 'type': message_type, 'content': message_content}
 
-        self.assertDictEqual(expected_message, result_message)
+        self.assertEqual(expected_message['header'], result_message['header'])
+        self.assertEqual(expected_message['type'], result_message['type'])
+        self.assertDictEqual(expected_message['content'], result_message['content'])
+
+    @patch('socket.gethostname')
+    def test_create_message_notopic_metadata_nosegment(self, socket_gethostname):
+        """Test creating a message with header/topic, type and content."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        socket_gethostname.return_value = 'TEST_SERVERNAME'
+
+        metadata = {'output_format': 'CF',
+                    'level': '2',
+                    'variant': 'DR',
+                    'geo_or_polar': 'polar',
+                    'software': 'NWCSAF-PPSv2018',
+                    'start_time': START_TIME1, 'end_time': END_TIME1,
+                    'sensor': 'viirs',
+                    'filename': '/tmp/xxx',
+                    'platform_name': 'npp'}
+
+        posttroll_message = PostTrollMessage(0, metadata)
 
         with patch.object(PostTrollMessage, 'is_segment', return_value=False) as mock_method:
             result_message = posttroll_message.create_message('OK')
 
-        message_header = "/CF/2/UNKNOWN/norrkoping/offline/polar/direct_readout/"
-        mymessage = {'header': message_header, 'type': message_type, 'content': message_content}
+        expected_message_header = "/polar/direct_readout/CF/2/UNKNOWN/NWCSAF-PPSv2018/"
 
-        self.assertDictEqual(mymessage, result_message)
+        self.assertEqual(expected_message_header, result_message['header'])
+
+    @patch('socket.gethostname')
+    def test_create_message_with_topic(self, socket_gethostname):
+        """Test creating a message with header/topic, type and content."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        socket_gethostname.return_value = 'TEST_SERVERNAME'
+
+        metadata = {'publish_topic': '/my/pps/publish/topic',
+                    'output_format': 'CF',
+                    'level': '2',
+                    'variant': 'DR',
+                    'geo_or_polar': 'polar',
+                    'software': 'NWCSAF-PPSv2018',
+                    'start_time': START_TIME1, 'end_time': END_TIME1,
+                    'sensor': 'viirs',
+                    'filename': '/tmp/xxx',
+                    'platform_name': 'npp'}
+
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        with patch.object(PostTrollMessage, 'is_segment', return_value=False) as mock_method:
+            result_message = posttroll_message.create_message('OK')
+
+        expected_message_header = "/my/pps/publish/topic/UNKNOWN/"
+        self.assertEqual(expected_message_header, result_message['header'])
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
@@ -307,6 +377,20 @@ class TestPostTrollMessage(unittest.TestCase):
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_check_mandatory_fields_has_topic(self, mandatory_param, filename):
+        """Test the check for mandatory fields if metadata contains posttroll_topic."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+        metadata = self.pps_message_instance_from_yaml_config_ok_publish_topic['pps_hook']['post_hook'].metadata
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        result = posttroll_message.check_mandatory_fields()
+        self.assertEqual(result, None)
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
     @patch('socket.gethostname')
     def test_get_message_with_uri_and_uid(self, socket_gethostname, mandatory_param, filename):
         """Test that the filename has to be included in the metadata."""
@@ -398,19 +482,18 @@ class TestPostTrollMessage(unittest.TestCase):
         posttroll_message._to_send = {}
         posttroll_message.fix_mandatory_fields_in_message()
 
-        expected = {'data_processing_level': '2', 'format': 'CF', 'station': 'norrkoping'}
+        expected = {'data_processing_level': '2', 'format': 'CF', 'variant': 'DR',
+                    'geo_or_polar': 'polar', 'software': 'NWCSAF-PPSv2018'}
         self.assertDictEqual(posttroll_message._to_send, expected)
 
         posttroll_message._to_send = {'level': '2',
-                                      'output_format': 'CF',
-                                      'station': 'norrkoping'}
+                                      'output_format': 'CF'}
+
         posttroll_message.fix_mandatory_fields_in_message()
 
-        expected = {'data_processing_level': '2',
-                    'level': '2',
-                    'output_format': 'CF',
-                    'format': 'CF',
-                    'station': 'norrkoping'}
+        expected = {'level': '2', 'output_format': 'CF',
+                    'data_processing_level': '2', 'format': 'CF',
+                    'variant': 'DR', 'geo_or_polar': 'polar', 'software': 'NWCSAF-PPSv2018'}
         self.assertDictEqual(posttroll_message._to_send, expected)
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2016, 2020 Trygve Aspenes
+# Copyright (c) 2016 - 2021 Trygve Aspenes
 
 # Author(s):
 
@@ -28,13 +28,18 @@ import tempfile
 from glob import glob
 import os
 from datetime import datetime
-from nwcsafpps_runner.helper_functions import run_command, run_shell_command
-
 import numpy as np
-
-from eccodes import *
+import eccodes as ecc
 
 LOG = logging.getLogger(__name__)
+
+
+class WrongLengthError:
+    pass
+
+
+class NoOptionError:
+    pass
 
 
 def product(*args, **kwds):
@@ -47,54 +52,37 @@ def product(*args, **kwds):
     for prod in result:
         yield tuple(prod)
 
-# def copy_needed_field(gid, mgid):
-
 
 def copy_needed_field(gid, fout):
-    #LOG.debug("Need this")
-    nx = codes_get(gid, 'Ni')
-    ny = codes_get(gid, 'Nj')
-    first_lat = codes_get(gid, 'latitudeOfFirstGridPointInDegrees')
-    first_lon = codes_get(gid, 'longitudeOfFirstGridPointInDegrees')
-    north_south_step = codes_get(gid, 'jDirectionIncrementInDegrees')
-    east_west_step = codes_get(gid, 'iDirectionIncrementInDegrees')
+    """Copy the needed field"""
 
-    try:
-        parameter = codes_get(gid, 'indicatorOfParameter')
-    except:
-        parameter = codes_get(gid, 'paramId')
-
-    level = codes_get(gid, 'level')
+    nx = ecc.codes_get(gid, 'Ni')
+    ny = ecc.codes_get(gid, 'Nj')
+    first_lat = ecc.codes_get(gid, 'latitudeOfFirstGridPointInDegrees')
+    north_south_step = ecc.codes_get(gid, 'jDirectionIncrementInDegrees')
 
     filter_north = 0
-
     new_ny = int((first_lat - filter_north)/north_south_step) + 1
-    # print "new_ny: {}".format(new_ny)
 
-    #print("Start reading values...")
-    values = codes_get_values(gid)
-    #print("End reading values...")
+    values = ecc.codes_get_values(gid)
     values_r = np.reshape(values, (ny, nx))
 
     new_values = values_r[:new_ny, :]
 
-    clone_id = codes_clone(gid)
+    clone_id = ecc.codes_clone(gid)
 
-    codes_set(clone_id, 'latitudeOfLastGridPointInDegrees', (filter_north))
-    codes_set(clone_id, 'Nj', new_ny)
+    ecc.codes_set(clone_id, 'latitudeOfLastGridPointInDegrees', (filter_north))
+    ecc.codes_set(clone_id, 'Nj', new_ny)
 
-    codes_set_values(clone_id, new_values.flatten())
+    ecc.codes_set_values(clone_id, new_values.flatten())
 
-    #codes_grib_multi_append(clone_id, 0, mgid)
-    codes_write(clone_id, fout)
-    codes_release(clone_id)
-    return
+    ecc.codes_write(clone_id, fout)
+    ecc.codes_release(clone_id)
 
 
 def update_nwp(params):
     LOG.info("METNO update nwp")
 
-    result_files = dict()
     tempfile.tempdir = params['options']['nwp_outdir']
 
     ecmwf_path = params['options']['ecmwf_path']
@@ -112,7 +100,7 @@ def update_nwp(params):
     from trollsift import Parser, compose
     filelist.sort()
     for filename in filelist:
-        if params['options']['ecmwf_file_name_sift'] != None:
+        if params['options']['ecmwf_file_name_sift'] is not None:
             try:
                 parser = Parser(params['options']['ecmwf_file_name_sift'])
             except NoOptionError as noe:
@@ -122,25 +110,6 @@ def update_nwp(params):
                 LOG.error("Parser validate on filename: {} failed.".format(filename))
                 continue
             res = parser.parse("{}".format(os.path.basename(filename)))
-
-            # This takes to long to complete.
-            # if filename not in file_cache:
-            #     cmd="grib_get -w count=1 -p dataDate {}".format(filename)
-            #     run_shell_command(cmd, stdout_logfile='/tmp/dataDate')
-            #     dataDate = open("/tmp/dataDate", 'r')
-            #     dataDate_input = dataDate.read()
-            #     dataDate.close()
-            #     for dd in dataDate_input.splitlines():
-            #         try:
-            #             _dataDate = datetime.strptime(dd, "%Y%m%d")
-            #         except Exception as e:
-            #         LOG.error("Failed with :{}".format(e))
-
-            #     print "Data date is: {}".format(_dataDate)
-            #     _file_cache[filename] = _dataDate
-            #     file_cache.append(_file_cache)
-            # else:
-            #     print "already got datetime"
 
             time_now = datetime.utcnow()
             if 'analysis_time' in res:
@@ -173,20 +142,17 @@ def update_nwp(params):
 
             forecast_time = res['forecast_time']
             analysis_time = res['analysis_time']
-            timestamp = analysis_time.strftime("%Y%m%d%H%M")
             step_delta = forecast_time - analysis_time
             step = "{:03d}H{:02d}M".format(int(step_delta.days*24 + step_delta.seconds/3600), 0)
-            timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime(
-                "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
         else:
             LOG.error("Not sift pattern given. Can not parse input NWP files")
 
         if analysis_time < params['starttime']:
-            #LOG.debug("skip analysis time {} older than search time {}".format(analysis_time, params['starttime']))
+            # LOG.debug("skip analysis time {} older than search time {}".format(analysis_time, params['starttime']))
             continue
 
         if int(step[:3]) not in params['nlengths']:
-            #LOG.debug("Skip step {}, not in {}".format(int(step[:3]), params['nlengths']))
+            # LOG.debug("Skip step {}, not in {}".format(int(step[:3]), params['nlengths']))
             continue
 
         output_parameters = {}
@@ -238,27 +204,12 @@ def update_nwp(params):
             rfl.close()
             continue
 
-        # Need to set up temporary file to copy grib fields to
-        # If ram is available through /run/shm, use this, else use /tmp
-        if os.path.exists("/run/shm"):
-            __tmpfile = "/run/shm/__tmp"
-        else:
-            __tmpfile = "/tmp/__tmp"
-
-        #mgid = codes_grib_multi_new()
-        # codes_grib_multi_support_on()
-
-        # Some parameters can be found from the first name, and some from paramID
-        # Need to check the second of the first one is not found
-        parameter_name_list = ["indicatorOfParameter", "paramId"]
-
         fout = open(_result_file, 'wb')
         try:
 
             # Do the static fields
             # Note: field not in the filename variable, but a configured filename for static fields
             static_filename = params['options']['ecmwf_static_surface']
-            #print("Handeling static file: %s", static_filename)
             if not os.path.exists(static_filename):
                 static_filename = static_filename.replace("storeB", "storeA")
                 LOG.warning("Need to replace storeB with storeA")
@@ -267,51 +218,39 @@ def update_nwp(params):
             index_keys = ['paramId', 'level']
             LOG.debug("Start building index")
             LOG.debug("Handeling file: %s", filename)
-            iid = codes_index_new_from_file(filename, index_keys)
+            iid = ecc.codes_index_new_from_file(filename, index_keys)
             filename_n1s = filename.replace('N2D', 'N1S')
             LOG.debug("Add to index %s", filename_n1s)
-            codes_index_add_file(iid, filename_n1s)
+            ecc.codes_index_add_file(iid, filename_n1s)
             LOG.debug("Add to index %s", static_filename)
-            codes_index_add_file(iid, static_filename)
+            ecc.codes_index_add_file(iid, static_filename)
             LOG.debug("Done index")
             for key in index_keys:
-                #print("size: ", key, codes_index_get_size(iid, key))
-                key_vals = codes_index_get(iid, key)
+                key_vals = ecc.codes_index_get(iid, key)
                 key_vals = tuple(x for x in key_vals if x != 'undef')
-                # print(key_vals)
-                #print(" ".join(key_vals))
                 index_vals.append(key_vals)
 
             for prod in product(*index_vals):
-                #print('All products: ', end='')
                 for i in range(len(index_keys)):
-                    #print('Range:', index_keys[i], prod[i])
-                    #print("{} {}, ".format(index_keys[i], prod[i]), end='')
-                    codes_index_select(iid, index_keys[i], prod[i])
-                # print()
+                    ecc.codes_index_select(iid, index_keys[i], prod[i])
+
                 while 1:
-                    gid = codes_new_from_index(iid)
+                    gid = ecc.codes_new_from_index(iid)
                     if gid is None:
                         break
-                    # print(" ".join(["%s=%s" % (key, codes_get(gid, key))
-                    #                for key in index_keys]))
-                    param = codes_get(gid, index_keys[0])
-                    #print("Doing param:",param)
+
+                    param = ecc.codes_get(gid, index_keys[0])
                     parameters = [172, 129, 235, 167, 168, 137, 130, 131, 132, 133, 134, 157]
                     if param in parameters:
                         LOG.debug("Doing param: %d", param)
-                        #copy_needed_field(gid, mgid)
                         copy_needed_field(gid, fout)
 
-                    codes_release(gid)
-            codes_index_release(iid)
-
-            #fout = open(_result_file, 'wb')
-            #codes_grib_multi_write(mgid, fout)
-            # codes_grib_multi_release(mgid)
+                    ecc.codes_release(gid)
+            ecc.codes_index_release(iid)
 
             fout.close()
             os.rename(_result_file, result_file)
+
         except WrongLengthError as wle:
             LOG.error("Something wrong with the data: %s", wle)
             raise

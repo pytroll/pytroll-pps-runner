@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015 - 2020 Pytroll
+# Copyright (c) 2015 - 2021 Pytroll
 
 # Author(s):
 
@@ -252,7 +252,7 @@ def check_nwp_content(gribfile):
 
     file_ok = True
     for item in srplines:
-        if not item in entries:
+        if item not in entries:
             LOG.warning("Mandatory field missing in NWP file: %s", str(item))
             file_ok = False
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2020 Adam.Dybbroe
+# Copyright (c) 2014 - 2021 Adam.Dybbroe
 
 # Author(s):
 
@@ -24,33 +24,26 @@
 """Posttroll runner for PPS v2018.
 """
 
+import logging
 import os
 import sys
-from glob import glob
-from subprocess import Popen, PIPE
 import threading
 from datetime import datetime, timedelta
-import logging
-from six.moves.queue import Queue, Empty
+from glob import glob
+from subprocess import PIPE, Popen
 
-from nwcsafpps_runner.config import get_config
-from nwcsafpps_runner.config import MODE
-from nwcsafpps_runner.config import CONFIG_PATH
-from nwcsafpps_runner.config import CONFIG_FILE
+from six.moves.queue import Empty, Queue
 
-from nwcsafpps_runner.utils import ready2run, publish_pps_files
-from nwcsafpps_runner.utils import (get_sceneid, prepare_pps_arguments,
-                                    create_pps2018_call_command, get_pps_inputfile,
-                                    logreader, terminate_process, get_outputfiles,
-                                    message_uid)
-from nwcsafpps_runner.utils import PpsRunError
-from nwcsafpps_runner.utils import (SENSOR_LIST,
-                                    SATELLITE_NAME,
-                                    METOP_NAME_LETTER)
-
-from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
-
+from nwcsafpps_runner.config import CONFIG_FILE, CONFIG_PATH, MODE, get_config
 from nwcsafpps_runner.prepare_nwp import update_nwp
+from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
+from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
+                                    SENSOR_LIST, NwpPrepareError, PpsRunError,
+                                    create_pps2018_call_command,
+                                    get_outputfiles, get_pps_inputfile,
+                                    get_sceneid, logreader, message_uid,
+                                    prepare_pps_arguments, publish_pps_files,
+                                    ready2run, terminate_process)
 
 LOG = logging.getLogger(__name__)
 
@@ -250,7 +243,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         if options['run_cmask_prob']:
             timer_cmaprob.cancel()
 
-    except:
+    except Exception:
         LOG.exception('Failed in pps_worker...')
         raise
 
@@ -304,7 +297,7 @@ def prepare_nwp4pps(flens, nwp_handeling_module):
         LOG.debug("Use build in.")
         try:
             update_nwp(starttime, flens)
-        except:
+        except (NwpPrepareError, IOError):
             LOG.exception("Something went wrong in update_nwp...")
             raise
 
@@ -329,7 +322,6 @@ def pps(options):
     LOG.info("Number of threads: %d", options['number_of_threads'])
     thread_pool = ThreadPool(options['number_of_threads'])
 
-    #:-----------------------
     listener_q = Queue()
     publisher_q = Queue()
 
@@ -337,23 +329,13 @@ def pps(options):
     pub_thread.start()
     listen_thread = FileListener(listener_q, options['subscribe_topics'])
     listen_thread.start()
-    #:-----------------------
 
-    # ===========================================================================
-    # from posttroll.subscriber import Subscribe  # @UnresolvedImport
-    # from posttroll.publisher import Publish  # @UnresolvedImport
-    # with Subscribe('', options['subscribe_topics'], True) as sub:
-    #     with Publish('seviri_l1c_runner', 0) as publisher_q:
-    #         while True:
-    #             for msg in sub.recv():
-    # ===========================================================================
-    #:-----------------------
     while True:
         try:
             msg = listener_q.get()
         except Empty:
             continue
-        #:-----------------------
+
         LOG.debug(
             "Number of threads currently alive: " + str(threading.active_count()))
         if 'sensor' in msg.data and isinstance(msg.data['sensor'], list):
