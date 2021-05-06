@@ -651,8 +651,8 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
 
 def logreader(stream, log_func):
     while True:
-        s = stream.readline()
-        if not s:
+        mystring = stream.readline()
+        if not mystring:
             break
-        log_func(s.strip())
+        log_func(mystring.strip())
     stream.close()

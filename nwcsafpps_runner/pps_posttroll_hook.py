@@ -190,8 +190,15 @@ class PostTrollMessage(object):
             raise KeyError('filename')
 
     def check_mandatory_fields(self):
-        # level, output_format and station are all required fields
-        for attr in MANDATORY_FIELDS_FROM_YAML.keys():
+        """Check that mandatory fields are available in the metadata dict.
+
+        level, output_format and station are all required fields, 
+        unless the posttroll_topic is specified.
+        """
+        if 'posttroll_topic' in self.metadata:
+            return
+
+        for attr in MANDATORY_FIELDS_FROM_YAML:
             if attr not in self.metadata:
                 raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 

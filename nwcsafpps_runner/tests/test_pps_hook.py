@@ -82,8 +82,6 @@ pps_hook:
       description: "This is a pps post hook for PostTroll messaging"
       metadata:
         posttroll_topic: "/PPSv2018"
-        station: "norrkoping"
-        variant: DR
 """
 
 
@@ -117,6 +115,8 @@ class TestPostTrollMessage(unittest.TestCase):
     def setUp(self):
         self.pps_message_instance_from_yaml_config_ok = create_instance_from_yaml(TEST_YAML_CONTENT_OK)
         self.pps_message_instance_from_yaml_config_fail = create_instance_from_yaml(TEST_YAML_CONTENT_INSUFFICIENT)
+        self.pps_message_instance_from_yaml_config_ok_publish_topic = create_instance_from_yaml(
+            TEST_YAML_CONTENT_SPECIFY_PUBLISH_TOPIC_OK)
 
         self.metadata = {'station': 'norrkoping',
                          'output_format': 'CF',
@@ -374,6 +374,20 @@ class TestPostTrollMessage(unittest.TestCase):
         exception_raised = exec_info.value
         expected_exception_raised = "pps_hook must contain metadata attribute level"
         self.assertEqual(str(exception_raised), expected_exception_raised)
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_check_mandatory_fields_has_topic(self, mandatory_param, filename):
+        """Test the check for mandatory fields if metadata contains posttroll_topic."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+        metadata = self.pps_message_instance_from_yaml_config_ok_publish_topic['pps_hook']['post_hook'].metadata
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        result = posttroll_message.check_mandatory_fields()
+        self.assertEqual(result, None)
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
