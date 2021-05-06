@@ -128,7 +128,6 @@ class PPSMessage(object):
 
     """
 
-    # def __init__(self, software, geo_or_polar, variant, output_format, level):
     def __init__(self, description, metadata):
 
         # __init__ is not run when created from yaml
