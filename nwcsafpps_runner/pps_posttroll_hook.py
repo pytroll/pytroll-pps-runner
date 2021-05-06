@@ -41,10 +41,6 @@ VIIRS_TIME_THR1 = timedelta(seconds=81)
 VIIRS_TIME_THR2 = timedelta(seconds=87)
 WAIT_SECONDS_TO_ALLOW_PUBLISHER_TO_BE_REGISTERED = 2.2
 
-MODE = os.getenv("SMHI_MODE")
-if MODE is None:
-    MODE = "offline"
-
 PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
                        'ppsMakeViirs': 'RAD_SUN',
                        'ppsMakePhysiography': 'PHY',
@@ -136,6 +132,7 @@ class PPSMessage(object):
 
     def __getstate__(self):
         """Example - metadata:
+        posttroll_topic: "/PPSv2018"
         station: "norrkoping"
         output_format: "CF"
         level: "2"
@@ -236,26 +233,33 @@ class PostTrollMessage(object):
         self.fix_mandatory_fields_in_message()
         self.clean_unused_keys_in_message()
 
+        publish_topic = self._create_message_topic()
+
+        return {'header': publish_topic, 'type': 'file', 'content': self._to_send}
+
+    def _create_message_topic(self):
+        """Create the publish topic from yaml file items and PPS metadata."""
+
         pps_product = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
-        environment = MODE
+
+        if 'publish_topic' in self._to_send:
+            topic_str = self._to_send['publish_topic'] + '/' + pps_product + '/'
+            return topic_str
 
         if self.is_segment():
             topic = '/segment/'
         else:
             topic = '/'
 
-        # Publish topics - Examples:
-        # pytroll://geo/0deg/test/CF/2/NWCSAF-PPS/CTTH
-        # pytroll://polar/direct_readout/test/CF/2/NWCSAF-PPS/CTTH/
-        header_str = (topic +
-                      self._to_send['geo_or_polar'] + '/' +
-                      VARIANT_TRANSLATE.get(self._to_send['variant'], self._to_send['variant']) + '/' +
-                      self._to_send['format'] + '/' +
-                      self._to_send['data_processing_level'] + '/' +
-                      pps_product + '/' +
-                      self._to_send['software'] + '/' + environment + '/')
+        topic_str = (topic +
+                     self._to_send['geo_or_polar'] + '/' +
+                     VARIANT_TRANSLATE.get(self._to_send['variant'], self._to_send['variant']) + '/' +
+                     self._to_send['format'] + '/' +
+                     self._to_send['data_processing_level'] + '/' +
+                     pps_product + '/' +
+                     self._to_send['software'] + '/')
 
-        return {'header': header_str, 'type': 'file', 'content': self._to_send}
+        return topic_str
 
     def create_message_content_from_metadata(self):
         """Create message content from the metadata."""
