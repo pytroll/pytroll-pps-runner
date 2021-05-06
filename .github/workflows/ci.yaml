@@ -10,16 +10,13 @@ jobs:
       fail-fast: true
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
-        python-version: ["3.7", "3.8"]
+        python-version: ["3.8", "3.9"]
         experimental: [false]
         include:
-          - python-version: "3.7"
-            os: "windows-latest"
+          - python-version: "3.9"
+            os: "ubuntu-latest"
             experimental: true
-          - python-version: "3.8"
-            os: "windows-latest"
-            experimental: true
-  
+
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
       OS: ${{ matrix.os }}
@@ -69,7 +66,7 @@ jobs:
       - name: Run unit tests
         shell: bash -l {0}
         run: |
-          pytest --cov=nwcsafpps_runner nwcsafpps_runner/tests --cov-report=xml
+          pytest --cov=nwcsafpps_runner nwcsafpps_runner/tests --cov-report=xml --cov-report=
 
       - name: Upload unittest coverage to Codecov
         uses: codecov/codecov-action@v1
@@ -77,3 +74,20 @@ jobs:
           flags: unittests
           file: ./coverage.xml
           env_vars: OS,PYTHON_VERSION,UNSTABLE
+          fail_ci_if_error: false
+
+      - name: Coveralls Parallel
+        uses: AndreMiras/coveralls-python-action@develop
+        with:
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
+        if: runner.os == 'Linux'
+
+  coveralls:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls Finished
+        uses: AndreMiras/coveralls-python-action@develop
+        with:
+          parallel-finished: true
