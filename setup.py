@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013 - 2020 Pytroll Community
+# Copyright (c) 2013 - 2021 Pytroll Community
 
 # Author(s):
 
@@ -63,10 +63,8 @@ setup(name=NAME,
                'bin/pps_run.sh', ],
       data_files=[],
       install_requires=['posttroll', 'trollsift', 'pygrib', ],
-      python_requires='>=3.4',
+      python_requires='>=3.8',
       zip_safe=False,
       setup_requires=['setuptools_scm', 'setuptools_scm_git_archive'],
       use_scm_version=True
-      # test_requires=['mock'],
-      # test_suite='pps_runner.tests.suite',
       )
