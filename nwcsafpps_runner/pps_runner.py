@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2020 Adam.Dybbroe
+# Copyright (c) 2014 - 2021 Adam.Dybbroe
 
 # Author(s):
 
@@ -27,7 +27,7 @@ import sys
 from glob import glob
 from subprocess import Popen, PIPE
 import threading
-from six.moves.queue import Queue, Empty
+from six.moves.queue import Queue
 from datetime import datetime, timedelta
 
 from nwcsafpps_runner.config import get_config
@@ -198,7 +198,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         t__.cancel()
 
-    except:
+    except Exception:
         LOG.exception('Failed in pps_worker...')
         raise
 
@@ -218,7 +218,7 @@ def prepare_nwp4pps(flens):
         update_nwp(starttime, flens)
         LOG.info("Ready with nwp preparation")
         LOG.debug("Leaving prepare_nwp4pps...")
-    except:
+    except Exception:
         LOG.exception("Something went wrong in update_nwp...")
         raise
 

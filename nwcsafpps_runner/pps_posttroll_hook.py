@@ -26,6 +26,7 @@ Posttroll and sends messages notifying the completion of a PGE
 """
 
 import os
+import socket
 import logging
 from posttroll.publisher import Publish
 from posttroll.message import Message
@@ -39,10 +40,6 @@ LOG = logging.getLogger(__name__)
 VIIRS_TIME_THR1 = timedelta(seconds=81)
 VIIRS_TIME_THR2 = timedelta(seconds=87)
 WAIT_SECONDS_TO_ALLOW_PUBLISHER_TO_BE_REGISTERED = 2.2
-
-MODE = os.getenv("SMHI_MODE")
-if MODE is None:
-    MODE = "offline"
 
 PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
                        'ppsMakeViirs': 'RAD_SUN',
@@ -71,7 +68,11 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
 
 MANDATORY_FIELDS_FROM_YAML = {'level': 'data_processing_level',
                               'output_format': 'format',
-                              'station': 'station'}
+                              'variant': 'variant',
+                              'geo_or_polar': 'geo_or_polar',
+                              'software': 'software'}
+
+VARIANT_TRANSLATE = {'DR': 'direct_readout'}
 
 SEC_DURATION_ONE_GRANULE = 1.779
 MIN_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=60)
@@ -123,7 +124,7 @@ class PPSMessage(object):
 
     """
 
-    def __init__(self, station, posttroll_topic, output_format, level):
+    def __init__(self, description, metadata):
 
         # __init__ is not run when created from yaml
         # See http://pyyaml.org/ticket/48
@@ -131,11 +132,13 @@ class PPSMessage(object):
 
     def __getstate__(self):
         """Example - metadata:
-        posttroll_topic: "PPSv2018"
+        posttroll_topic: "/PPSv2018"
         station: "norrkoping"
         output_format: "CF"
         level: "2"
         variant: DR
+        geo_or_polar: "polar"
+        software: "NWCSAF-PPSv2018"
         """
         d__ = {'metadata': self.metadata}
         return d__
@@ -177,19 +180,26 @@ class PostTrollMessage(object):
 
         attributes = ['start_time', 'end_time']
         for attr in attributes:
-            if not attr in self.metadata:
+            if attr not in self.metadata:
                 raise AttributeError("%s is a required attribute but is missing in metadata!" % attr)
 
     def check_metadata_contains_filename(self):
         """Check that the input metadata structure contains filename."""
 
-        if not 'filename' in self.metadata:
+        if 'filename' not in self.metadata:
             raise KeyError('filename')
 
     def check_mandatory_fields(self):
-        # level, output_format and station are all required fields
-        for attr in MANDATORY_FIELDS_FROM_YAML.keys():
-            if not attr in self.metadata:
+        """Check that mandatory fields are available in the metadata dict.
+
+        level, output_format and station are all required fields, 
+        unless the posttroll_topic is specified.
+        """
+        if 'posttroll_topic' in self.metadata:
+            return
+
+        for attr in MANDATORY_FIELDS_FROM_YAML:
+            if attr not in self.metadata:
                 raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 
     def send(self):
@@ -230,21 +240,33 @@ class PostTrollMessage(object):
         self.fix_mandatory_fields_in_message()
         self.clean_unused_keys_in_message()
 
+        publish_topic = self._create_message_topic()
+
+        return {'header': publish_topic, 'type': 'file', 'content': self._to_send}
+
+    def _create_message_topic(self):
+        """Create the publish topic from yaml file items and PPS metadata."""
+
         pps_product = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
-        environment = MODE
+
+        if 'publish_topic' in self._to_send:
+            topic_str = self._to_send['publish_topic'] + '/' + pps_product + '/'
+            return topic_str
 
         if self.is_segment():
             topic = '/segment/'
         else:
             topic = '/'
 
-        header_str = (topic + self._to_send['format'] + '/' +
-                      self._to_send['data_processing_level'] + '/' +
-                      pps_product + '/' +
-                      self._to_send['station'] + '/' + environment +
-                      '/polar/direct_readout/')
+        topic_str = (topic +
+                     self._to_send['geo_or_polar'] + '/' +
+                     VARIANT_TRANSLATE.get(self._to_send['variant'], self._to_send['variant']) + '/' +
+                     self._to_send['format'] + '/' +
+                     self._to_send['data_processing_level'] + '/' +
+                     pps_product + '/' +
+                     self._to_send['software'] + '/')
 
-        return {'header': header_str, 'type': 'file', 'content': self._to_send}
+        return topic_str
 
     def create_message_content_from_metadata(self):
         """Create message content from the metadata."""
@@ -263,7 +285,6 @@ class PostTrollMessage(object):
         """Fix the message keywords from the mandatory fields."""
         self.check_mandatory_fields()
 
-        message = {}
         # Initialize:
         for attr in MANDATORY_FIELDS_FROM_YAML:
             self._to_send[MANDATORY_FIELDS_FROM_YAML.get(attr)] = self.metadata[attr]
@@ -277,9 +298,7 @@ class PostTrollMessage(object):
 
     def get_message_with_uri_and_uid(self):
         """Generate a dict with the uri and uid's and return it."""
-        import socket
-
-        if not 'filename' in self.metadata:
+        if 'filename' not in self.metadata:
             return {}
 
         servername = socket.gethostname()
