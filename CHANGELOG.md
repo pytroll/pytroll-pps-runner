@@ -1,3 +1,20 @@
+## Version <v0.2.1> (2021/05/07)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 23](https://github.com/pytroll/pytroll-pps-runner/pull/23) - Fix granule duration check, to allow shorter than 48 scans in a granule
+
+#### Features added
+
+* [PR 26](https://github.com/pytroll/pytroll-pps-runner/pull/26) - Fix the integration with Coveralls
+* [PR 25](https://github.com/pytroll/pytroll-pps-runner/pull/25) - Fix consistent publish topic or specify in yaml file
+* [PR 24](https://github.com/pytroll/pytroll-pps-runner/pull/24) - Raise time2wait in publish thread
+
+
+In this release 4 pull requests were closed.
+
 ## Version <v0.2.0> (2020/12/08)
 
 ### Issues Closed
