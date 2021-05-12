@@ -1,6 +1,7 @@
 # pytroll-pps-runner
-Pytroll runner for PPS
+Pytroll runner for the NWCSAF/PPS software to derive cloud products from
+satellite imager data
 
 
-[![Build status](https://github.com/pytroll/pytroll-pps-runner/workflows/CI/badge.svg?branch=master)](https://github.com/pytroll/pytroll-pps-runner/workflows/CI/badge.svg?branch=master)
-[![Coverage Status](https://coveralls.io/repos/github/pytroll/pytroll-pps-runner/badge.svg?branch=master)](https://coveralls.io/github/pytroll/pytroll-pps-runner?branch=master)
+[![Build status](https://github.com/pytroll/pytroll-pps-runner/workflows/CI/badge.svg?branch=main)](https://github.com/pytroll/pytroll-pps-runner/workflows/CI/badge.svg?branch=main)
+[![Coverage Status](https://coveralls.io/repos/github/pytroll/pytroll-pps-runner/badge.svg?branch=main)](https://coveralls.io/github/pytroll/pytroll-pps-runner?branch=main)
