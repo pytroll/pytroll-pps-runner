@@ -63,7 +63,7 @@ setup(name=NAME,
                'bin/pps_run.sh', ],
       data_files=[],
       install_requires=['posttroll', 'trollsift', 'pygrib', ],
-      python_requires='>=3.8',
+      python_requires='>=3.6',
       zip_safe=False,
       setup_requires=['setuptools_scm', 'setuptools_scm_git_archive'],
       use_scm_version=True
