@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2021 PyTroll
+# Copyright (c) 2018 - 2021 Pytroll Developers
 
 # Author(s):
 
-#   Adam.Dybbroe <adam.dybbroe@smhi.se>
+#   Adam.Dybbroe <Firstname.Lastname at smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ from datetime import datetime, timedelta
 #: Python 2/3 differences
 from six.moves.urllib.parse import urlparse  # @UnresolvedImport
 
+from posttroll.adress_receiver import get_local_ips
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -196,17 +197,6 @@ def message_uid(msg):
     starttime = msg.data['start_time']
 
     return SceneId(platform_name, orbit_number, starttime)
-
-
-def get_local_ips():
-    inet_addrs = [netifaces.ifaddresses(iface).get(netifaces.AF_INET)
-                  for iface in netifaces.interfaces()]
-    ips = []
-    for addr in inet_addrs:
-        if addr is not None:
-            for add in addr:
-                ips.append(add['addr'])
-    return ips
 
 
 def get_sceneid(platform_name, orbit_number, starttime):
@@ -656,3 +646,55 @@ def logreader(stream, log_func):
             break
         log_func(mystring.strip())
     stream.close()
+
+
+def deliver_output_file(affile, base_dir, subdir=None):
+    """Copy the Active Fire output files to the sub-directory under
+    the *subdir* directory structure
+    """
+
+    LOG.debug("base_dir: %s", base_dir)
+
+    if subdir:
+        path = os.path.join(base_dir, subdir)
+    else:
+        path = base_dir
+
+    LOG.debug("Path: %s", str(path))
+
+    if not os.path.exists(path):
+        LOG.warning("Directory does not exist - create it: %s", path)
+        os.mkdir(path)
+    else:
+        LOG.debug("Directory exists: %s", path)
+
+    LOG.info("Number of 1c result files: 1")
+    newfilename = os.path.join(path, os.path.basename(affile))
+    LOG.info("Copy affile to destination: " + newfilename)
+    if os.path.exists(affile):
+        LOG.info("File to copy: {file} <> ST_MTIME={time}".format(
+            file=str(affile),
+            time=datetime.utcfromtimestamp(os.stat(affile)[stat.ST_MTIME]).strftime('%Y%m%d-%H%M%S')))
+    if not os.path.isfile(newfilename):
+        shutil.copy(affile, newfilename)
+        if os.path.isfile(newfilename):
+            LOG.info("File at destination: {file} <> ST_MTIME={time}".format(
+                file=str(newfilename),
+                time=datetime.utcfromtimestamp(os.stat(newfilename)[stat.ST_MTIME]).strftime('%Y%m%d-%H%M%S')))
+    else:
+        LOG.warning("File already exist. File: %s" % newfilename)
+    retvl = newfilename
+
+    return retvl
+
+
+def cleanup_workdir(workdir):
+    """Clean up the working dir after processing."""
+
+    filelist = glob('%s/*' % workdir)
+    dummy = [os.remove(s) for s in filelist if os.path.isfile(s)]
+    filelist = glob('%s/*' % workdir)
+    LOG.info(
+        "Number of items left after cleaning working dir = " + str(len(filelist)))
+#     shutil.rmtree(workdir)
+    return

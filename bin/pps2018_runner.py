@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014 - 2021 Adam.Dybbroe
+# Copyright (c) 2014 - 2021 Pytroll Developers
 
 # Author(s):
 
@@ -21,7 +21,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Posttroll runner for PPS v2018.
+"""Posttroll runner for the NWCSAF/PPS v2018.
 """
 
 import logging
