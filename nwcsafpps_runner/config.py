@@ -46,7 +46,7 @@ def load_config_from_file(filepath):
     return config
 
 
-def get_config_from_yamlfile(configfile, service, procenv):
+def get_config_from_yamlfile(configfile, service):
     """Get the configuration from file."""
 
     config = load_config_from_file(configfile)
@@ -59,9 +59,6 @@ def get_config_from_yamlfile(configfile, service, procenv):
             for key in config[service]:
                 if not isinstance(config[service][key], dict):
                     options[key] = config[service][key]
-                elif key in [procenv]:
-                    for memb in config[service][key]:
-                        options[memb] = config[service][key][memb]
 
     return options
 
