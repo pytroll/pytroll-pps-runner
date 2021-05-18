@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2019, 2021 Pytroll
+# Copyright (c) 2019 - 2021 Pytroll
 
 # Author(s):
 
-#   Erik Johansson <Firstname.Lastname@smhi.se>
+#   Erik Johansson <Firstname.Lastname at smhi.se>
+#   Adam Dybbroe <Firstname.Lastname at smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,49 +22,44 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
-from nwcsafpps_runner.utils import (deliver_output_file, cleanup_workdir)
+import argparse
 import socket
-from level1c4pps.seviri2pps_lib import process_one_scan  # @UnresolvedImport
-from posttroll.subscriber import Subscribe  # @UnresolvedImport
-from posttroll.publisher import Publish  # @UnresolvedImport
-from posttroll.message import Message  # @UnresolvedImport
-
 import logging
 import sys
 import os
 from multiprocessing import cpu_count
+from urllib.parse import urlunsplit
 
-import six
-if six.PY2:
-    from urlparse import urlunsplit  # @UnusedImport
-elif six.PY3:
-    from urllib.parse import urlunsplit  # @UnresolvedImport @Reimport
+from level1c4pps.seviri2pps_lib import process_one_scan  # @UnresolvedImport
+from posttroll.subscriber import Subscribe  # @UnresolvedImport
+from posttroll.publisher import Publish  # @UnresolvedImport
+from posttroll.message import Message  # @UnresolvedImport
+from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
+from nwcsafpps_runner.utils import (deliver_output_file, cleanup_workdir)
+from nwcsafpps_runner.logger import setup_logging
 
 
 SUPPORTED_METEOSAT_SATELLITES = ['meteosat-8', 'meteosat-9', 'meteosat-10', 'meteosat-11']
 
-#: Default time format
-_DEFAULT_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
-
-#: Default log format
-_DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
+#LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('seviri-l1c-runner')
 
 
-class ActiveL1cProcessor(object):
-    """Container for the SEVIRI HRET processing."""
+class L1cProcessor(object):
+    """Container for the SEVIRI HRIT processing."""
 
     def __init__(self, ncpus):
         from multiprocessing.pool import ThreadPool
         self.pool = ThreadPool(ncpus)
         self.ncpus = ncpus
 
+        self.sensor = "unknown"
         self.orbit_number = 99999  # Initialised orbit number
-        self.platform_name = 'unknown'  # Ex.: Suomi-NPP
-        self.cspp_results = []
+        self.platform_name = 'unknown'
+        self.l1c_result = None
         self.pass_start_time = None
-        self.result_files = []
-        self.sdr_files = []
+        self.l1cfile = None
+        self.level1_files = []
 
         self.result_home = OPTIONS.get('output_dir', '/tmp')
         self.working_home = OPTIONS.get('working_dir', '/tmp')
@@ -75,17 +71,18 @@ class ActiveL1cProcessor(object):
 
     def initialise(self, service):
         """Initialise the processor."""
-        self.cspp_results = []
+        self.l1c_result = None
         self.pass_start_time = None
-        self.result_files = []
-        self.sdr_files = []
+        self.l1cfile = None
+        self.level1_files = []
         self.service = service
 
     def deliver_output_file(self, subd=None):
-        LOG.debug("Result file: %s", str(self.result_file))
+        """Deliver the generated level-1c file to the configured destination."""
+        LOG.debug("Result file: %s", str(self.l1cfile))
         LOG.debug("Result home dir: %s", str(self.result_home))
         LOG.debug("Sub directory: %s", subd)
-        return deliver_output_file(self.result_file, self.result_home, subd)
+        return deliver_output_file(self.l1cfile, self.result_home, subd)
 
     def run(self, msg):
         """Start the L1c processing using process_one_scan."""
@@ -99,11 +96,10 @@ class ActiveL1cProcessor(object):
 
         if ('platform_name' not in msg.data or
                 'start_time' not in msg.data):
-            #                 'orbit_number' not in msg.data or
             LOG.warning("Message is lacking crucial fields...")
             return False
 
-        if (msg.data['platform_name'].lower() not in SUPPORTED_METEOSAT_SATELLITES):
+        if msg.data['platform_name'].lower() not in SUPPORTED_METEOSAT_SATELLITES:
             LOG.info(str(msg.data['platform_name']) + ": " +
                      "Not a valid Meteosat scene. Continue...")
             return False
@@ -112,30 +108,32 @@ class ActiveL1cProcessor(object):
         self.sensor = str(msg.data['sensor'])
         self.message_data = msg.data
 
-        sdr_dataset = msg.data['dataset']
+        level1_dataset = msg.data['dataset']
 
-        if len(sdr_dataset) < 1:
+        if len(level1_dataset) < 1:
             return False
 
         pro_files = False
         epi_files = False
-        sdr_files = []
-        for sdr in sdr_dataset:
-            sdr_filename = sdr['uri']
-            sdr_files.append(sdr_filename)
-            if '-PRO' in sdr_filename:
+        level1_files = []
+        for level1 in level1_dataset:
+            level1_filename = level1['uri']
+            level1_files.append(level1_filename)
+            if '-PRO' in level1_filename:
                 pro_files = True
-            if '-EPI' in sdr_filename:
+            if '-EPI' in level1_filename:
                 epi_files = True
-        if (pro_files == False) or (epi_files == False):
-            if (pro_files == False):
-                LOG.warning("PRO file is missing...")
-            if (epi_files == False):
-                LOG.warning("EPI file is missing...")
+
+        if not pro_files:
+            LOG.warning("PRO file is missing...")
+            return False
+        if not epi_files:
+            LOG.warning("EPI file is missing...")
             return False
 
-        self.sdr_files = sdr_files
-        self.cspp_results.append(self.pool.apply_async(process_one_scan, (self.sdr_files, self.working_home)))
+        self.level1_files = level1_files
+        self.l1c_result = self.pool.apply_async(process_one_scan, (self.level1_files,
+                                                                   self.working_home))
         return True
 
 
@@ -147,7 +145,7 @@ def publish_l1c(publisher, result_file, mda, **kwargs):
 
     # Now publish:
     to_send = mda.copy()
-    # Delete the SDR dataset from the message:
+    # Delete the input level-1 dataset from the message:
     try:
         del(to_send['dataset'])
     except KeyError:
@@ -163,22 +161,19 @@ def publish_l1c(publisher, result_file, mda, **kwargs):
 
     publish_topic = kwargs.get('publish_topic', 'Unknown')
     site = kwargs.get('site', 'unknown')
-#     environment = kwargs.get('environment', 'unknown')
 
     to_send['format'] = 'PPS-L1C'
     to_send['type'] = 'NETCDF'
     to_send['data_processing_level'] = '1c'
     to_send['site'] = site
-    #: What is this
-#     to_send['start_time'], to_send['end_time'] = get_edr_times(filename)
-    #
+
     LOG.debug('Site = %s', site)
     LOG.debug('Publish topic = %s', publish_topic)
     for topic in publish_topic:
         msg = Message('/'.join(('', topic)),
                       "file", to_send).encode()
 
-    LOG.debug("sending: " + str(msg))
+    LOG.debug("sending: %s", str(msg))
     publisher.send(msg)
 
 
@@ -189,41 +184,39 @@ def seviri_l1c_runner(options, service_name="unknown"):
     LOG.debug("Listens for messages of type: %s", str(options['message_types']))
 
     ncpus_available = cpu_count()
-    LOG.info("Number of CPUs available = " + str(ncpus_available))
+    LOG.info("Number of CPUs available = %s", str(ncpus_available))
     ncpus = int(options.get('num_of_cpus', 1))
     LOG.info("Will use %d CPUs when running the CSPP SEVIRI instances", ncpus)
 
-    af_proc = ActiveL1cProcessor(ncpus)
+    l1c_proc = L1cProcessor(ncpus)
     with Subscribe('', options['message_types'], True) as sub:
         with Publish('seviri_l1c_runner', 0) as publisher:
             while True:
                 #                 count = 0
                 for msg in sub.recv():
-                    af_proc.initialise(service_name)
-#                     count = count + 1
-                    status = af_proc.run(msg)
+                    l1c_proc.initialise(service_name)
+                    status = l1c_proc.run(msg)
                     if not status:
                         break  # end the loop and reinitialize !
                     LOG.debug(
-                        "Received message data = %s", str(af_proc.message_data))
+                        "Received message data = %s", str(l1c_proc.message_data))
                     LOG.info("Get the results from the multiptocessing pool-run")
-                    for res in af_proc.cspp_results:
-                        tmp_result_file = res.get()
-                        af_proc.result_file = tmp_result_file
-                        af_files = af_proc.deliver_output_file()
-                        if af_proc.result_home == af_proc.working_home:
-                            LOG.info("home_dir = working_dir no cleaning necessary")
-                        else:
-                            LOG.info("Cleaning up directory %s", af_proc.working_home)
-                            cleanup_workdir(af_proc.working_home + '/')
 
-                        publish_l1c(publisher, af_files,
-                                    af_proc.message_data,
-                                    orbit=af_proc.orbit_number,
-                                    publish_topic=af_proc.publish_topic,
-                                    environment=af_proc.environment,
-                                    site=af_proc.site)
-                        LOG.info("L1C processing has completed.")
+                    l1c_proc.l1cfile = l1c_proc.l1c_result.get()
+                    l1c_filepaths = l1c_proc.deliver_output_file()
+                    if l1c_proc.result_home == l1c_proc.working_home:
+                        LOG.info("home_dir = working_dir no cleaning necessary")
+                    else:
+                        LOG.info("Cleaning up directory %s", l1c_proc.working_home)
+                        cleanup_workdir(l1c_proc.working_home + '/')
+
+                    publish_l1c(publisher, l1c_filepaths,
+                                l1c_proc.message_data,
+                                orbit=l1c_proc.orbit_number,
+                                publish_topic=l1c_proc.publish_topic,
+                                environment=l1c_proc.environment,
+                                site=l1c_proc.site)
+                    LOG.info("L1C processing has completed.")
 
 
 def get_arguments():
@@ -232,67 +225,55 @@ def get_arguments():
     Return
     name of the service and the config filepath
     """
-    import argparse
 
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("-l", "--log-config",
+                        help="Log config file to use instead of the standard logging.")
     parser.add_argument('-c', '--config_file',
                         type=str,
                         dest='config_file',
                         default='seviri_l1c_config.yaml',
                         help="The file containing " +
                         "configuration parameters e.g. product_filter_config.yaml, \n" +
-                        "default = ./seviri_l1c_config.yaml")
+                        "default = ./seviri_l1c_config.yaml",
+                        required=True)
     parser.add_argument("-s", "--service",
                         type=str,
                         dest="service",
                         default='seviri-l1c',
                         help="Name of the service (e.g. iasi-lvl2), \n" +
                         "default = seviri-l1c")
-    parser.add_argument("-l", "--logging",
-                        type=str,
-                        help="The path to the log-configuration file (e.g. './logging.ini')",
-                        dest="logging_conf_file",
-                        required=False)
     parser.add_argument("-m", "--mode",
                         type=str,
                         dest="mode",
                         default='utv',
                         help="Environment. replaces SMHI_MODE \n" +
                         "default = utv")
+    parser.add_argument("-v", "--verbose", dest="verbosity", action="count", default=0,
+                        help="Verbosity (between 1 and 2 occurrences with more leading to more "
+                        "verbose logging). WARN=0, INFO=1, "
+                        "DEBUG=2. This is overridden by the log config file if specified.")
 
     args = parser.parse_args()
+    setup_logging(args)
 
     service = args.service.lower()
 
     if 'template' in args.config_file:
-        print("Template file given as master config, aborting!")
+        LOG.error("Template file given as master config, aborting!")
         sys.exit()
 
-    return args.logging_conf_file, service, args.config_file, args.mode
+    return service, args.config_file, args.mode
 
 
 if __name__ == '__main__':
 
-    (logfile, service_name, config_filename, environ) = get_arguments()
+    (SERVICE_NAME, CONFIG_FILENAME, ENVIRON) = get_arguments()
 
-    if logfile:
-        logging.config.fileConfig(logfile)
+    OPTIONS = get_config(CONFIG_FILENAME, SERVICE_NAME, ENVIRON)
 
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(fmt=_DEFAULT_LOG_FORMAT,
-                                  datefmt=_DEFAULT_TIME_FORMAT)
-    handler.setFormatter(formatter)
-    logging.getLogger('').addHandler(handler)
-    logging.getLogger('').setLevel(logging.DEBUG)
-    logging.getLogger('posttroll').setLevel(logging.INFO)
-
-    OPTIONS = get_config(config_filename, service_name, environ)
-
-    OPTIONS['environment'] = environ
+    OPTIONS['environment'] = ENVIRON
     OPTIONS['nagios_config_file'] = None
 
-    LOG = logging.getLogger('seviri-l1c-runner')
-
-    seviri_l1c_runner(OPTIONS, service_name)
+    seviri_l1c_runner(OPTIONS, SERVICE_NAME)
