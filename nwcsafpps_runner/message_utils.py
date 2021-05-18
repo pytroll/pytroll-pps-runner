@@ -67,8 +67,5 @@ def publish_l1c(publisher, publish_msg, publish_topic):
     LOG.debug('Publish topic = %s', publish_topic)
     for topic in publish_topic:
         msg = Message(topic, "file", publish_msg).encode()
-        import ipdb
-        ipdb.set_trace()
-
         LOG.debug("sending: %s", str(msg))
         publisher.send(msg)

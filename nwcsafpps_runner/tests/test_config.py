@@ -60,7 +60,7 @@ class TestGetConfig(unittest.TestCase):
         config.return_value = self.config_complete
         myconfig_filename = '/tmp/my/config/file'
 
-        result = get_config(myconfig_filename, 'seviri-l1c', 'utv')
+        result = get_config(myconfig_filename, 'seviri-l1c')
 
         expected = {'message_types': ['/1b/hrit/0deg'],
                     'publish_topic': ['1c/nc/0deg'],
