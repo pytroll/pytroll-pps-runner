@@ -21,7 +21,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from nwcsafpps_runner.utils import get_config_from_yamlfile as get_config
+from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
 from nwcsafpps_runner.utils import (deliver_output_file, cleanup_workdir)
 import socket
 from level1c4pps.seviri2pps_lib import process_one_scan  # @UnresolvedImport

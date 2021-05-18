@@ -37,7 +37,7 @@ from datetime import datetime, timedelta
 #: Python 2/3 differences
 from six.moves.urllib.parse import urlparse  # @UnresolvedImport
 
-from posttroll.adress_receiver import get_local_ips
+from posttroll.address_receiver import get_local_ips
 
 import logging
 LOG = logging.getLogger(__name__)
