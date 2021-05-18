@@ -38,11 +38,18 @@ CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
 
 
+def load_config_from_file(filepath):
+    """Load the yaml config from file, given the file-path"""
+    with open(filepath, 'r') as fp_:
+        config = yaml.load(fp_, Loader=UnsafeLoader)
+
+    return config
+
+
 def get_config_from_yamlfile(configfile, service, procenv):
     """Get the configuration from file."""
 
-    with open(configfile, 'r') as fp_:
-        config = yaml.load(fp_, Loader=UnsafeLoader)
+    config = load_config_from_file(configfile)
 
     options = {}
     for item in config:
