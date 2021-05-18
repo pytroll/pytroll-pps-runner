@@ -1,0 +1,18 @@
+site: nrk
+
+seviri-l1c:
+  message_types: [/1b/hrit/0deg]
+  publish_topic: [1c/nc/0deg]
+  instrument: 'seviri'
+  num_of_cpus: 2
+
+  prod:
+    output_dir: /san1/geo_in/lvl1c
+    working_dir: /san1/geo_in/lvl1c
+  test:
+    output_dir: /san1/geo_in/lvl1c
+    working_dir: /san1/geo_in/lvl1c
+  utv:
+    output_dir: /san1/geo_in/lvl1c
+    working_dir: /san1/geo_in/lvl1c
+
