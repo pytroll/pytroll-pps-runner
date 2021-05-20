@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2021 Adam.Dybbroe
+# Copyright (c) 2021 Pytroll Developers
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c21856.ad.smhi.se>
+#   Adam Dybbroe <Firstname.Lastname at smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,12 +26,32 @@
 import logging
 from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
-from level1c4pps.seviri2pps_lib import process_one_scan
+from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
+from level1c4pps.viirs2pps_lib import process_one_scene as process_viirs
+from level1c4pps.modis2pps_lib import process_one_scene as process_modis
+from level1c4pps.avhrr2pps_lib import process_one_scene as process_avhrr
+
 from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
 
 LOG = logging.getLogger(__name__)
 
-SUPPORTED_METEOSAT_SATELLITES = ['meteosat-8', 'meteosat-9', 'meteosat-10', 'meteosat-11']
+SUPPORTED_SERVICE_NAMES = ['seviri-l1c', 'viirs-l1c', 'avhrr-l1c', 'modis-l1c']
+
+SUPPORTED_SATELLITES = {'seviri-l1c':
+                        ['meteosat-8', 'meteosat-9', 'meteosat-10', 'meteosat-11'],
+                        'viirs-l1c': ['suomi-npp', 'noaa-20', 'noaa-21'],
+                        'avhrr-l1c': ['noaa-19', 'noaa-18'],
+                        'modis-l1c': ['eos-terra', 'eos-aqua']
+                        }
+
+LVL1C_PROCESSOR_MAPPING = {'seviri-l1c': process_seviri,
+                           'viirs-l1c': process_viirs,
+                           'modis-l1c': process_modis,
+                           'avhrr-l1c': process_avhrr}
+
+
+class ServiceNameNotSupported(Exception):
+    pass
 
 
 class L1cProcessor(object):
@@ -40,6 +60,9 @@ class L1cProcessor(object):
     def __init__(self, config_filename, service_name):
 
         options = get_config(config_filename, service_name)
+        check_service_name_okay(service_name)
+
+        self.service = service_name
 
         self.subscribe_topics = options['message_types']
         LOG.debug("Listens for messages of type: %s", str(self.subscribe_topics))
@@ -62,10 +85,10 @@ class L1cProcessor(object):
         self.result_home = options.get('output_dir', '/tmp')
         self.publish_topic = options.get('publish_topic')
         self.message_data = None
-        self.service = None
 
     def initialise(self, service):
         """Initialise the processor."""
+        self.check_service_name_okay(service)
         self.l1c_result = None
         self.pass_start_time = None
         self.l1cfile = None
@@ -73,26 +96,17 @@ class L1cProcessor(object):
         self.service = service
 
     def run(self, msg):
-        """Start the L1c processing using process_one_scan."""
+        """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
 
-        if not msg:
-            return False
-
-        if msg.type != 'dataset':
-            LOG.info("Not a dataset, don't do anything...")
-            return False
-
-        if ('platform_name' not in msg.data or
-                'start_time' not in msg.data):
-            LOG.warning("Message is lacking crucial fields...")
-            return False
-
-        if msg.data['platform_name'].lower() not in SUPPORTED_METEOSAT_SATELLITES:
-            LOG.info(str(msg.data['platform_name']) + ": " +
-                     "Not a valid Meteosat scene. Continue...")
+        is_okay = check_message_okay(msg)
+        if not is_okay:
             return False
 
         self.platform_name = str(msg.data['platform_name'])
+
+        if not self.check_platform_name_consistent_with_service():
+            return False
+
         self.sensor = str(msg.data['sensor'])
         self.message_data = msg.data
 
@@ -101,25 +115,79 @@ class L1cProcessor(object):
         if len(level1_dataset) < 1:
             return False
 
-        pro_files = False
-        epi_files = False
-        level1_files = []
-        for level1 in level1_dataset:
-            level1_filename = level1['uri']
-            level1_files.append(level1_filename)
-            if '-PRO' in level1_filename:
-                pro_files = True
-            if '-EPI' in level1_filename:
-                epi_files = True
+        self.get_level1_files_from_dataset(level1_dataset)
 
-        if not pro_files:
-            LOG.warning("PRO file is missing...")
-            return False
-        if not epi_files:
-            LOG.warning("EPI file is missing...")
-            return False
+        l1c_proc = LVL1C_PROCESSOR_MAPPING.get(self.service)
+        if not l1c_proc:
+            raise AttributeError("Could not find suitable level-1c processor! Service = %s" % self.service)
 
-        self.level1_files = level1_files
-        self.l1c_result = self.pool.apply_async(process_one_scan, (self.level1_files,
-                                                                   self.result_home))
+        self.l1c_result = self.pool.apply_async(l1c_proc, (self.level1_files,
+                                                           self.result_home))
         return True
+
+    def get_level1_files_from_dataset(self, level1_dataset):
+        """Get the level-1 files from the dataset."""
+
+        if self.service in ['seviri-l1c']:
+            self.level1_files = get_seviri_level1_files_from_dataset(level1_dataset)
+        else:
+            for level1 in level1_dataset:
+                self.level1_files.append(level1['uri'])
+
+    def check_platform_name_consistent_with_service(self):
+        """Check that the platform name is consistent with the service name."""
+
+        if self.platform_name.lower() not in SUPPORTED_SATELLITES.get(self.service, []):
+            LOG.warning("%s: Platform name not supported for this service: %s",
+                        str(self.platform_name), self.service)
+            return False
+
+        return True
+
+
+def get_seviri_level1_files_from_dataset(level1_dataset):
+    """Get the seviri level-1 filenames from the dataset and return as list."""
+
+    pro_files = False
+    epi_files = False
+    level1_files = []
+    for level1 in level1_dataset:
+        level1_filename = level1['uri']
+        level1_files.append(level1_filename)
+        if '-PRO' in level1_filename:
+            pro_files = True
+        if '-EPI' in level1_filename:
+            epi_files = True
+
+    if not pro_files:
+        LOG.warning("PRO file is missing...")
+        return []
+    if not epi_files:
+        LOG.warning("EPI file is missing...")
+        return []
+
+    return level1_files
+
+
+def check_message_okay(msg):
+    """Check that the message is okay and has the necessary fields."""
+
+    if not msg:
+        return False
+
+    if msg.type != 'dataset':
+        LOG.info("Not a dataset, don't do anything...")
+        return False
+
+    if ('platform_name' not in msg.data or 'start_time' not in msg.data):
+        LOG.error("Message is lacking crucial fields...")
+        return False
+
+    return True
+
+
+def check_service_name_okay(service_name):
+    """Check that the service name is supported."""
+    if service_name not in SUPPORTED_SERVICE_NAMES:
+        errmsg = "Service name %s is not yet supported" % service_name
+        raise ServiceNameNotSupported(errmsg)
