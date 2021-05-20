@@ -192,7 +192,7 @@ class PostTrollMessage(object):
     def check_mandatory_fields(self):
         """Check that mandatory fields are available in the metadata dict.
 
-        level, output_format and station are all required fields, 
+        level, output_format and station are all required fields,
         unless the posttroll_topic is specified.
         """
         if 'posttroll_topic' in self.metadata:

@@ -24,7 +24,7 @@
 """
 
 import pytest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch
 import unittest
 from posttroll.message import Message
 from datetime import datetime
@@ -32,7 +32,7 @@ from datetime import datetime
 from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
 from nwcsafpps_runner.l1c_processing import check_message_okay
 from nwcsafpps_runner.l1c_processing import check_service_name_okay
-from nwcsafpps_runner.l1c_processing import L1cProcessor
+# from nwcsafpps_runner.l1c_processing import L1cProcessor
 from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
 
 
@@ -44,8 +44,6 @@ class MyFakePublisher(object):
     def send(self, message):
         pass
 
-
-#TEST_INPUT_MSG = """pytroll://1b/hrit/0deg dataset safusr.u@lxserv1043.smhi.se 2021-05-18T05:58:49.576064 v1.01 application/json {"data_type": "MSG4", "orig_platform_name": "MSG4", "start_time": "2021-05-18T05:45:00", "variant": "0DEG", "series": "MSG4", "platform_name": "Meteosat-11", "channel": "", "nominal_time": "2021-05-18T05:45:00", "compressed": "", "origin": "172.18.0.248:9093", "dataset": [{"uri": "/tmp/myfile", "uid": "myfile"}, {"uri": "/tmp/myfile", "uid": "myfile"}], "sensor": ["seviri"]}"""
 
 TEST_INPUT_MSG = """pytroll://1b/hrit/0deg dataset safusr.u@lxserv1043.smhi.se 2021-05-18T14:28:54.154172 v1.01 application/json {"data_type": "MSG4", "orig_platform_name": "MSG4", "start_time": "2021-05-18T14:15:00", "variant": "0DEG", "series": "MSG4", "platform_name": "Meteosat-11", "channel": "", "nominal_time": "2021-05-18T14:15:00", "compressed": "", "origin": "172.18.0.248:9093", "dataset": [{"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__", "uid": "H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__"}, {"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__", "uid": "H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__"}], "sensor": ["seviri"]}"""
 
@@ -62,16 +60,10 @@ class TestPublishMessage(unittest.TestCase):
         """Test the creation of the publish message."""
 
         gethostname.return_value = "my_local_server"
-
-        my_fake_publisher = MyFakePublisher()
-
         my_fake_level1c_file = '/my/level1c/file/path/level1c.nc'
-
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
 
         result = prepare_l1c_message(my_fake_level1c_file, input_msg.data, orbit=99999)
-
-        #publish_l1c(my_fake_publisher, to_send, ['/1c/nc/0deg'])
 
         expected = {'data_type': 'MSG4', 'orig_platform_name': 'MSG4',
                     'start_time': datetime(2021, 5, 18, 14, 15),

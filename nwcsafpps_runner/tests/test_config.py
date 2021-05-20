@@ -23,9 +23,7 @@
 """Unit testing the config handling.
 """
 
-
-import pytest
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch
 import unittest
 import yaml
 

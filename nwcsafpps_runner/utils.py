@@ -29,7 +29,6 @@ from posttroll.message import Message  # @UnresolvedImport
 from subprocess import Popen, PIPE
 import os
 import stat
-import netifaces
 import shlex
 from glob import glob
 import socket
