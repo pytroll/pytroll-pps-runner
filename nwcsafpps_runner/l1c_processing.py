@@ -75,7 +75,7 @@ class L1cProcessor(object):
         self.pool = ThreadPool(ncpus)
 
         self.sensor = "unknown"
-        self.orbit_number = 99999  # Initialised orbit number
+        self.orbit_number = 99999  # Initialized orbit number
         self.platform_name = 'unknown'
         self.l1c_result = None
         self.pass_start_time = None
