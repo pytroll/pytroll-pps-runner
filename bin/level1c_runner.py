@@ -38,7 +38,6 @@ LOG = logging.getLogger('l1c-runner')
 
 def l1c_runner(config_filename, service_name):
     """The live runner for the NWCSAF/PPS l1c product generation."""
-
     LOG.info("Start the NWCSAF/PPS level-1c runner - Service = %s", service_name)
 
     l1c_proc = L1cProcessor(config_filename, service_name)
