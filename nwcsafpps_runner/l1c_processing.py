@@ -98,8 +98,7 @@ class L1cProcessor(object):
     def run(self, msg):
         """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
 
-        is_okay = check_message_okay(msg)
-        if not is_okay:
+        if not check_message_okay(msg):
             return False
 
         self.platform_name = str(msg.data['platform_name'])
