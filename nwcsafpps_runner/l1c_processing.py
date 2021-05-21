@@ -170,7 +170,6 @@ def get_seviri_level1_files_from_dataset(level1_dataset):
 
 def check_message_okay(msg):
     """Check that the message is okay and has the necessary fields."""
-
     if not msg:
         return False
 
