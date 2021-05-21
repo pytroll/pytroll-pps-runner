@@ -31,7 +31,7 @@ from datetime import datetime
 
 from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
 from nwcsafpps_runner.l1c_processing import check_message_okay
-from nwcsafpps_runner.l1c_processing import check_service_name_okay
+from nwcsafpps_runner.l1c_processing import check_service_supported
 # from nwcsafpps_runner.l1c_processing import L1cProcessor
 from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
 
@@ -112,17 +112,17 @@ class TestPublishMessage(unittest.TestCase):
 class TestL1cProcessing(unittest.TestCase):
     """Test the L1c processing module."""
 
-    def test_check_service_name_okay(self):
+    def test_check_service_supported(self):
 
-        check_service_name_okay('seviri-l1c')
-        check_service_name_okay('viirs-l1c')
-        check_service_name_okay('avhrr-l1c')
-        check_service_name_okay('modis-l1c')
+        check_service_supported('seviri-l1c')
+        check_service_supported('viirs-l1c')
+        check_service_supported('avhrr-l1c')
+        check_service_supported('modis-l1c')
 
-        self.assertRaises(ServiceNameNotSupported, check_service_name_okay, 'seviri')
+        self.assertRaises(ServiceNameNotSupported, check_service_supported, 'seviri')
 
         with pytest.raises(ServiceNameNotSupported) as exec_info:
-            check_service_name_okay('avhrr')
+            check_service_supported('avhrr')
 
         exception_raised = exec_info.value
         self.assertTrue('Service name avhrr is not yet supported' == str(exception_raised))

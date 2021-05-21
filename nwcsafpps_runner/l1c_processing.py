@@ -60,9 +60,8 @@ class L1cProcessor(object):
     def __init__(self, config_filename, service_name):
 
         options = get_config(config_filename, service_name)
-        check_service_name_okay(service_name)
 
-        self.service = service_name
+        self.initialize(service_name)
 
         self.subscribe_topics = options['message_types']
         LOG.debug("Listens for messages of type: %s", str(self.subscribe_topics))
@@ -75,20 +74,16 @@ class L1cProcessor(object):
         self.pool = ThreadPool(ncpus)
 
         self.sensor = "unknown"
-        self.orbit_number = 99999  # Initialised orbit number
+        self.orbit_number = 99999  # Initialized orbit number
         self.platform_name = 'unknown'
-        self.l1c_result = None
-        self.pass_start_time = None
-        self.l1cfile = None
-        self.level1_files = []
 
         self.result_home = options.get('output_dir', '/tmp')
         self.publish_topic = options.get('publish_topic')
         self.message_data = None
 
-    def initialise(self, service):
-        """Initialise the processor."""
-        self.check_service_name_okay(service)
+    def initialize(self, service):
+        """Initialize the processor."""
+        check_service_supported(service)
         self.l1c_result = None
         self.pass_start_time = None
         self.l1cfile = None
@@ -98,8 +93,7 @@ class L1cProcessor(object):
     def run(self, msg):
         """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
 
-        is_okay = check_message_okay(msg)
-        if not is_okay:
+        if not check_message_okay(msg):
             return False
 
         self.platform_name = str(msg.data['platform_name'])
@@ -186,8 +180,8 @@ def check_message_okay(msg):
     return True
 
 
-def check_service_name_okay(service_name):
-    """Check that the service name is supported."""
+def check_service_supported(service_name):
+    """Check that the service is supported."""
     if service_name not in SUPPORTED_SERVICE_NAMES:
         errmsg = "Service name %s is not yet supported" % service_name
         raise ServiceNameNotSupported(errmsg)

@@ -25,12 +25,7 @@
 
 import os
 import socket
-
 import yaml
-try:
-    from yaml import UnsafeLoader
-except ImportError:
-    from yaml import Loader as UnsafeLoader
 
 MODE = os.environ.get('SMHI_MODE', 'offline')
 
@@ -41,7 +36,7 @@ CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
 def load_config_from_file(filepath):
     """Load the yaml config from file, given the file-path"""
     with open(filepath, 'r') as fp_:
-        config = yaml.load(fp_, Loader=UnsafeLoader)
+        config = yaml.load(fp_, Loader=yaml.FullLoader)
 
     return config
 

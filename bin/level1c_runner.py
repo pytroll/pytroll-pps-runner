@@ -48,7 +48,7 @@ def l1c_runner(config_filename, service_name):
         with Publish(publish_name, 0) as publisher:
             while True:
                 for msg in sub.recv():
-                    l1c_proc.initialise(service_name)
+                    l1c_proc.initialize(service_name)
                     status = l1c_proc.run(msg)
                     if not status:
                         break  # end the loop and reinitialize !
@@ -102,8 +102,7 @@ def get_arguments():
     service = args.service.lower()
 
     if 'template' in args.config_file:
-        LOG.error("Template file given as master config, aborting!")
-        sys.exit()
+        raise IOError("Template file given as master config, aborting!")
 
     return args.config_file, service
 
