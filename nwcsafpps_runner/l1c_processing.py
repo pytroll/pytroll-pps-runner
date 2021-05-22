@@ -116,8 +116,8 @@ class L1cProcessor(object):
             raise AttributeError("Could not find suitable level-1c processor! Service = %s" % self.service)
 
         self.l1c_result = self.pool.apply_async(l1c_proc, (self.level1_files,
-                                                           self.result_home,
-                                                           engine='netcdf4'))
+                                                           self.result_home),
+                                                {'engine'='netcdf4'})
         return True
 
     def get_level1_files_from_dataset(self, level1_dataset):
