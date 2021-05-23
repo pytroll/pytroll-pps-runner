@@ -38,6 +38,10 @@ seviri-l1c:
   num_of_cpus: 2
 
   output_dir: /san1/geo_in/lvl1c
+
+  l1cprocess_call_arguments:
+    engine: 'netcdf4'
+    rotate: True
 """
 
 
@@ -64,6 +68,8 @@ class TestGetConfig(unittest.TestCase):
                     'publish_topic': ['1c/nc/0deg'],
                     'instrument': 'seviri',
                     'num_of_cpus': 2,
-                    'output_dir': '/san1/geo_in/lvl1c'}
+                    'output_dir': '/san1/geo_in/lvl1c',
+                    'l1cprocess_call_arguments': {'engine': 'netcdf4',
+                                                  'rotate': True}}
 
         self.assertDictEqual(result, expected)

@@ -50,10 +50,10 @@ def get_config_from_yamlfile(configfile, service):
     for item in config:
         if not isinstance(config[item], dict):
             options[item] = config[item]
-        elif item in [service]:
-            for key in config[service]:
-                if not isinstance(config[service][key], dict):
-                    options[key] = config[service][key]
+        elif item not in [service]:
+            continue
+        for key in config[service]:
+            options[key] = config[service][key]
 
     return options
 

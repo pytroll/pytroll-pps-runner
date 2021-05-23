@@ -62,6 +62,7 @@ class L1cProcessor(object):
         options = get_config(config_filename, service_name)
 
         self.initialize(service_name)
+        self._l1c_processor_call_kwargs = options.get('l1cprocess_call_arguments', {})
 
         self.subscribe_topics = options['message_types']
         LOG.debug("Listens for messages of type: %s", str(self.subscribe_topics))
@@ -117,7 +118,7 @@ class L1cProcessor(object):
 
         self.l1c_result = self.pool.apply_async(l1c_proc, (self.level1_files,
                                                            self.result_home),
-                                                {'engine': 'netcdf4'})
+                                                self._l1c_processor_call_kwargs)
         return True
 
     def get_level1_files_from_dataset(self, level1_dataset):

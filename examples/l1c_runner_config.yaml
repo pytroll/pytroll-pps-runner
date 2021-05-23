@@ -7,6 +7,9 @@ seviri-l1c:
 
   output_dir: /my/data/path/geo_in/lvl1c
 
+  l1cprocess_call_arguments:
+    engine: 'netcdf4'
+
 viirs-l1c:
   message_types: [/segment/SDR/1B]
   publish_topic: [/segment/SDR/1C]
