@@ -33,7 +33,7 @@ from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
 TEST_YAML_CONTENT_OK = """
 seviri-l1c:
   message_types: [/1b/hrit/0deg]
-  publish_topic: [1c/nc/0deg]
+  publish_topic: [/1c/nc/0deg]
   instrument: 'seviri'
   num_of_cpus: 2
 
@@ -65,7 +65,7 @@ class TestGetConfig(unittest.TestCase):
         result = get_config(myconfig_filename, 'seviri-l1c')
 
         expected = {'message_types': ['/1b/hrit/0deg'],
-                    'publish_topic': ['1c/nc/0deg'],
+                    'publish_topic': ['/1c/nc/0deg'],
                     'instrument': 'seviri',
                     'num_of_cpus': 2,
                     'output_dir': '/san1/geo_in/lvl1c',

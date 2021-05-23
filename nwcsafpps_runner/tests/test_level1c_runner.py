@@ -40,7 +40,7 @@ from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
 TEST_YAML_CONTENT_OK = """
 seviri-l1c:
   message_types: [/1b/hrit/0deg]
-  publish_topic: [1c/nc/0deg]
+  publish_topic: [/1c/nc/0deg]
   instrument: 'seviri'
   num_of_cpus: 2
 
@@ -53,7 +53,7 @@ seviri-l1c:
 TEST_YAML_CONTENT_OK_MINIMAL = """
 seviri-l1c:
   message_types: [/1b/hrit/0deg]
-  publish_topic: [1c/nc/0deg]
+  publish_topic: [/1c/nc/0deg]
   instrument: 'seviri'
 """
 
@@ -199,7 +199,7 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.service, 'seviri-l1c')
         self.assertDictEqual(l1c_proc._l1c_processor_call_kwargs, {'engine': 'netcdf4', 'rotate': True})
         self.assertEqual(l1c_proc.result_home, '/san1/geo_in/lvl1c')
-        self.assertEqual(l1c_proc.publish_topic, ['1c/nc/0deg'])
+        self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
         self.assertTrue(l1c_proc.message_data is None)
         self.assertTrue(l1c_proc.pool is None)
@@ -225,7 +225,7 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.service, 'seviri-l1c')
         self.assertDictEqual(l1c_proc._l1c_processor_call_kwargs, {})
         self.assertEqual(l1c_proc.result_home, '/tmp')
-        self.assertEqual(l1c_proc.publish_topic, ['1c/nc/0deg'])
+        self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
         self.assertTrue(l1c_proc.message_data is None)
         self.assertTrue(l1c_proc.pool is None)
