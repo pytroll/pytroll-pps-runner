@@ -54,6 +54,22 @@ class ServiceNameNotSupported(Exception):
     pass
 
 
+class MessageTypeNotSupported(Exception):
+    pass
+
+
+class MessageContentMissing(Exception):
+    pass
+
+
+class PlatformNameInconsistentWithService(Exception):
+    pass
+
+
+class DatasetIsEmpty(Exception):
+    pass
+
+
 class L1cProcessor(object):
     """Container for the NWCSAF/PPS Level-c processing."""
 
@@ -84,7 +100,7 @@ class L1cProcessor(object):
 
     def initialize(self, service):
         """Initialize the processor."""
-        check_service_supported(service)
+        check_service_is_supported(service)
         self.l1c_result = None
         self.pass_start_time = None
         self.l1cfile = None
@@ -94,13 +110,10 @@ class L1cProcessor(object):
     def run(self, msg):
         """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
 
-        if not check_message_okay(msg):
-            return False
+        check_message_okay(msg)
 
         self.platform_name = str(msg.data['platform_name'])
-
-        if not self.check_platform_name_consistent_with_service():
-            return False
+        self.check_platform_name_consistent_with_service()
 
         self.sensor = str(msg.data['sensor'])
         self.message_data = msg.data
@@ -108,7 +121,7 @@ class L1cProcessor(object):
         level1_dataset = msg.data['dataset']
 
         if len(level1_dataset) < 1:
-            return False
+            raise DatasetIsEmpty('No level-1 data in dataset!')
 
         self.get_level1_files_from_dataset(level1_dataset)
 
@@ -119,7 +132,6 @@ class L1cProcessor(object):
         self.l1c_result = self.pool.apply_async(l1c_proc, (self.level1_files,
                                                            self.result_home),
                                                 self._l1c_processor_call_kwargs)
-        return True
 
     def get_level1_files_from_dataset(self, level1_dataset):
         """Get the level-1 files from the dataset."""
@@ -134,11 +146,9 @@ class L1cProcessor(object):
         """Check that the platform name is consistent with the service name."""
 
         if self.platform_name.lower() not in SUPPORTED_SATELLITES.get(self.service, []):
-            LOG.warning("%s: Platform name not supported for this service: %s",
-                        str(self.platform_name), self.service)
-            return False
-
-        return True
+            errmsg = ("%s: Platform name not supported for this service: %s",
+                      str(self.platform_name), self.service)
+            raise PlatformNameInconsistentWithService(errmsg)
 
 
 def get_seviri_level1_files_from_dataset(level1_dataset):
@@ -167,21 +177,17 @@ def get_seviri_level1_files_from_dataset(level1_dataset):
 
 def check_message_okay(msg):
     """Check that the message is okay and has the necessary fields."""
-    if not msg:
-        return False
-
     if msg.type != 'dataset':
-        LOG.info("Not a dataset, don't do anything...")
-        return False
+        raise MessageTypeNotSupported("Not a dataset, don't do anything...")
 
-    if ('platform_name' not in msg.data or 'start_time' not in msg.data):
-        LOG.error("Message is lacking crucial fields...")
-        return False
+    if ('platform_name' not in msg.data):
+        raise MessageContentMissing("Message is lacking crucial fields: platform_name")
 
-    return True
+    if ('start_time' not in msg.data):
+        raise MessageContentMissing("Message is lacking crucial fields: start_time")
 
 
-def check_service_supported(service_name):
+def check_service_is_supported(service_name):
     """Check that the service is supported."""
     if service_name not in SUPPORTED_SERVICE_NAMES:
         errmsg = "Service name %s is not yet supported" % service_name

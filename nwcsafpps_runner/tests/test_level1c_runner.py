@@ -32,9 +32,11 @@ import yaml
 
 from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
 from nwcsafpps_runner.l1c_processing import check_message_okay
-from nwcsafpps_runner.l1c_processing import check_service_supported
+from nwcsafpps_runner.l1c_processing import check_service_is_supported
 from nwcsafpps_runner.l1c_processing import L1cProcessor
 from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
+from nwcsafpps_runner.l1c_processing import MessageTypeNotSupported
+from nwcsafpps_runner.l1c_processing import MessageContentMissing
 
 
 TEST_YAML_CONTENT_OK = """
@@ -63,6 +65,8 @@ TEST_INPUT_MSG_NO_DATASET = """pytroll://1b/hrit/0deg file safusr.u@lxserv1043.s
 
 
 TEST_INPUT_MSG_NO_PLATFORM_NAME = """pytroll://1b/hrit/0deg dataset safusr.u@lxserv1043.smhi.se 2021-05-18T14:28:54.154172 v1.01 application/json {"data_type": "MSG4", "orig_platform_name": "MSG4", "start_time": "2021-05-18T14:15:00", "variant": "0DEG", "series": "MSG4", "channel": "", "nominal_time": "2021-05-18T14:15:00", "compressed": "", "origin": "172.18.0.248:9093", "dataset": [{"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__", "uid": "H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__"}, {"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__", "uid": "H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__"}], "sensor": ["seviri"]}"""
+
+TEST_INPUT_MSG_NO_START_TIME = """pytroll://1b/hrit/0deg dataset safusr.u@lxserv1043.smhi.se 2021-05-18T14:28:54.154172 v1.01 application/json {"data_type": "MSG4", "orig_platform_name": "MSG4", "variant": "0DEG", "series": "MSG4", "platform_name": "Meteosat-11", "channel": "", "nominal_time": "2021-05-18T14:15:00", "compressed": "", "origin": "172.18.0.248:9093", "dataset": [{"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__", "uid": "H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__"}, {"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__", "uid": "H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__"}], "sensor": ["seviri"]}"""
 
 
 class MyFakePublisher(object):
@@ -142,17 +146,17 @@ class TestL1cProcessing(unittest.TestCase):
         self.config_complete = create_config_from_yaml(TEST_YAML_CONTENT_OK)
         self.config_minimum = create_config_from_yaml(TEST_YAML_CONTENT_OK_MINIMAL)
 
-    def test_check_service_supported(self):
+    def test_check_service_is_supported(self):
 
-        check_service_supported('seviri-l1c')
-        check_service_supported('viirs-l1c')
-        check_service_supported('avhrr-l1c')
-        check_service_supported('modis-l1c')
+        check_service_is_supported('seviri-l1c')
+        check_service_is_supported('viirs-l1c')
+        check_service_is_supported('avhrr-l1c')
+        check_service_is_supported('modis-l1c')
 
-        self.assertRaises(ServiceNameNotSupported, check_service_supported, 'seviri')
+        self.assertRaises(ServiceNameNotSupported, check_service_is_supported, 'seviri')
 
         with pytest.raises(ServiceNameNotSupported) as exec_info:
-            check_service_supported('avhrr')
+            check_service_is_supported('avhrr')
 
         exception_raised = exec_info.value
         self.assertTrue('Service name avhrr is not yet supported' == str(exception_raised))
@@ -160,23 +164,38 @@ class TestL1cProcessing(unittest.TestCase):
     def test_check_message_okay_message_ok(self):
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
-
         result = check_message_okay(input_msg)
-        self.assertTrue(result)
+        self.assertTrue(result is None)
 
     def test_check_message_okay_message_has_no_dataset(self):
         """Test that message is not okay if it is not a dataset."""
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG_NO_DATASET)
-        result = check_message_okay(input_msg)
-        self.assertTrue(result is False)
+        with pytest.raises(MessageTypeNotSupported) as exec_info:
+            result = check_message_okay(input_msg)
+
+        exception_raised = exec_info.value
+        self.assertTrue("Not a dataset, don't do anything..." == str(exception_raised))
 
     def test_check_message_okay_message_has_no_platform_name(self):
-        """Test that message is not okay if it is not a dataset."""
+        """Test that message is not okay if it does not contain platform_name."""
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG_NO_PLATFORM_NAME)
-        result = check_message_okay(input_msg)
-        self.assertTrue(result is False)
+        with pytest.raises(MessageContentMissing) as exec_info:
+            result = check_message_okay(input_msg)
+
+        exception_raised = exec_info.value
+        self.assertTrue("Message is lacking crucial fields: platform_name" == str(exception_raised))
+
+    def test_check_message_okay_message_has_no_start_time(self):
+        """Test that message is not okay if it does not contain start_time."""
+
+        input_msg = Message.decode(rawstr=TEST_INPUT_MSG_NO_START_TIME)
+        with pytest.raises(MessageContentMissing) as exec_info:
+            result = check_message_okay(input_msg)
+
+        exception_raised = exec_info.value
+        self.assertTrue("Message is lacking crucial fields: start_time" == str(exception_raised))
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.l1c_processing.cpu_count')

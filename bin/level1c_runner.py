@@ -32,6 +32,8 @@ from posttroll.publisher import Publish
 from nwcsafpps_runner.logger import setup_logging
 from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
 from nwcsafpps_runner.l1c_processing import L1cProcessor
+from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
+from nwcsafpps_runner.l1c_processing import MessageTypeNotSupported
 
 LOG = logging.getLogger('l1c-runner')
 
@@ -48,9 +50,14 @@ def l1c_runner(config_filename, service_name):
             while True:
                 for msg in sub.recv():
                     l1c_proc.initialize(service_name)
-                    status = l1c_proc.run(msg)
-                    if not status:
-                        break  # end the loop and reinitialize !
+                    if not msg:
+                        continue
+                    try:
+                        l1c_proc.run(msg)
+                    except MessageTypeNotSupported as err:
+                        LOG.warning(err)
+                        continue
+
                     LOG.debug(
                         "Received message data = %s", str(l1c_proc.message_data))
                     LOG.info("Get the results from the multiptocessing pool-run")
