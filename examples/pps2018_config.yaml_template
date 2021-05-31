@@ -22,10 +22,21 @@ sdr_processing: granules
 maximum_pps_processing_time_in_minutes: 20
 #: Only used in pps2018_runner
 python: python
-run_all_script: /local_disk/opt/acpg/v2018_cmsaf/scr/ppsRunAll.py
-run_cmaprob_script: /local_disk/opt/acpg/v2018_cmsaf/scr/ppsCmaskProb.py
+
+# In PPS v2021 the ppsRunAll script runs the cmaprob on default before CTTH If
+# you want to skip that and run it later the provide a flag 'no_cmaprob' below,
+# and possibly run it separately afterwards. Also instead of setting the
+# run_pps_cpp to yes you can provide the flag directly below. For PPSv2018 the
+# flag is called np_cpp, but in v2021 it called no_cmic.
+run_all_script:
+  name: ppsRunAll.py
+  flags:
+     #- no_cmic
+     #- no_cpp
+    
+run_cmaprob_script: ppsCmaskProb.py
 run_cmask_prob: yes
-run_pps_cpp: yes
+#run_pps_cpp: yes
 
 
 #: Used for PPS log file

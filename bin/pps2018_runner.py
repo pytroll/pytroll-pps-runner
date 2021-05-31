@@ -114,23 +114,19 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         min_thr = options['maximum_pps_processing_time_in_minutes']
         LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
-        # # Run core PPS PGEs in a serial fashion
-        # LOG.info("Run PPS module: pps_run_all_serial")
-        # pps_run_all_serial(**kwargs)
-
-        # # Run the PPS CmaskProb (probabilistic Cloudmask):
-        # if CMA_PROB:
-        #     LOG.info("Run PPS module: pps_cmask_prob")
-        #     pps_cmask_prob(**kwargs)
-        # else:
-        #     LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
 
         py_exec = options.get('python', '/bin/python')
-        pps_script = options.get('run_all_script')
+        pps_run_all = options.get('run_all_script')
+        pps_script = pps_run_all.get('name')
+        pps_run_all_flags = pps_run_all.get('flags')
+
         cmd_str = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
         run_cpp = options.get('run_pps_cpp', None)
         if not run_cpp:
             cmd_str = cmd_str + ' --no_cpp'
+        for flag in pps_run_all_flags:
+            cmd_str = cmd_str + ' --%s' % flag
+
         my_env = os.environ.copy()
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))

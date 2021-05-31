@@ -116,7 +116,7 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
 
     options = {}
     for item in config:
-        if not isinstance(config[item], dict):
+        if not isinstance(config[item], dict) or item not in service:
             options[item] = config[item]
         elif item in [service]:
             for key in config[service]:
@@ -125,6 +125,7 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
                 elif key in [procenv]:
                     for memb in config[service][key]:
                         options[memb] = config[service][key][memb]
+
     if isinstance(options.get('subscribe_topics'), str):
         subscribe_topics = options.get('subscribe_topics').split(',')
         for item in subscribe_topics:
