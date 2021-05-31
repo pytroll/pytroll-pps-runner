@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2021 PyTroll
+# Copyright (c) 2018 - 2021 Pytroll Developers
 
 # Author(s):
 
-#   Adam.Dybbroe <adam.dybbroe@smhi.se>
+#   Adam.Dybbroe <Firstname.Lastname at smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@ from posttroll.message import Message  # @UnresolvedImport
 from subprocess import Popen, PIPE
 import os
 import stat
-import netifaces
 import shlex
 from glob import glob
 import socket
@@ -37,6 +36,7 @@ from datetime import datetime, timedelta
 #: Python 2/3 differences
 from six.moves.urllib.parse import urlparse  # @UnresolvedImport
 
+from posttroll.address_receiver import get_local_ips
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -196,17 +196,6 @@ def message_uid(msg):
     starttime = msg.data['start_time']
 
     return SceneId(platform_name, orbit_number, starttime)
-
-
-def get_local_ips():
-    inet_addrs = [netifaces.ifaddresses(iface).get(netifaces.AF_INET)
-                  for iface in netifaces.interfaces()]
-    ips = []
-    for addr in inet_addrs:
-        if addr is not None:
-            for add in addr:
-                ips.append(add['addr'])
-    return ips
 
 
 def get_sceneid(platform_name, orbit_number, starttime):
