@@ -34,7 +34,7 @@ from glob import glob
 import socket
 from datetime import datetime, timedelta
 #: Python 2/3 differences
-from six.moves.urllib.parse import urlparse  # @UnresolvedImport
+from six.moves.urllib.parse import urlparse
 
 from posttroll.address_receiver import get_local_ips
 

@@ -24,6 +24,7 @@
 """
 
 import logging
+from six.moves.urllib.parse import urlparse
 from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
 from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
@@ -116,9 +117,9 @@ class L1cProcessor(object):
         self.check_platform_name_consistent_with_service()
 
         self.sensor = str(msg.data['sensor'])
-        self.message_data = msg.data
+        self.message_data = self._get_message_data(msg)
 
-        level1_dataset = msg.data['dataset']
+        level1_dataset = self.message_data.get('dataset')
 
         if len(level1_dataset) < 1:
             raise DatasetIsEmpty('No level-1 data in dataset!')
@@ -133,6 +134,10 @@ class L1cProcessor(object):
                                                            self.result_home),
                                                 self._l1c_processor_call_kwargs)
 
+    def _get_message_data(self, message):
+        """Return the data dict in the Posttroll message."""
+        return message.data
+
     def get_level1_files_from_dataset(self, level1_dataset):
         """Get the level-1 files from the dataset."""
 
@@ -140,7 +145,7 @@ class L1cProcessor(object):
             self.level1_files = get_seviri_level1_files_from_dataset(level1_dataset)
         else:
             for level1 in level1_dataset:
-                self.level1_files.append(level1['uri'])
+                self.level1_files.append(urlparse(level1['uri']).path)
 
     def check_platform_name_consistent_with_service(self):
         """Check that the platform name is consistent with the service name."""
