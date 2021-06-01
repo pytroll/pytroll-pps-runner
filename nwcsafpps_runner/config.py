@@ -105,14 +105,16 @@ def get_config_init_cfg(configfile, service=MODE):
 
 def get_config_yaml(configfile, service=MODE, procenv=''):
     """Get the configuration from file."""
-    import yaml
-    try:
-        from yaml import UnsafeLoader
-    except ImportError:
-        from yaml import Loader as UnsafeLoader
+    # import yaml
+    # try:
+    #     from yaml import UnsafeLoader
+    # except ImportError:
+    #     from yaml import Loader as UnsafeLoader
 
-    with open(configfile, 'r') as fp_:
-        config = yaml.load(fp_, Loader=UnsafeLoader)
+    # with open(configfile, 'r') as fp_:
+    #     config = yaml.load(fp_, Loader=UnsafeLoader)
+
+    config = load_config_from_file(configfile)
 
     options = {}
     for item in config:

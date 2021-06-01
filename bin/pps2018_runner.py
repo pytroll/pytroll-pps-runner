@@ -119,6 +119,8 @@ def pps_worker(scene, publish_q, input_msg, options):
         pps_run_all = options.get('run_all_script')
         pps_script = pps_run_all.get('name')
         pps_run_all_flags = pps_run_all.get('flags')
+        if not pps_run_all_flags:
+            pps_run_all_flags = []
 
         cmd_str = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
         run_cpp = options.get('run_pps_cpp', None)
