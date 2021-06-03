@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018, 2020 Adam.Dybbroe
+# Copyright (c) 2018 - 2021 Pytroll Developers
 
 # Author(s):
 
-#   Adam.Dybbroe <a000680@c20671.ad.smhi.se>
+#   Adam Dybbroe <Firstname.Lastname at smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ import posttroll.subscriber
 from posttroll.publisher import Publish
 import threading
 from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES,
-                                    SUPPORTED_METEOSAT_SATELLITES)
+                                    SUPPORTED_SEVIRI_SATELLITES)
 
 import logging
 LOG = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ class FileListener(threading.Thread):
             LOG.warning("Message is lacking crucial fields...")
             return False
         #: Orbit_number not needed for seviri
-        if (msg.data['platform_name'] not in SUPPORTED_METEOSAT_SATELLITES):
+        if (msg.data['platform_name'] not in SUPPORTED_SEVIRI_SATELLITES):
             if ('orbit_number' not in msg.data):
                 LOG.warning("Message is lacking crucial fields...")
                 return False
