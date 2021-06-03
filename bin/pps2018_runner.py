@@ -122,7 +122,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         if not pps_run_all_flags:
             pps_run_all_flags = []
 
-        use_l1c = (options.get(pps_version) == 'v2021')
+        use_l1c = (options.get('pps_version') == 'v2021')
         cmd_str = create_pps_call_command(py_exec, pps_script, scene, use_l1c=use_l1c)
         run_cpp = options.get('run_pps_cpp', None)
         if not run_cpp:
