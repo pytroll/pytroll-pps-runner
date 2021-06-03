@@ -53,17 +53,17 @@ PPS_OUT_PATTERN_MULTIPLE = ("S_NWC_{segment1}_{segment2}_{orig_platform_name}_{o
 PPS_STAT_PATTERN = ("S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_" +
                     "{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml")
 
-SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19']
-SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A', 'Metop-C']
-SUPPORTED_EOS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
-SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21']
-SUPPORTED_METEOSAT_SATELLITES = ['Meteosat-09', 'Meteosat-10', 'Meteosat-11']
+SUPPORTED_AVHRR_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19',
+                              'Metop-B', 'Metop-A', 'Metop-C']
+SUPPORTED_EARS_AVHRR_SATELLITES = ['Metop-B', 'Metop-C']
+SUPPORTED_MODIS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
+SUPPORTED_VIIRS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21']
+SUPPORTED_SEVIRI_SATELLITES = ['Meteosat-09', 'Meteosat-10', 'Meteosat-11']
 
-SUPPORTED_PPS_SATELLITES = (SUPPORTED_NOAA_SATELLITES +
-                            SUPPORTED_METOP_SATELLITES +
-                            SUPPORTED_EOS_SATELLITES +
-                            SUPPORTED_METEOSAT_SATELLITES +
-                            SUPPORTED_JPSS_SATELLITES)
+SUPPORTED_PPS_SATELLITES = (SUPPORTED_AVHRR_SATELLITES +
+                            SUPPORTED_MODIS_SATELLITES +
+                            SUPPORTED_SEVIRI_SATELLITES +
+                            SUPPORTED_VIIRS_SATELLITES)
 
 GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
 DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
@@ -227,7 +227,7 @@ def ready2run(msg, files4pps, **kwargs):
 
     uris = []
     if (msg.type == 'dataset' and
-            msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES):
+            msg.data['platform_name'] in SUPPORTED_MODIS_SATELLITES):
         LOG.info('Dataset: ' + str(msg.data['dataset']))
         LOG.info('Got a dataset on an EOS satellite')
         LOG.info('\t ...thus we can assume we have everything we need for PPS')
@@ -235,7 +235,7 @@ def ready2run(msg, files4pps, **kwargs):
             uris.append(obj['uri'])
 
     elif (sdr_granule_processing and msg.type == 'dataset' and
-            msg.data['platform_name'] in SUPPORTED_JPSS_SATELLITES):
+            msg.data['platform_name'] in SUPPORTED_VIIRS_SATELLITES):
         LOG.info('Dataset: ' + str(msg.data['dataset']))
         LOG.info('Got a dataset on a JPSS/SNPP satellite')
         if destination is None:
@@ -283,19 +283,19 @@ def ready2run(msg, files4pps, **kwargs):
                  "Continue...")
         return False
 
-    if msg.data['platform_name'] in SUPPORTED_METEOSAT_SATELLITES:
+    if msg.data['platform_name'] in SUPPORTED_SEVIRI_SATELLITES:
         if msg.data['sensor'] not in ['seviri', ]:
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) +
                 ' not required for MODIS PPS processing...')
             return False
-    elif msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES:
+    elif msg.data['platform_name'] in SUPPORTED_MODIS_SATELLITES:
         if msg.data['sensor'] not in ['modis', ]:
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) +
                 ' not required for MODIS PPS processing...')
             return False
-    elif msg.data['platform_name'] in SUPPORTED_JPSS_SATELLITES:
+    elif msg.data['platform_name'] in SUPPORTED_VIIRS_SATELLITES:
         if msg.data['sensor'] not in ['viirs', ]:
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) +
@@ -336,7 +336,7 @@ def ready2run(msg, files4pps, **kwargs):
         files4pps[sceneid] = []
 
     LOG.debug("level1_files = %s", level1_files)
-    if platform_name in SUPPORTED_EOS_SATELLITES:
+    if platform_name in SUPPORTED_MODIS_SATELLITES:
         for item in level1_files:
             fname = os.path.basename(item)
             LOG.debug("EOS level-1 file: %s", item)
@@ -350,14 +350,13 @@ def ready2run(msg, files4pps, **kwargs):
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
     if (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
-            platform_name in SUPPORTED_METOP_SATELLITES):
+            platform_name in SUPPORTED_EARS_AVHRR_SATELLITES):
         LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
-    elif (platform_name in SUPPORTED_METOP_SATELLITES or
-          platform_name in SUPPORTED_NOAA_SATELLITES):
+    elif (platform_name in SUPPORTED_AVHRR_SATELLITES):
         if len(files4pps[sceneid]) < len(REQUIRED_MW_SENSORS[platform_name]) + 1:
             LOG.info("Not enough NOAA/Metop sensor data available yet...")
             return False
-    elif platform_name in SUPPORTED_EOS_SATELLITES:
+    elif platform_name in SUPPORTED_MODIS_SATELLITES:
         if len(files4pps[sceneid]) < 2:
             LOG.info("Not enough MODIS level 1 files available yet...")
             return False
@@ -395,29 +394,30 @@ def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
     orbit_number = kwargs.get('orbit_number')
     pps_args = {}
 
-    if platform_name in SUPPORTED_EOS_SATELLITES:
+    if platform_name in SUPPORTED_MODIS_SATELLITES:
         pps_args['modisorbit'] = orbit_number
         pps_args['modisfile'] = level1_filepath
 
-    elif platform_name in SUPPORTED_JPSS_SATELLITES:
+    elif platform_name in SUPPORTED_VIIRS_SATELLITES:
         pps_args['csppfile'] = level1_filepath
 
-    elif platform_name in SUPPORTED_METOP_SATELLITES:
-        pps_args['hrptfile'] = level1_filepath
-
-    elif platform_name in SUPPORTED_NOAA_SATELLITES:
+    elif platform_name in SUPPORTED_AVHRR_SATELLITES:
         pps_args['hrptfile'] = level1_filepath
 
     return pps_args
 
 
 def create_pps_call_command_sequence(pps_script_name, scene, options):
+    """Create the PPS call commnd sequence.
+
+    Applies to NWCSAF/PPS v2014.
+    """
     LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH',
                                    options.get('LVL1_NPP_PATH', None))
     LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH',
                                    options.get('LVL1_EOS_PATH', None))
 
-    if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
+    if scene['platform_name'] in SUPPORTED_MODIS_SATELLITES:
         cmdstr = "%s %s %s %s %s" % (pps_script_name,
                                      SATELLITE_NAME[
                                          scene['platform_name']],
@@ -432,30 +432,35 @@ def create_pps_call_command_sequence(pps_script_name, scene, options):
 
     cmdstr = cmdstr + ' ' + str(options['aapp_level1files_max_minutes_old'])
 
-    if scene['platform_name'] in SUPPORTED_JPSS_SATELLITES and LVL1_NPP_PATH:
+    if scene['platform_name'] in SUPPORTED_VIIRS_SATELLITES and LVL1_NPP_PATH:
         cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
-    elif scene['platform_name'] in SUPPORTED_EOS_SATELLITES and LVL1_EOS_PATH:
+    elif scene['platform_name'] in SUPPORTED_MODIS_SATELLITES and LVL1_EOS_PATH:
         cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH)
 
     return shlex.split(str(cmdstr))
 
 
-def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=True):
+def create_pps_call_command(python_exec, pps_script_name, scene, use_l1c=False):
+    """Create the pps call command.
 
-    if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
-        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
-                  " --modisfile %s" % scene['file4pps'])
-    elif scene['platform_name'] in SUPPORTED_JPSS_SATELLITES:
-        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
-                  " --csppfile %s" % scene['file4pps'])
-    elif scene['platform_name'] in SUPPORTED_METEOSAT_SATELLITES:
+    Supports PPSv2018 and PPSv2021.
+    """
+    if use_l1c:
         cmdstr = ("%s" % python_exec + " %s " % pps_script_name +
                   "-af %s" % scene['file4pps'])
-    else:
+        return cmdstr
+
+    if scene['platform_name'] in SUPPORTED_MODIS_SATELLITES:
+        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
+                  " --modisfile %s" % scene['file4pps'])
+    elif scene['platform_name'] in SUPPORTED_VIIRS_SATELLITES:
+        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
+                  " --csppfile %s" % scene['file4pps'])
+    elif scene['platform_name'] in SUPPORTED_AVHRR_SATELLITES:
         cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
                   " --hrptfile %s" % scene['file4pps'])
-    if sequence:
-        return shlex.split(str(cmdstr))
+    else:
+        raise
 
     return cmdstr
 
@@ -465,23 +470,19 @@ def get_pps_inputfile(platform_name, ppsfiles):
     file used in the PPS call
     """
 
-    if platform_name in SUPPORTED_EOS_SATELLITES:
+    if platform_name in SUPPORTED_MODIS_SATELLITES:
         for ppsfile in ppsfiles:
             if os.path.basename(ppsfile).find('021km') > 0:
                 return ppsfile
-    elif platform_name in SUPPORTED_NOAA_SATELLITES:
+    elif platform_name in SUPPORTED_AVHRR_SATELLITES:
         for ppsfile in ppsfiles:
             if os.path.basename(ppsfile).find('hrpt_') >= 0:
                 return ppsfile
-    elif platform_name in SUPPORTED_METOP_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('hrpt_') >= 0:
-                return ppsfile
-    elif platform_name in SUPPORTED_JPSS_SATELLITES:
+    elif platform_name in SUPPORTED_VIIRS_SATELLITES:
         for ppsfile in ppsfiles:
             if os.path.basename(ppsfile).find('SVM01') >= 0:
                 return ppsfile
-    elif platform_name in SUPPORTED_METEOSAT_SATELLITES:
+    elif platform_name in SUPPORTED_SEVIRI_SATELLITES:
         for ppsfile in ppsfiles:
             if os.path.basename(ppsfile).find('NWC') >= 0:
                 return ppsfile

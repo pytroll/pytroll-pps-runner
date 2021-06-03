@@ -19,6 +19,7 @@ sdr_processing: granules
 
 
 #: Python and PPS related
+pps_version: v2018
 maximum_pps_processing_time_in_minutes: 20
 #: Only used in pps2018_runner
 python: python

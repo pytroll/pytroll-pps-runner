@@ -39,7 +39,7 @@ from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
                                     SENSOR_LIST, NwpPrepareError, PpsRunError,
-                                    create_pps2018_call_command,
+                                    create_pps_call_command,
                                     get_outputfiles, get_pps_inputfile,
                                     get_sceneid, logreader, message_uid,
                                     prepare_pps_arguments, publish_pps_files,
@@ -115,14 +115,15 @@ def pps_worker(scene, publish_q, input_msg, options):
         min_thr = options['maximum_pps_processing_time_in_minutes']
         LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
 
-        py_exec = options.get('python', '/bin/python')
+        py_exec = options.get('python')
         pps_run_all = options.get('run_all_script')
         pps_script = pps_run_all.get('name')
         pps_run_all_flags = pps_run_all.get('flags')
         if not pps_run_all_flags:
             pps_run_all_flags = []
 
-        cmd_str = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
+        use_l1c = (options.get(pps_version) == 'v2021')
+        cmd_str = create_pps_call_command(py_exec, pps_script, scene, use_l1c=use_l1c)
         run_cpp = options.get('run_pps_cpp', None)
         if not run_cpp:
             cmd_str = cmd_str + ' --no_cpp'
@@ -159,14 +160,15 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         if options['run_cmask_prob']:
             pps_script = options.get('run_cmaprob_script')
-            cmdl = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
+            cmdl = create_pps_call_command(py_exec, pps_script, scene,  use_l1c=use_l1c)
 
             LOG.debug("Run command: " + str(cmdl))
             try:
                 pps_cmaprob_proc = Popen(cmdl, shell=True, stderr=PIPE, stdout=PIPE)
             except PpsRunError:
                 LOG.exception("Failed when trying to run the PPS Cma-prob")
-            timer_cmaprob = threading.Timer(min_thr * 60.0, terminate_process, args=(pps_cmaprob_proc, scene, ))
+            timer_cmaprob = threading.Timer(min_thr * 60.0, terminate_process,
+                                            args=(pps_cmaprob_proc, scene, ))
             timer_cmaprob.start()
 
             out_reader2 = threading.Thread(

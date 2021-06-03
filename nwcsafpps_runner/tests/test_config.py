@@ -61,6 +61,7 @@ publish_topic: PPS
 subscribe_topics: [/segment/SDR/1C] #[AAPP-HRPT,AAPP-PPS,EOS/1B,segment/SDR/1B,1c/nc/0deg]
 sdr_processing: granules
 
+pps_version: v2021
 python: python
 run_all_script:
   name: ppsRunAll.py
@@ -143,6 +144,7 @@ class TestGetConfig(unittest.TestCase):
                     'subscribe_topics': ['/segment/SDR/1C'],
                     'sdr_processing': 'granules',
                     'python': 'python',
+                    'pps_version': 'v2021',
                     'run_all_script': {'name': 'ppsRunAll.py', 'flags': None},
                     'run_cmaprob_script': 'ppsCmaskProb.py',
                     'maximum_pps_processing_time_in_minutes': 20,
