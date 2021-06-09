@@ -112,9 +112,9 @@ def update_nwp(starttime, nlengths):
         if not parser.validate(os.path.basename(filename)):
             LOG.error("Parser validate on filename: {} failed.".format(filename))
             continue
-        LOG.info("{}".format(os.path.basename(filename)))
+        # LOG.info("{}".format(os.path.basename(filename)))
         res = parser.parse("{}".format(os.path.basename(filename)))
-        LOG.info("{}".format(res))
+        # LOG.info("{}".format(res))
         if 'analysis_time' in res:
             if res['analysis_time'].year == 1900:
                 res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
@@ -133,7 +133,7 @@ def update_nwp(starttime, nlengths):
             timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime(
                 "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
         else:
-            LOG.info("Can not parse forecast_time in file name. Try forecast step...")
+            #LOG.info("Can not parse forecast_time in file name. Try forecast step...")
             # This needs to be done more solid using the sift pattern! FIXME!
             timeinfo = filename.rsplit("_", 1)[-1]
             # Forecast step in hours:
