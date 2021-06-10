@@ -30,12 +30,13 @@ python: python
 # run_pps_cpp to yes you can provide the flag directly below. For PPSv2018 the
 # flag is called np_cpp, but in v2021 it called no_cmic.
 run_all_script:
-  name: ppsRunAll.py
+  name: /path/to/pps/script/ppsRunAll.py
   flags:
-     #- no_cmic
-     #- no_cpp
-    
-run_cmaprob_script: ppsCmaskProb.py
+     - 'no_cmic'
+     - 'no_cmaskprob'
+     - 'no_cpp'
+
+run_cmaprob_script: /path/to/pps/script/ppsCmaskProb.py
 run_cmask_prob: yes
 #run_pps_cpp: yes
 

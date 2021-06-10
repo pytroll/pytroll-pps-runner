@@ -64,10 +64,12 @@ sdr_processing: granules
 pps_version: v2021
 python: python
 run_all_script:
-  name: ppsRunAll.py
+  name: /path/to/pps/script/ppsRunAll.py
   flags:
+    - 'no_cmaskprob'
+    - 'no_cmic'
 
-run_cmaprob_script: ppsCmaskProb.py
+run_cmaprob_script: /path/to/pps/script/ppsCmaskProb.py
 maximum_pps_processing_time_in_minutes: 20
 run_cmask_prob: no
 run_pps_cpp: no
@@ -145,8 +147,9 @@ class TestGetConfig(unittest.TestCase):
                     'sdr_processing': 'granules',
                     'python': 'python',
                     'pps_version': 'v2021',
-                    'run_all_script': {'name': 'ppsRunAll.py', 'flags': None},
-                    'run_cmaprob_script': 'ppsCmaskProb.py',
+                    'run_all_script': {'name': '/path/to/pps/script/ppsRunAll.py',
+                                       'flags': ['no_cmaskprob', 'no_cmic']},
+                    'run_cmaprob_script': '/path/to/pps/script/ppsCmaskProb.py',
                     'maximum_pps_processing_time_in_minutes': 20,
                     'run_cmask_prob': False,
                     'run_pps_cpp': False,

@@ -128,7 +128,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         if not run_cpp:
             cmd_str = cmd_str + ' --no_cpp'
         for flag in pps_run_all_flags:
-            cmd_str = cmd_str + ' --%s' % flag
+            cmd_str = cmd_str + ' %s' % flag
 
         my_env = os.environ.copy()
         for envkey in my_env:
