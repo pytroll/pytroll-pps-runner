@@ -448,6 +448,7 @@ def create_pps_call_command(python_exec, pps_script_name, scene, use_l1c=False):
     if use_l1c:
         cmdstr = ("%s" % python_exec + " %s " % pps_script_name +
                   "-af %s" % scene['file4pps'])
+        LOG.debug("PPS call command: %s", str(cmdstr))
         return cmdstr
 
     if scene['platform_name'] in SUPPORTED_MODIS_SATELLITES:
@@ -587,7 +588,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         # Get true start and end time from filenames and adjust the end time in
         # the publish message:
         filename = os.path.basename(result_file)
-        LOG.info("file to publish = " + str(filename))
+        LOG.info("file to publish = %s", str(filename))
         try:
             try:
                 metadata = parse(PPS_OUT_PATTERN, filename)

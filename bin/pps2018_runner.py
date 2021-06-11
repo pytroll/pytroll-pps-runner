@@ -125,8 +125,8 @@ def pps_worker(scene, publish_q, input_msg, options):
         use_l1c = (options.get('pps_version') == 'v2021')
         cmd_str = create_pps_call_command(py_exec, pps_script, scene, use_l1c=use_l1c)
         run_cpp = options.get('run_pps_cpp', None)
-        if not run_cpp:
-            cmd_str = cmd_str + ' --no_cpp'
+        # if not run_cpp:
+        #    cmd_str = cmd_str + ' --no_cpp'
         for flag in pps_run_all_flags:
             cmd_str = cmd_str + ' %s' % flag
 
@@ -313,6 +313,11 @@ def pps(options):
     """
 
     LOG.info("*** Start the PPS level-2 runner:")
+    use_l1c = (options.get('pps_version') == 'v2021')
+    if use_l1c:
+        LOG.info("Use level-1c file as input (v2021 and greater)")
+    else:
+        LOG.info("Use original level-1 file as input (v2018)")
 
     LOG.info("First check if NWP data should be downloaded and prepared")
     nwp_handeling_module = options.get("nwp_handeling_module", None)
@@ -366,7 +371,10 @@ def pps(options):
                            sdr_granule_processing=options.get('sdr_processing') == 'granules')
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
-            scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
+            if not use_l1c:
+                scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
+            else:
+                scene['file4pps'] = files4pps[sceneid][0]
 
             LOG.info('Start a thread preparing the nwp data and run pps...')
 
