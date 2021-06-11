@@ -371,11 +371,13 @@ def pps(options):
                            sdr_granule_processing=options.get('sdr_processing') == 'granules')
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
+            LOG.debug(files4pps[sceneid])
             if not use_l1c:
                 scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
             else:
                 scene['file4pps'] = files4pps[sceneid][0]
 
+            LOG.debug("Files for PPS: %s", str(scene['file4pps']))
             LOG.info('Start a thread preparing the nwp data and run pps...')
 
             if options['number_of_threads'] == 1:
