@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2020 PyTroll
+# Copyright (c) 2018 - 2021 Pytroll Developers
 
 # Author(s):
 
-#   Adam.Dybbroe <adam.dybbroe@smhi.se>
+#   Adam.Dybbroe <Firstname.Lastname at smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,12 +25,37 @@
 
 import os
 import socket
-
+import yaml
 
 MODE = os.environ.get('SMHI_MODE', 'offline')
 
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
+
+
+def load_config_from_file(filepath):
+    """Load the yaml config from file, given the file-path"""
+    with open(filepath, 'r') as fp_:
+        config = yaml.load(fp_, Loader=yaml.FullLoader)
+
+    return config
+
+
+def get_config_from_yamlfile(configfile, service):
+    """Get the configuration from file."""
+
+    config = load_config_from_file(configfile)
+
+    options = {}
+    for item in config:
+        if not isinstance(config[item], dict):
+            options[item] = config[item]
+        elif item not in [service]:
+            continue
+        for key in config[service]:
+            options[key] = config[service][key]
+
+    return options
 
 
 def get_config(conf, service=MODE, procenv=''):

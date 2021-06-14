@@ -238,7 +238,7 @@ class TestPostTrollMessage(unittest.TestCase):
 
         posttroll_message = PostTrollMessage(0, metadata)
 
-        with patch.object(PostTrollMessage, 'is_segment', return_value=False) as mock_method:
+        with patch.object(PostTrollMessage, 'is_segment', return_value=False):
             result_message = posttroll_message.create_message('OK')
 
         expected_message_header = "/polar/direct_readout/CF/2/UNKNOWN/NWCSAF-PPSv2018/"
@@ -265,7 +265,7 @@ class TestPostTrollMessage(unittest.TestCase):
 
         posttroll_message = PostTrollMessage(0, metadata)
 
-        with patch.object(PostTrollMessage, 'is_segment', return_value=False) as mock_method:
+        with patch.object(PostTrollMessage, 'is_segment', return_value=False):
             result_message = posttroll_message.create_message('OK')
 
         expected_message_header = "/my/pps/publish/topic/UNKNOWN/"
@@ -331,21 +331,21 @@ class TestPostTrollMessage(unittest.TestCase):
         posttroll_message = PostTrollMessage(0, metadata)
         delta_t = timedelta(seconds=48*SEC_DURATION_ONE_GRANULE)  # 48 scans
 
-        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t) as mock_method:
+        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t):
             result = posttroll_message.is_segment()
             self.assertTrue(result)
 
         posttroll_message = PostTrollMessage(0, metadata)
         delta_t = timedelta(seconds=47*SEC_DURATION_ONE_GRANULE)  # 47 scans
 
-        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t) as mock_method:
+        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t):
             result = posttroll_message.is_segment()
             self.assertTrue(result)
 
         posttroll_message = PostTrollMessage(0, metadata)
         delta_t = timedelta(seconds=15*86.)
 
-        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t) as mock_method:
+        with patch.object(PostTrollMessage, 'get_granule_duration', return_value=delta_t):
             result = posttroll_message.is_segment()
             self.assertFalse(result)
 
