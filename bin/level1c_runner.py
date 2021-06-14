@@ -25,6 +25,7 @@
 import argparse
 import logging
 import sys
+import signal
 
 from posttroll.subscriber import Subscribe
 from posttroll.publisher import Publish
@@ -35,7 +36,45 @@ from nwcsafpps_runner.l1c_processing import L1cProcessor
 from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
 from nwcsafpps_runner.l1c_processing import MessageTypeNotSupported
 
+LOOP = True
+
 LOG = logging.getLogger('l1c-runner')
+
+
+def _run_subscribe_publisher(l1c_proc, service_name, subscriber, publisher):
+    """The porsttroll subscribe/publisher runner."""
+
+    def signal_handler(sig, frame):
+        LOG.warning('You pressed Ctrl+C!')
+        global LOOP
+        LOOP = False
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    while LOOP:
+        for msg in subscriber.recv():
+
+            l1c_proc.initialize(service_name)
+            if not msg:
+                continue
+            try:
+                l1c_proc.run(msg)
+            except MessageTypeNotSupported as err:
+                LOG.warning(err)
+                continue
+
+            LOG.debug(
+                "Received message data = %s", str(l1c_proc.message_data))
+            LOG.info("Get the results from the multiptocessing pool-run")
+
+            l1c_proc.l1cfile = l1c_proc.l1c_result.get()
+
+            pub_msg = prepare_l1c_message(l1c_proc.l1cfile,
+                                          l1c_proc.message_data,
+                                          orbit=l1c_proc.orbit_number)
+            publish_l1c(publisher, pub_msg,
+                        publish_topic=l1c_proc.publish_topic)
+            LOG.info("L1C processing has completed.")
 
 
 def l1c_runner(config_filename, service_name):
@@ -46,30 +85,8 @@ def l1c_runner(config_filename, service_name):
     publish_name = service_name + '-runner'
 
     with Subscribe('', l1c_proc.subscribe_topics, True) as sub:
-        with Publish(publish_name, 0) as publisher:
-            while True:
-                for msg in sub.recv():
-                    l1c_proc.initialize(service_name)
-                    if not msg:
-                        continue
-                    try:
-                        l1c_proc.run(msg)
-                    except MessageTypeNotSupported as err:
-                        LOG.warning(err)
-                        continue
-
-                    LOG.debug(
-                        "Received message data = %s", str(l1c_proc.message_data))
-                    LOG.info("Get the results from the multiptocessing pool-run")
-
-                    l1c_proc.l1cfile = l1c_proc.l1c_result.get()
-
-                    pub_msg = prepare_l1c_message(l1c_proc.l1cfile,
-                                                  l1c_proc.message_data,
-                                                  orbit=l1c_proc.orbit_number)
-                    publish_l1c(publisher, pub_msg,
-                                publish_topic=l1c_proc.publish_topic)
-                    LOG.info("L1C processing has completed.")
+        with Publish(publish_name, 0) as pub:
+            _run_subscribe_publisher(l1c_proc, service_name, sub, pub)
 
 
 def get_arguments():

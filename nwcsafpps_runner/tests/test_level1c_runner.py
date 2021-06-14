@@ -174,13 +174,13 @@ class TestL1cProcessing(unittest.TestCase):
             check_service_is_supported('avhrr')
 
         exception_raised = exec_info.value
-        self.assertTrue('Service name avhrr is not yet supported' == str(exception_raised))
+        self.assertEqual('Service name avhrr is not yet supported', str(exception_raised))
 
     def test_check_message_okay_message_ok(self):
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
         result = check_message_okay(input_msg)
-        self.assertTrue(result is None)
+        self.assertEqual(result, None)
 
     def test_check_message_okay_message_has_no_dataset(self):
         """Test that message is not okay if it is not a dataset."""
@@ -190,7 +190,7 @@ class TestL1cProcessing(unittest.TestCase):
             result = check_message_okay(input_msg)
 
         exception_raised = exec_info.value
-        self.assertTrue("Not a dataset, don't do anything..." == str(exception_raised))
+        self.assertEqual("Not a dataset, don't do anything...", str(exception_raised))
 
     def test_check_message_okay_message_has_no_platform_name(self):
         """Test that message is not okay if it does not contain platform_name."""
@@ -200,7 +200,7 @@ class TestL1cProcessing(unittest.TestCase):
             result = check_message_okay(input_msg)
 
         exception_raised = exec_info.value
-        self.assertTrue("Message is lacking crucial fields: platform_name" == str(exception_raised))
+        self.assertEqual("Message is lacking crucial fields: platform_name", str(exception_raised))
 
     def test_check_message_okay_message_has_no_start_time(self):
         """Test that message is not okay if it does not contain start_time."""
@@ -210,7 +210,7 @@ class TestL1cProcessing(unittest.TestCase):
             result = check_message_okay(input_msg)
 
         exception_raised = exec_info.value
-        self.assertTrue("Message is lacking crucial fields: start_time" == str(exception_raised))
+        self.assertEqual("Message is lacking crucial fields: start_time", str(exception_raised))
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.l1c_processing.cpu_count')
@@ -235,8 +235,8 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.result_home, '/san1/geo_in/lvl1c')
         self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
-        self.assertTrue(l1c_proc.message_data is None)
-        self.assertTrue(l1c_proc.pool is None)
+        self.assertEqual(l1c_proc.message_data, None)
+        self.assertEqual(l1c_proc.pool, None)
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.l1c_processing.cpu_count')
@@ -261,8 +261,8 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.result_home, '/tmp')
         self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
-        self.assertTrue(l1c_proc.message_data is None)
-        self.assertTrue(l1c_proc.pool is None)
+        self.assertEqual(l1c_proc.message_data, None)
+        self.assertEqual(l1c_proc.pool, None)
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.l1c_processing.cpu_count')
