@@ -112,9 +112,8 @@ def update_nwp(starttime, nlengths):
         if not parser.validate(os.path.basename(filename)):
             LOG.error("Parser validate on filename: {} failed.".format(filename))
             continue
-        # LOG.info("{}".format(os.path.basename(filename)))
+
         res = parser.parse("{}".format(os.path.basename(filename)))
-        # LOG.info("{}".format(res))
         if 'analysis_time' in res:
             if res['analysis_time'].year == 1900:
                 res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
@@ -143,13 +142,13 @@ def update_nwp(starttime, nlengths):
                 raise NwpPrepareError(
                     'Failed parsing forecast_step in file name. Check config and filename timestamp.')
 
-        LOG.debug("Analysis time and start time: %s %s", str(analysis_time), str(starttime))
         if analysis_time < starttime:
             continue
         if forecast_step not in nlengths:
             LOG.debug("Skip step. Forecast step and nlengths: %s %s", str(forecast_step), str(nlengths))
             continue
 
+        LOG.debug("Analysis time and start time: %s %s", str(analysis_time), str(starttime))
         LOG.info("timestamp, step: %s %s", str(timestamp), str(forecast_step))
         result_file = os.path.join(
             nwp_outdir, nwp_output_prefix + timestamp + "+" + '%.3dH00M' % forecast_step)

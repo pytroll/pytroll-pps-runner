@@ -413,10 +413,7 @@ def pps(options):
 if __name__ == "__main__":
 
     from logging import handlers
-    LOG.debug("Path to pps2018_runner config file = " + CONFIG_PATH)
-    LOG.debug("Pps2018_runner config file = " + CONFIG_FILE)
-    configfile = os.path.join(CONFIG_PATH, CONFIG_FILE)
-    OPTIONS = get_config(configfile)
+    OPTIONS = get_config(os.path.join(CONFIG_PATH, CONFIG_FILE))
 
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file',
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))
@@ -444,5 +441,7 @@ if __name__ == "__main__":
     logging.getLogger('posttroll').setLevel(logging.INFO)
 
     LOG = logging.getLogger('pps_runner')
+    LOG.debug("Path to pps2018_runner config file = " + CONFIG_PATH)
+    LOG.debug("Pps2018_runner config file = " + CONFIG_FILE)
 
     pps(OPTIONS)
