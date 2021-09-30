@@ -526,8 +526,14 @@ def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
     if xml_output:
         filelist = filelist + get_xml_outputfiles(path, platform_name, orb, st_time)
 
+    return filter4oldfiles(filelist)
+
+
+def filter4oldfiles(filelist, minutes_thr=90.):
+    """Check if the PPS file is older than threshold and only consider fresh ones."""
+
     now = datetime.utcnow()
-    time_threshold = timedelta(minutes=90.)
+    time_threshold = timedelta(minutes=minutes_thr)
     filtered_flist = []
     for fname in filelist:
         mtime = datetime.utcfromtimestamp(os.stat(fname)[stat.ST_MTIME])
@@ -573,6 +579,70 @@ def get_xml_outputfiles(path, platform_name, orb, st_time=''):
                 break
 
     return filelist
+
+
+def create_xml_timestat_from_ascii(scene, pps_control_path):
+    """From ascii files with PPS time statistics create XML files and return a file list."""
+
+    try:
+        from pps_time_contrl import PPSTimeControl
+    except ImportError:
+        LOG.warning("Failed to import the PPSTimeControl from pps")
+        return []
+
+    infiles = get_time_control_ascii_filename_candidates(pps_control_path, scene)
+    LOG.info("Time control ascii file candidates: " + str(infiles))
+
+    if len(infiles) == 1:
+        infile = str(infiles[0])
+        LOG.info("Time control ascii file: " + str(infile))
+        LOG.info("Read time control ascii file and generate XML")
+        ppstime_con = PPSTimeControl(infile)
+        ppstime_con.sum_up_processing_times()
+        try:
+            ppstime_con.write_xml()
+        except Exception as e:  # TypeError as e:
+            LOG.warning('Not able to write time control xml file')
+            LOG.warning(e)
+
+    # There should always be only one xml file for each ascii file found above!
+    xmlfile = infile.replace('.txt', '.xml')
+    return filter4oldfiles([xmlfile], 90.)
+
+
+def get_time_control_ascii_filename_candidates(pps_control_path, scene):
+    """From directory path, sensor and platform name get possible time-control filenames."""
+
+    sensors = SENSOR_LIST.get(scene['platform_name'], scene['platform_name'])
+    platform_id = SATELLITE_NAME.get(scene['platform_name'], scene['platform_name'])
+    LOG.info("pps platform_id = %s", str(platform_id))
+
+    #: Create the start time (format dateTtime) to be used in file findings
+    st_times = []
+    if sensors == 'seviri':
+        st_times.append(scene['starttime'].strftime("%Y%m%dT%H%M%S.%f"))
+    elif sensors in ['viirs', ]:
+        st_times.append(scene['starttime'].strftime("%Y%m%dT%H%M%S"))
+    elif 'avhrr/3' in sensors or sensors in ['modis', ]:
+        # At least for the AVHRR data the PPS filenames differ by a few
+        # seconds from the start time in the message - it seems sufficient
+        # to truncate the seconds, but we check for minutes +- 1
+        atime = scene['starttime'] - timedelta(seconds=60)
+        while atime < scene['starttime'] + timedelta(seconds=120):
+            st_times.append(atime.strftime("%Y%m%dT%H%M"))
+            atime = atime + timedelta(seconds=60)
+
+    infiles = []
+    for st_time in st_times:
+        txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
+                         str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
+                         '_' + '%.5d' % scene['orbit_number'] + '_' +
+                         st_time +
+                         '*.txt')
+        LOG.info("glob string = " + str(txt_time_file))
+        infiles = infiles + glob(txt_time_file)
+
+    return infiles
 
 
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):

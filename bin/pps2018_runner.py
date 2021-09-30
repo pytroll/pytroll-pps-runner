@@ -44,6 +44,7 @@ from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
                                     get_sceneid, logreader, message_uid,
                                     prepare_pps_arguments, publish_pps_files,
                                     ready2run, terminate_process)
+from nwcsafpps_runner.utils import
 
 LOG = logging.getLogger(__name__)
 
@@ -180,62 +181,12 @@ def pps_worker(scene, publish_q, input_msg, options):
             out_reader2.join()
             err_reader2.join()
 
-        # Now try perform some time statistics editing with ppsTimeControl.py from
-        # pps:
-        do_time_control = True
-        try:
-            from pps_time_control import PPSTimeControl
-        except ImportError:
-            LOG.warning("Failed to import the PPSTimeControl from pps")
-            do_time_control = False
-        #: Create the start time (format dateTtime) to be used in file findings
-        if SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) == 'seviri':
-            st_time = scene['starttime'].strftime("%Y%m%dT%H%M%S.%f")
-        elif SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) in ['viirs', ]:
-            st_time = scene['starttime'].strftime("%Y%m%dT%H%M%S")
-        elif SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) in ['avhrr/3', 'modis']:
-            # At least for the AVHRR data the PPS filenames differ by a few
-            # seconds from the start time in the message - it seems sufficient
-            # to truncate the seconds:
-            st_time = scene['starttime'].strftime("%Y%m%dT%H%M")
-        else:
-            st_time = ''
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
-        if do_time_control:
-            LOG.info("Read time control ascii file and generate XML")
-            platform_id = SATELLITE_NAME.get(
-                scene['platform_name'], scene['platform_name'])
-            LOG.info("pps platform_id = " + str(platform_id))
-            txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
-                             str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
-                             '_' + '%.5d' % scene['orbit_number'] + '_' +
-                             st_time +
-                             '*.txt')
-            LOG.info("glob string = " + str(txt_time_file))
-            infiles = glob(txt_time_file)
-            LOG.info(
-                "Time control ascii file candidates: " + str(infiles))
-            if len(infiles) == 1:
-                infile = str(infiles[0])
-                LOG.info("Time control ascii file: " + str(infile))
-                ppstime_con = PPSTimeControl(infile)
-                ppstime_con.sum_up_processing_times()
-                try:
-                    ppstime_con.write_xml()
-                except Exception as e:  # TypeError as e:
-                    LOG.warning('Not able to write time control xml file')
-                    LOG.warning(e)
+        xml_files = create_xml_timestat_from_ascii(scene, pps_control_path)
+        LOG.info("PPS summary statistics files: %s", str(xml_files))
+
         # The PPS post-hooks takes care of publishing the PPS cloud products
         # For the XML files we keep the publishing from here:
-        xml_files = get_outputfiles(pps_control_path,
-                                    SATELLITE_NAME[scene['platform_name']],
-                                    scene['orbit_number'],
-                                    st_time=st_time,
-                                    xml_output=True)
-
-        LOG.info("PPS summary statistics files: " + str(xml_files))
-
-        # Now publish:
         publish_pps_files(input_msg, publish_q, scene, xml_files,
                           environment=MODE, servername=options['servername'],
                           station=options['station'])

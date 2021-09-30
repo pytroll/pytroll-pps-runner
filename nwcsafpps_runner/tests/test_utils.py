@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2020 pps2018_runner developers
+# Copyright (c) 2020, 2021 pps2018_runner developers
 #
 # Author(s):
 #
@@ -21,8 +21,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Test utility functions."""
-from nwcsafpps_runner.utils import get_outputfiles
 import os
+import tempfile
+from unittest.mock import patch
+import unittest
+from datetime import datetime
+
+from nwcsafpps_runner.utils import get_outputfiles
+from nwcsafpps_runner.utils import get_time_control_ascii_filename_candidates
 
 
 def test_outputfiles(tmp_path):
@@ -36,62 +42,93 @@ def test_outputfiles(tmp_path):
     The file should than not be found.
     """
     #: Create temp_path
-    d = tmp_path / "export"
-    d.mkdir()
+    mydir = tmp_path / "export"
+    mydir.mkdir()
 
     #: Create test files
-    def create_files(d, typ):
+    def create_files(mydir, typ):
         #: These files should always be found
-        f1 = d / "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)
+        f1 = mydir / "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)
         f1.write_text("correct orbit and time")
         #: These files should be found if start time is not given
-        f2 = d / "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ)
+        f2 = mydir / "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ)
         f2.write_text("correct orbit and time within 90 min")
         #: These files should not be found although the start time is correct
-        f3 = d / "S_NWC_CMAPROB_noaa15_54321_19810305T0715000Z_19810305T0730000Z.{}".format(typ)
+        f3 = mydir / "S_NWC_CMAPROB_noaa15_54321_19810305T0715000Z_19810305T0730000Z.{}".format(typ)
         f3.write_text("wrong orbit and correct time")
 
     #: Test xml files without start time
     typ = "xml"
-    create_files(d, typ)
-    expected = [os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
-                os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
-    res = get_outputfiles(d, "noaa15", 12345, xml_output=True)
+    create_files(mydir, typ)
+    expected = [os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
+                os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
+    res = get_outputfiles(mydir, "noaa15", 12345, xml_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
     #: Test xml files with start time
-    expected = [os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
-    res = get_outputfiles(d, "noaa15", 12345, st_time="19810305T0715", xml_output=True)
+    expected = [os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
+    res = get_outputfiles(mydir, "noaa15", 12345, st_time="19810305T0715", xml_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
 
     #: Test h5 files without start time
     typ = "h5"
-    create_files(d, typ)
-    expected = [os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
-                os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
-    res = get_outputfiles(d, "noaa15", 12345, h5_output=True)
+    create_files(mydir, typ)
+    expected = [os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
+                os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
+    res = get_outputfiles(mydir, "noaa15", 12345, h5_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
     #: Test h5 files with start time
-    expected = [os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
-    res = get_outputfiles(d, "noaa15", 12345, st_time="19810305T0715", h5_output=True)
+    expected = [os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
+    res = get_outputfiles(mydir, "noaa15", 12345, st_time="19810305T0715", h5_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
 
     #: Test nc files without start time
     typ = "nc"
-    create_files(d, typ)
-    expected = [os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
-                os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
-    res = get_outputfiles(d, "noaa15", 12345, nc_output=True)
+    create_files(mydir, typ)
+    expected = [os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ)),
+                os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0745000Z_19810305T0800000Z.{}".format(typ))]
+    res = get_outputfiles(mydir, "noaa15", 12345, nc_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
     #: Test nc files with start time
-    expected = [os.path.join(d, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
-    res = get_outputfiles(d, "noaa15", 12345, st_time="19810305T0715", nc_output=True)
+    expected = [os.path.join(mydir, "S_NWC_CMAPROB_noaa15_12345_19810305T0715000Z_19810305T0730000Z.{}".format(typ))]
+    res = get_outputfiles(mydir, "noaa15", 12345, st_time="19810305T0715", nc_output=True)
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
+
+
+class TestTimeControlFiles(unittest.TestCase):
+    """Testing the handling and generation of time control XML files."""
+
+    def setUp(self):
+        self.testscene = {'platform_name': 'Metop-B', 'orbit_number': 46878, 'satday':
+                          '20210930', 'sathour': '0946',
+                          'starttime': datetime(2021, 9, 30, 9, 46, 24),
+                          'endtime': datetime(2021, 9, 30, 10, 1, 43),
+                          'sensor': ['avhrr/3', 'mhs', 'amsu-a'],
+                          'file4pps': '/san1/pps/import/PPS_data/source/metop01_20210930_0946_46878/hrpt_metop01_20210930_0946_46878.l1b'}
+        self.filename1 = 'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt'
+        self.filename2 = 'S_NWC_timectrl_metopb_46878_20210930T0949289Z_20210930T1001459Z.txt'
+
+    def test_get_time_control_ascii_filename_candidates(self):
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            self.file1 = os.path.join(tmpdirname, self.filename1)
+            with open(self.file1, 'w') as _:
+                pass
+            self.file2 = os.path.join(tmpdirname, self.filename2)
+            with open(self.file2, 'w') as _:
+                pass
+
+            ascii_files = get_time_control_ascii_filename_candidates(tmpdirname, self.testscene)
+
+        self.assertEqual(len(ascii_files), 1)
+        self.assertTrue(os.path.basename(ascii_files[0]) ==
+                        'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt')
 
 
 if __name__ == "__main__":
