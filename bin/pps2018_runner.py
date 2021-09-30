@@ -44,7 +44,7 @@ from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
                                     get_sceneid, logreader, message_uid,
                                     prepare_pps_arguments, publish_pps_files,
                                     ready2run, terminate_process)
-from nwcsafpps_runner.utils import
+from nwcsafpps_runner.utils import create_xml_timestat_from_ascii
 
 LOG = logging.getLogger(__name__)
 
