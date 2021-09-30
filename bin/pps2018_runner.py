@@ -191,9 +191,13 @@ def pps_worker(scene, publish_q, input_msg, options):
         #: Create the start time (format dateTtime) to be used in file findings
         if SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) == 'seviri':
             st_time = scene['starttime'].strftime("%Y%m%dT%H%M%S.%f")
-        elif (SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) in ['viirs', 'modis'] or
-              'avhrr/3' in SENSOR_LIST.get(scene['platform_name'], scene['platform_name'])):
+        elif SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) in ['viirs', ]:
             st_time = scene['starttime'].strftime("%Y%m%dT%H%M%S")
+        elif SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) in ['avhrr/3', 'modis']:
+            # At least for the AVHRR data the PPS filenames differ by a few
+            # seconds from the start time in the message - it seems sufficient
+            # to truncate the seconds:
+            st_time = scene['starttime'].strftime("%Y%m%dT%H%M")
         else:
             st_time = ''
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
