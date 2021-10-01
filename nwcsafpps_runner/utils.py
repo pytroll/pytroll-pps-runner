@@ -585,7 +585,7 @@ def create_xml_timestat_from_ascii(scene, pps_control_path):
     """From ascii files with PPS time statistics create XML files and return a file list."""
 
     try:
-        from pps_time_contrl import PPSTimeControl
+        from pps_time_control import PPSTimeControl
     except ImportError:
         LOG.warning("Failed to import the PPSTimeControl from pps")
         return []
