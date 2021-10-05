@@ -25,6 +25,8 @@
 
 import threading
 from trollsift.parser import parse  # @UnresolvedImport
+from trollsift.parser import globify
+# from trollsift import Parser
 from posttroll.message import Message  # @UnresolvedImport
 from subprocess import Popen, PIPE
 import os
@@ -643,6 +645,30 @@ def get_time_control_ascii_filename_candidates(pps_control_path, scene):
         infiles = infiles + glob(txt_time_file)
 
     return infiles
+
+
+def get_product_statistics_files(pps_control_path, scene, product_statistics_filename,
+                                 max_abs_deviation_minutes):
+    """From directory path, sensor and platform name get possible product statistics filenames."""
+
+    platform_id = SATELLITE_NAME.get(scene['platform_name'], scene['platform_name'])
+    platform_id = METOP_NAME_LETTER.get(platform_id, platform_id)
+    product_stat_flist = []
+    scene_start_time = scene['starttime']
+    possible_filetimes = [scene_start_time]
+    for nmin in range(1, max_abs_deviation_minutes + 1):
+        possible_filetimes.append(scene_start_time - timedelta(seconds=60*nmin))
+        possible_filetimes.append(scene_start_time + timedelta(seconds=60*nmin))
+
+    for product_name in ['CMA', 'CT', 'CTTH', 'CPP', 'CMAPROB']:
+        for start_time in possible_filetimes:
+            glbify = globify(product_statistics_filename, {'product': product_name,
+                                                           'satellite': platform_id,
+                                                           'orbit': '%.5d' % scene['orbit_number'],
+                                                           'starttime': start_time})
+            product_stat_flist = product_stat_flist + glob(os.path.join(pps_control_path, glbify))
+
+    return product_stat_flist
 
 
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):

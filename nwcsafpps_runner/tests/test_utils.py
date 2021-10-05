@@ -29,6 +29,7 @@ from datetime import datetime
 
 from nwcsafpps_runner.utils import get_outputfiles
 from nwcsafpps_runner.utils import get_time_control_ascii_filename_candidates
+from nwcsafpps_runner.utils import get_product_statistics_files
 
 
 def test_outputfiles(tmp_path):
@@ -129,6 +130,65 @@ class TestTimeControlFiles(unittest.TestCase):
         self.assertEqual(len(ascii_files), 1)
         self.assertTrue(os.path.basename(ascii_files[0]) ==
                         'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt')
+
+
+class TestProductStatisticsFiles(unittest.TestCase):
+    """Testing locating the product statistics XML files."""
+
+    def setUp(self):
+        self.testscene = {'platform_name': 'Metop-B', 'orbit_number': 46878, 'satday':
+                          '20210930', 'sathour': '0946',
+                          'starttime': datetime(2021, 9, 30, 9, 46, 24),
+                          'endtime': datetime(2021, 9, 30, 10, 1, 43)}
+
+        self.filename1 = 'S_NWC_CTTH_metopb_46878_20210930T0946289Z_20210930T1001458Z_statistics.xml'
+        self.filename2 = 'S_NWC_CTTH_metopb_46878_20210930T0949289Z_20210930T1001459Z_statistics.xml'
+        self.filename3 = 'S_NWC_CTTH_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml'
+
+        self.pattern = 'S_NWC_{product:s}_{satellite:s}_{orbit:s}_{starttime:%Y%m%dT%H%M}{seconds1:s}_{endtime:%Y%m%dT%H%M}{seconds2}_statistics.xml'
+
+    def test_get_product_statistics_files_fewseconds_off(self):
+        """Test get the list of product statistics files."""
+        # get_product_statistics_files
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            file1 = os.path.join(tmpdirname, self.filename1)
+            with open(file1, 'w') as _:
+                pass
+            file2 = os.path.join(tmpdirname, self.filename2)
+            with open(file2, 'w') as _:
+                pass
+
+            xmlfiles = get_product_statistics_files(tmpdirname, self.testscene, self.pattern, 1)
+
+            self.assertTrue(len(xmlfiles) == 1)
+
+            filename = os.path.basename(xmlfiles[0])
+            self.assertEqual(filename, 'S_NWC_CTTH_metopb_46878_20210930T0946289Z_20210930T1001458Z_statistics.xml')
+
+    def test_get_product_statistics_files_oneminute_off(self):
+        """Test get the list of product statistics files."""
+        # get_product_statistics_files
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            file3 = os.path.join(tmpdirname, self.filename3)
+            with open(file3, 'w') as _:
+                pass
+
+            xmlfiles = get_product_statistics_files(tmpdirname, self.testscene, self.pattern, 0)
+            self.assertTrue(len(xmlfiles) == 0)
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            file3 = os.path.join(tmpdirname, self.filename3)
+            with open(file3, 'w') as _:
+                pass
+
+            xmlfiles = get_product_statistics_files(tmpdirname, self.testscene, self.pattern, 1)
+            self.assertTrue(len(xmlfiles) == 1)
+
+            filename = os.path.basename(xmlfiles[0])
+            self.assertEqual(filename, 'S_NWC_CTTH_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml')
 
 
 if __name__ == "__main__":

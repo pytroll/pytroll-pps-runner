@@ -45,6 +45,7 @@ from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
                                     prepare_pps_arguments, publish_pps_files,
                                     ready2run, terminate_process)
 from nwcsafpps_runner.utils import create_xml_timestat_from_ascii
+from nwcsafpps_runner.utils import get_product_statistics_files
 
 LOG = logging.getLogger(__name__)
 
@@ -183,6 +184,10 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
         xml_files = create_xml_timestat_from_ascii(scene, pps_control_path)
+        xml_files = xml_files + get_product_statistics_files(pps_control_path,
+                                                             scene,
+                                                             options['product_statistics_filename'],
+                                                             options['pps_filetime_search_minutes'])
         LOG.info("PPS summary statistics files: %s", str(xml_files))
 
         # The PPS post-hooks takes care of publishing the PPS cloud products
