@@ -160,7 +160,21 @@ class TestProductStatisticsFiles(unittest.TestCase):
                 pass
 
             xmlfiles = get_product_statistics_files(tmpdirname, self.testscene, self.pattern, 1)
+            self.assertTrue(len(xmlfiles) == 1)
 
+            filename = os.path.basename(xmlfiles[0])
+            self.assertEqual(filename, 'S_NWC_CTTH_metopb_46878_20210930T0946289Z_20210930T1001458Z_statistics.xml')
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            file1 = os.path.join(tmpdirname, self.filename1)
+            with open(file1, 'w') as _:
+                pass
+            file2 = os.path.join(tmpdirname, self.filename2)
+            with open(file2, 'w') as _:
+                pass
+
+            xmlfiles = get_product_statistics_files(tmpdirname, self.testscene, self.pattern, 0)
             self.assertTrue(len(xmlfiles) == 1)
 
             filename = os.path.basename(xmlfiles[0])
