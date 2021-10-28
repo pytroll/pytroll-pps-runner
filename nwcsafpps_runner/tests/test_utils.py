@@ -23,7 +23,6 @@
 """Test utility functions."""
 import os
 import tempfile
-from unittest.mock import patch
 import unittest
 from datetime import datetime
 
@@ -110,7 +109,7 @@ class TestTimeControlFiles(unittest.TestCase):
                           'starttime': datetime(2021, 9, 30, 9, 46, 24),
                           'endtime': datetime(2021, 9, 30, 10, 1, 43),
                           'sensor': ['avhrr/3', 'mhs', 'amsu-a'],
-                          'file4pps': '/san1/pps/import/PPS_data/source/metop01_20210930_0946_46878/hrpt_metop01_20210930_0946_46878.l1b'}
+                          'file4pps': '/data/metop01_20210930_0946_46878/hrpt_metop01_20210930_0946_46878.l1b'}
         self.filename1 = 'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt'
         self.filename2 = 'S_NWC_timectrl_metopb_46878_20210930T0949289Z_20210930T1001459Z.txt'
 
@@ -145,7 +144,8 @@ class TestProductStatisticsFiles(unittest.TestCase):
         self.filename2 = 'S_NWC_CTTH_metopb_46878_20210930T0949289Z_20210930T1001459Z_statistics.xml'
         self.filename3 = 'S_NWC_CTTH_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml'
 
-        self.pattern = 'S_NWC_{product:s}_{satellite:s}_{orbit:s}_{starttime:%Y%m%dT%H%M}{seconds1:s}_{endtime:%Y%m%dT%H%M}{seconds2}_statistics.xml'
+        self.pattern = ('S_NWC_{product:s}_{satellite:s}_{orbit:s}_{starttime:%Y%m%dT%H%M}{seconds1:s}' +
+                        '_{endtime:%Y%m%dT%H%M}{seconds2}_statistics.xml')
 
     def test_get_product_statistics_files_fewseconds_off(self):
         """Test get the list of product statistics files."""

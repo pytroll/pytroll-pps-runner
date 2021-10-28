@@ -132,7 +132,6 @@ def update_nwp(starttime, nlengths):
             timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime(
                 "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
         else:
-            #LOG.info("Can not parse forecast_time in file name. Try forecast step...")
             # This needs to be done more solid using the sift pattern! FIXME!
             timeinfo = filename.rsplit("_", 1)[-1]
             # Forecast step in hours:
