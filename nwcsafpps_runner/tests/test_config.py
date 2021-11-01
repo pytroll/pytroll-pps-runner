@@ -86,9 +86,8 @@ pps_statistics_dir: /data/24/saf/polar_out/monitoring/direct_readout
 level1_dir: /path/to/lvl1c/data
 ncpus: 4
 
-prod:
-    nhsp_path: /path/to/nwp/data/atm_level_fiels/
-    nhsf_path: /path/to/nwp/data/surface_fields/
+nhsp_path: /path/to/nwp/data/atm_level_fiels/
+nhsf_path: /path/to/nwp/data/surface_fields/
 """
 
 
@@ -130,7 +129,7 @@ class TestGetConfig(unittest.TestCase):
         config.return_value = self.config_pps_complete
         myconfig_filename = '/tmp/my/config/file'
 
-        result = get_config_yaml(myconfig_filename, service='prod')
+        result = get_config_yaml(myconfig_filename)
 
         expected = {'nhsp_prefix': 'LL02_NHSP_',
                     'nhsf_prefix': 'LL02_NHSF_',

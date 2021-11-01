@@ -676,7 +676,6 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
     Publish messages for the files provided.
     """
 
-    environment = kwargs.get('environment')
     servername = kwargs.get('servername')
     station = kwargs.get('station', 'unknown')
 
@@ -725,7 +724,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         to_send['start_time'], to_send['end_time'] = starttime, endtime
         pubmsg = Message('/' + to_send['format'] + '/' +
                          to_send['data_processing_level'] +
-                         '/' + station + '/' + environment +
+                         '/' + station +
                          '/polar/direct_readout/',
                          "file", to_send).encode()
         LOG.info("Sending: %s", str(pubmsg))

@@ -27,8 +27,6 @@ import os
 import socket
 import yaml
 
-MODE = os.environ.get('SMHI_MODE', 'offline')
-
 CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
 CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
 
@@ -58,62 +56,21 @@ def get_config_from_yamlfile(configfile, service):
     return options
 
 
-def get_config(conf, service=MODE, procenv=''):
+def get_config(conf, service=''):
+    """Get configuration from file using the env for the file-path."""
     configfile = os.path.join(CONFIG_PATH, conf)
     filetype = os.path.splitext(conf)[1]
     if filetype == '.yaml':
-        options = get_config_yaml(configfile, service, procenv)
-    elif filetype in ['.ini', '.cfg']:
-        options = get_config_init_cfg(configfile, service=MODE)
+        options = get_config_yaml(configfile, service)
     else:
         print("%s is not a valid extension for the config file" % filetype)
-        print("Pleas use .yaml, .ini or .cfg")
+        print("Pleas use .yaml")
         options = -1
     return options
 
 
-def get_config_init_cfg(configfile, service=MODE):
-    from six.moves.configparser import ConfigParser  # @UnresolvedImport
-
-    conf = ConfigParser()
-    conf.read(configfile)
-
-    options = {}
-    for option, value in conf.items(service, raw=True):
-        options[option] = value
-
-    subscribe_topics = options.get('subscribe_topics').split(',')
-    for item in subscribe_topics:
-        if len(item) == 0:
-            subscribe_topics.remove(item)
-
-    options['subscribe_topics'] = subscribe_topics
-    options['number_of_threads'] = int(options.get('number_of_threads', 5))
-    options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
-    options['servername'] = options.get('servername', socket.gethostname())
-    options['station'] = options.get('station', 'unknown')
-    options['run_cmask_prob'] = options.get('run_cmask_prob', True)
-    options['run_pps_cpp'] = options.get('run_pps_cpp', True)
-    #: Change yes to True and no to False to match .yaml
-    for arname, val in options.items():
-        if val == 'yes':
-            options[arname] = True
-        if val == 'no':
-            options[arname] = False
-    return options
-
-
-def get_config_yaml(configfile, service=MODE, procenv=''):
+def get_config_yaml(configfile, service=''):
     """Get the configuration from file."""
-    # import yaml
-    # try:
-    #     from yaml import UnsafeLoader
-    # except ImportError:
-    #     from yaml import Loader as UnsafeLoader
-
-    # with open(configfile, 'r') as fp_:
-    #     config = yaml.load(fp_, Loader=UnsafeLoader)
-
     config = load_config_from_file(configfile)
 
     options = {}
@@ -124,9 +81,6 @@ def get_config_yaml(configfile, service=MODE, procenv=''):
             for key in config[service]:
                 if not isinstance(config[service][key], dict):
                     options[key] = config[service][key]
-                elif key in [procenv]:
-                    for memb in config[service][key]:
-                        options[memb] = config[service][key][memb]
 
     if isinstance(options.get('subscribe_topics'), str):
         subscribe_topics = options.get('subscribe_topics').split(',')

@@ -34,7 +34,7 @@ from subprocess import PIPE, Popen
 
 from six.moves.queue import Empty, Queue
 
-from nwcsafpps_runner.config import CONFIG_FILE, CONFIG_PATH, MODE, get_config
+from nwcsafpps_runner.config import CONFIG_FILE, CONFIG_PATH, get_config
 from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
@@ -126,9 +126,6 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         use_l1c = (options.get('pps_version') == 'v2021')
         cmd_str = create_pps_call_command(py_exec, pps_script, scene, use_l1c=use_l1c)
-        run_cpp = options.get('run_pps_cpp', None)
-        # if not run_cpp:
-        #    cmd_str = cmd_str + ' --no_cpp'
         for flag in pps_run_all_flags:
             cmd_str = cmd_str + ' %s' % flag
 
@@ -193,7 +190,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         # The PPS post-hooks takes care of publishing the PPS cloud products
         # For the XML files we keep the publishing from here:
         publish_pps_files(input_msg, publish_q, scene, xml_files,
-                          environment=MODE, servername=options['servername'],
+                          servername=options['servername'],
                           station=options['station'])
 
         dt_ = datetime.utcnow() - job_start_time
@@ -332,10 +329,10 @@ def pps(options):
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
             LOG.debug(files4pps[sceneid])
-            if not use_l1c:
-                scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
-            else:
+            if use_l1c:
                 scene['file4pps'] = files4pps[sceneid][0]
+            else:
+                scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
 
             LOG.debug("Files for PPS: %s", str(scene['file4pps']))
             LOG.info('Start a thread preparing the nwp data and run pps...')
@@ -350,9 +347,7 @@ def pps(options):
                                                                      msg, options,
                                                                      nwp_handeling_module))
 
-            LOG.debug(
-                "Number of threads currently alive: " +
-                str(threading.active_count()))
+            LOG.debug("Number of threads currently alive: %s", str(threading.active_count()))
 
             # Clean the files4pps dict:
             LOG.debug("files4pps: " + str(files4pps))
@@ -401,7 +396,7 @@ if __name__ == "__main__":
     logging.getLogger('posttroll').setLevel(logging.INFO)
 
     LOG = logging.getLogger('pps_runner')
-    LOG.debug("Path to pps2018_runner config file = " + CONFIG_PATH)
-    LOG.debug("Pps2018_runner config file = " + CONFIG_FILE)
+    LOG.debug("Path to PPS-runner config file = " + CONFIG_PATH)
+    LOG.debug("PPS-runner config file = " + CONFIG_FILE)
 
     pps(OPTIONS)
