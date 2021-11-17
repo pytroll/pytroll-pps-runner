@@ -252,7 +252,7 @@ class TestPostTrollMessage(unittest.TestCase):
 
         socket_gethostname.return_value = 'TEST_SERVERNAME'
 
-        metadata = {'publish_topic': '/my/pps/publish/topic',
+        metadata = {'publish_topic': '/my/pps/publish/topic/{pps_product}/',
                     'output_format': 'CF',
                     'level': '2',
                     'variant': 'DR',
@@ -269,6 +269,32 @@ class TestPostTrollMessage(unittest.TestCase):
             result_message = posttroll_message.create_message('OK')
 
         expected_message_header = "/my/pps/publish/topic/UNKNOWN/"
+        self.assertEqual(expected_message_header, result_message['header'])
+
+    @patch('socket.gethostname')
+    def test_create_message_with_topic_pattern(self, socket_gethostname):
+        """Test creating a message with header/topic that is a pattern, type and content."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        socket_gethostname.return_value = 'TEST_SERVERNAME'
+
+        metadata = {'publish_topic': '/my/pps/publish/topic/{sensor}/{pps_product}/',
+                    'output_format': 'CF',
+                    'level': '2',
+                    'variant': 'DR',
+                    'geo_or_polar': 'polar',
+                    'software': 'NWCSAF-PPSv2018',
+                    'start_time': START_TIME1, 'end_time': END_TIME1,
+                    'sensor': 'viirs',
+                    'filename': '/tmp/xxx',
+                    'platform_name': 'npp'}
+
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        with patch.object(PostTrollMessage, 'is_segment', return_value=False):
+            result_message = posttroll_message.create_message('OK')
+
+        expected_message_header = "/my/pps/publish/topic/viirs/UNKNOWN/"
         self.assertEqual(expected_message_header, result_message['header'])
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
