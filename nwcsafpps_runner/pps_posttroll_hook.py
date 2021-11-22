@@ -23,6 +23,26 @@
 """A PPS processing post hook to be run once PPS is ready with a PGE. Using
 Posttroll and sends messages notifying the completion of a PGE
 
+The metadata passed to a hook is::
+
+    metadata = {'module': Name of the PPS-script calling this hook.
+                'pps_version': PPS version (string)
+                'platform_name': Name of the satellite
+                'orbit': Orbit number (Can be 00000 or 99999 if unknown eg. for MODIS or GAC)
+                'sensor': Name of the satellite sensor
+                'start_time': Start time of the satellite scene. (string)
+                'end_time': End time of the satellite scene. (string)
+                'filename': The name of the file that is supposed to no be produced by this module. It can also
+                            be a list of filenames.
+                'file_was_already_processed': A Boolean value. If True, the file(s) to be produced by the script already
+                                             exist; thus the script did basically nothing, but ended with status
+                                             SUCCEED. If False, the output file did not exist in beforehand. But this
+                                             parameter does not tell if the script failed or succeeded. (Use ‘status’
+                                             for that information.)
+               }
+
+The hook is initialized when the yaml config file is read, so it needs a `__setstate__` method.
+
 """
 
 import os
@@ -216,7 +236,6 @@ class PostTrollMessage(object):
 
     def publish_message(self, mymessage):
         """Publish the message."""
-
         posttroll_msg = Message(mymessage['header'], mymessage['type'], mymessage['content'])
         msg_to_publish = posttroll_msg.encode()
 
@@ -230,8 +249,17 @@ class PostTrollMessage(object):
         pub_thread.stop()
 
     def create_message(self, status):
-        """Create the posttroll message from the PPS metadata"""
+        """Create the posttroll message from the PPS metadata.
 
+        The metadata provided by pps has the following keys: module, pps_version, platform_name, orbit, sensor,
+        start_time, end_time, filename, file_was_already_processed.
+        This class adds also the following metadata keys: pps_product
+        Also the extra metadata provided in the configuration yaml file is available.
+        That way, the publish_topic can be a pattern with metadata keys in it, eg::
+
+          '/my/pps/publish/topic/{pps_product}/{sensor}/'
+
+        """
         self._to_send = self.create_message_content_from_metadata()
         self._to_send.update({'status': status})
         # Add uri/uids to message content
@@ -246,27 +274,26 @@ class PostTrollMessage(object):
 
     def _create_message_topic(self):
         """Create the publish topic from yaml file items and PPS metadata."""
+        to_send = self._to_send.copy()
+        to_send["pps_product"] = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
+        to_send["variant"] = VARIANT_TRANSLATE.get(self._to_send['variant'], self._to_send['variant'])
 
-        pps_product = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
+        topic_pattern = to_send.get('publish_topic', self._create_default_topic())
 
-        if 'publish_topic' in self._to_send:
-            topic_str = self._to_send['publish_topic'] + '/' + pps_product + '/'
-            return topic_str
-
-        if self.is_segment():
-            topic = '/segment/'
-        else:
-            topic = '/'
-
-        topic_str = (topic +
-                     self._to_send['geo_or_polar'] + '/' +
-                     VARIANT_TRANSLATE.get(self._to_send['variant'], self._to_send['variant']) + '/' +
-                     self._to_send['format'] + '/' +
-                     self._to_send['data_processing_level'] + '/' +
-                     pps_product + '/' +
-                     self._to_send['software'] + '/')
-
+        topic_str = topic_pattern.format(**to_send)
         return topic_str
+
+    def _create_default_topic(self):
+        topic = '/segment' if self.is_segment() else ""
+        topic_pattern = "/".join((topic,
+                                  "{geo_or_polar}",
+                                  "{variant}",
+                                  "{format}",
+                                  "{data_processing_level}",
+                                  "{pps_product}",
+                                  "{software}",
+                                  ""))
+        return topic_pattern
 
     def create_message_content_from_metadata(self):
         """Create message content from the metadata."""
@@ -291,7 +318,6 @@ class PostTrollMessage(object):
 
     def clean_unused_keys_in_message(self):
         """Clean away the unused keyword names from message."""
-
         for attr in MANDATORY_FIELDS_FROM_YAML:
             if attr not in MANDATORY_FIELDS_FROM_YAML.values():
                 del self._to_send[attr]
@@ -324,10 +350,10 @@ class PostTrollMessage(object):
         return msg
 
     def is_segment(self):
-        """Determine if the scene is a 'segment' (that is a sensor data granule,
-        e.g. 85 seconds of VIIRS)
-        """
+        """Determine if the scene is a 'segment'.
 
+        That means a sensor data granule, e.g. 85 seconds of VIIRS.
+        """
         if not self.sensor_is_viirs():
             LOG.debug("Scene is not a VIIRS scene - and we assume then not a segment of a larger scene")
             return False
@@ -345,10 +371,7 @@ class PostTrollMessage(object):
         """Check if the sensor is equal to VIIRS."""
         sensor = self.metadata.get('sensor')
         LOG.debug("Sensor = %s", str(sensor))
-        if sensor and sensor == 'viirs':
-            return True
-
-        return False
+        return sensor == 'viirs'
 
     def get_granule_duration(self):
         """Derive the scene/granule duration as a timedelta object."""
