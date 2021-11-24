@@ -83,9 +83,8 @@ def l1c_runner(config_filename, service_name):
 
     l1c_proc = L1cProcessor(config_filename, service_name)
     publish_name = service_name + '-runner'
-
     with Subscribe('', l1c_proc.subscribe_topics, True) as sub:
-        with Publish(publish_name, 0) as pub:
+        with Publish(publish_name, 0, nameservers=l1c_proc.nameservers) as pub:
             _run_subscribe_publisher(l1c_proc, service_name, sub, pub)
 
 

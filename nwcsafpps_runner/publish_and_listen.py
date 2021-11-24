@@ -97,6 +97,12 @@ class FilePublisher(threading.Thread):
         self.jobs = {}
         self.publish_topic = publish_topic
         self.runner_name = kwargs.get('runner_name', 'pps_runner')
+        self.nameservers = kwargs.get('nameservers')
+        if self.nameservers is not None:
+            if ',' in self.nameservers:
+                self.nameservers = self.nameservers.split(',')
+            if not isinstance(self.nameservers, list):
+                self.nameservers = [self.nameservers]
 
     def stop(self):
         """Stops the file publisher."""
@@ -105,7 +111,7 @@ class FilePublisher(threading.Thread):
 
     def run(self):
 
-        with Publish(self.runner_name, 0, self.publish_topic) as publisher:
+        with Publish(self.runner_name, 0, self.publish_topic, nameservers=self.nameservers) as publisher:
 
             while self.loop:
                 retv = self.queue.get()

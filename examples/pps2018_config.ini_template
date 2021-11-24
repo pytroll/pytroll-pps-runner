@@ -56,6 +56,10 @@ ncpus = 4
 #: In pps_runner.py there is a environmental variable PPS_SCRIPT
 pps_script = /usr/bin/pps_run.sh
 
+#: In case pps runner is started in an environment with nameserver running without multicast,
+#: there is need to specify the adress of your nameserver(s). The nameserver is needed in the publisher
+#: to tell which nameserver it must publish its (ie the pps-runner) adress to.
+#: nameservers = your.local.nameserver-adress1,your.local.nameserver-adress2
 
 #: Different path that sets differently depending on environment variable SMHI_MODE.
 #: Incase SMHI_MODE is not specified offline is used.

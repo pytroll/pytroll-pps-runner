@@ -70,6 +70,61 @@ product_statistics_filename: 'S_NWC_{product:s}_{satellite:s}_{orbit:s}_{startti
 # the matching PPS file to the scene:
 pps_filetime_search_minutes: 1
 
+#:  Do not seams to be used.    
+level1_dir: /local_disk/data/pps/import/PPS_data/source
+ncpus: 4
+#: In pps_runner.py there is a environmental variable PPS_SCRIPT
+pps_script: /usr/bin/pps_run.sh
+
+#: In case pps runner is started in an environment with nameserver running without multicast,
+#: there is need to specify the adress of your nameserver(s). The nameserver is needed in the publisher
+#: to tell which nameserver it must publish its (ie the pps-runner) adress to.
+#: nameservers:
+#: - your.local.nameserver-adress1
+#: - your.local.nameserver-adress2
+
+#: Different path that sets differently depending on environment variable SMHI_MODE.
+#: Incase SMHI_MODE is not specified offline is used.
+offline:
+#:  NWP Paths Needed
+    nhsp_path: /data/proj/sam/sam-utv/data/data/S/LL02_NHSP
+#:  NWP Paths Optional, set to None as deafault    
+    nhsf_path: /data/proj/sam/sam-utv/data/data/S/LL02_NHSF
+    #: Only used in pps_runner
+    aapp_level1files_max_minutes_old: 9000
+
+prod:    
+    nhsp_path: /data/24/baps/weatherdata/ECNH/
+    nhsf_path: /data/24/sam/data/data/S/REDA/ECMWF/
+    #: Only used in pps_runner
+    aapp_level1files_max_minutes_old: 90
+
+test:    
+    nhsp_path: /data/prodtest/baps/weatherdata/ECNH/
+    nhsf_path: /data/prodtest/sam/data/data/S/REDA/ECMWF/
+    #: Only used in pps_runner
+    aapp_level1files_max_minutes_old: 90
+
+utv: 
+    nhsp_path: /data/prodtest/baps/weatherdata/ECNH/
+    nhsf_path: /data/prodtest/sam/data/data/S/REDA/ECMWF/
+    #: Only used in pps_runner
+    aapp_level1files_max_minutes_old: 9000
+
+bi:
+    nhsp_path:  /nobackup/smhid15/sm_erjoh/Satsa/import/NWP_data/source
+    nhsf_path: /nobackup/smhid15/sm_erjoh/Satsa/import/NWP_data/source
+    #: Only used in pps_runner
+    aapp_level1files_max_minutes_old: 9000
+
+metno-test:
+    nhsp_path:  /nobackup/smhid15/sm_erjoh/Satsa/import/NWP_data/source
+    nhsf_path: /nobackup/smhid15/sm_erjoh/Satsa/import/NWP_data/source
+    #: Only used in pps_runner
+    aapp_level1files_max_minutes_old: 9000
+
+    nhsf_prefix: LL02_NHSF_
+    nhsf_file_name_sift: '{nhsf_prefix:3s}{analyse_time:8s}{forecast_time:8s}{end:1s}'
 
 nhsp_path: /path/to/nwp/gribfiles/with/hybrid/and/pressure/level/data
 nhsf_path: /path/to/nwp/gribfiles/with/surface/level/data

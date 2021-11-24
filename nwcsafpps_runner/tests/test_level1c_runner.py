@@ -69,6 +69,22 @@ viirs-l1c:
   output_dir: /san1/polar_in/lvl1c
 """
 
+TEST_YAML_CONTENT_NAMESERVERS_OK = """
+seviri-l1c:
+  message_types: [/1b/hrit/0deg]
+  publish_topic: [/1c/nc/0deg]
+  instrument: 'seviri'
+  num_of_cpus: 2
+
+  output_dir: /san1/geo_in/lvl1c
+
+  l1cprocess_call_arguments:
+    engine: 'netcdf4'
+    rotate: True
+  nameservers:
+    - 'test.nameserver'
+"""
+
 TEST_INPUT_MSG = """pytroll://1b/hrit/0deg dataset safusr.u@lxserv1043.smhi.se 2021-05-18T14:28:54.154172 v1.01 application/json {"data_type": "MSG4", "orig_platform_name": "MSG4", "start_time": "2021-05-18T14:15:00", "variant": "0DEG", "series": "MSG4", "platform_name": "Meteosat-11", "channel": "", "nominal_time": "2021-05-18T14:15:00", "compressed": "", "origin": "172.18.0.248:9093", "dataset": [{"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__", "uid": "H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__"}, {"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__", "uid": "H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__"}], "sensor": ["seviri"]}"""
 
 TEST_INPUT_MSG_NO_DATASET = """pytroll://1b/hrit/0deg file safusr.u@lxserv1043.smhi.se 2021-05-18T14:28:54.154172 v1.01 application/json {"data_type": "MSG4", "orig_platform_name": "MSG4", "start_time": "2021-05-18T14:15:00", "variant": "0DEG", "series": "MSG4", "platform_name": "Meteosat-11", "channel": "", "nominal_time": "2021-05-18T14:15:00", "compressed": "", "origin": "172.18.0.248:9093", "file": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__", "sensor": ["seviri"]}"""
@@ -160,6 +176,7 @@ class TestL1cProcessing(unittest.TestCase):
         self.config_complete = create_config_from_yaml(TEST_YAML_CONTENT_OK)
         self.config_minimum = create_config_from_yaml(TEST_YAML_CONTENT_OK_MINIMAL)
         self.config_viirs_ok = create_config_from_yaml(TEST_YAML_CONTENT_VIIRS_OK)
+        self.config_complete_nameservers = create_config_from_yaml(TEST_YAML_CONTENT_NAMESERVERS_OK)
 
     def test_check_service_is_supported(self):
 
@@ -237,6 +254,7 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
         self.assertEqual(l1c_proc.message_data, None)
         self.assertEqual(l1c_proc.pool, None)
+        self.assertEqual(l1c_proc.nameservers, None)
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.l1c_processing.cpu_count')
@@ -285,3 +303,30 @@ class TestL1cProcessing(unittest.TestCase):
                              'GMODO_npp_d20210601_t0543111_e0544353_b49711_' +
                              'c20210601055246487163_cspp_dev.h5')
         self.assertEqual(l1c_proc.level1_files[0], expected_filepath)
+
+    @patch('nwcsafpps_runner.config.load_config_from_file')
+    @patch('nwcsafpps_runner.l1c_processing.cpu_count')
+    def test_create_l1c_processor_instance_nameservers(self, cpu_count, config):
+        """Test create the L1cProcessor instance."""
+
+        cpu_count.return_value = 2
+        config.return_value = self.config_complete_nameservers
+        myconfig_filename = '/tmp/my/config/file'
+
+        with patch('nwcsafpps_runner.l1c_processing.ThreadPool') as mock:
+            mock.return_value = None
+            l1c_proc = L1cProcessor(myconfig_filename, 'seviri-l1c')
+
+        mock.assert_called_once()
+
+        self.assertEqual(l1c_proc.platform_name, 'unknown')
+        self.assertEqual(l1c_proc.sensor, 'unknown')
+        self.assertEqual(l1c_proc.orbit_number, 99999)
+        self.assertEqual(l1c_proc.service, 'seviri-l1c')
+        self.assertDictEqual(l1c_proc._l1c_processor_call_kwargs, {'engine': 'netcdf4', 'rotate': True})
+        self.assertEqual(l1c_proc.result_home, '/san1/geo_in/lvl1c')
+        self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
+        self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
+        self.assertEqual(l1c_proc.message_data, None)
+        self.assertEqual(l1c_proc.pool, None)
+        self.assertEqual(l1c_proc.nameservers, ['test.nameserver'])
