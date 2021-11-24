@@ -18,4 +18,10 @@ viirs-l1c:
 
   output_dir: /my/data/path/polar_in/lvl1c
 
+  # In case pps runner is started in an environment with nameserver running without multicast,
+  # there is need to specify the adress of your nameserver(s). The nameserver is needed in the publisher
+  # to tell which nameserver it must publish its (ie the level1c-runner) adress to.
+  # nameservers:
+  #  - your.local.nameserver-adress1
+  #  - your.local.nameserver-adress2
 

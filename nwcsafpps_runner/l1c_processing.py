@@ -98,6 +98,9 @@ class L1cProcessor(object):
         self.result_home = options.get('output_dir', '/tmp')
         self.publish_topic = options.get('publish_topic')
         self.message_data = None
+        self.nameservers = options.get('nameservers')
+        if self.nameservers is not None and not isinstance(self.nameservers, list):
+            self.nameservers = [self.nameservers]
 
     def initialize(self, service):
         """Initialize the processor."""
