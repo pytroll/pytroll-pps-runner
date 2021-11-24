@@ -71,6 +71,7 @@ PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
                        'ppsCtth': 'CTTH',
                        'ppsCtype': 'CT',
                        'ppsCpp': 'CPP',
+                       'ppsCmic': 'CMIC',
                        'ppsPrecip': 'PC',
                        'ppsPrecipPrepare': 'PC-PRE'}
 
