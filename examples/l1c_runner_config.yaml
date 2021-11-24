@@ -1,0 +1,21 @@
+
+seviri-l1c:
+  message_types: [/1b/hrit/0deg]
+  publish_topic: [/1c/nc/0deg]
+  instrument: 'seviri'
+  num_of_cpus: 2
+
+  output_dir: /my/data/path/geo_in/lvl1c
+
+  l1cprocess_call_arguments:
+    engine: 'netcdf4'
+
+viirs-l1c:
+  message_types: [/segment/SDR/1B]
+  publish_topic: [/segment/SDR/1C]
+  instrument: 'viirs'
+  num_of_cpus: 2
+
+  output_dir: /my/data/path/polar_in/lvl1c
+
+

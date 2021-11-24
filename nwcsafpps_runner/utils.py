@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2019 PyTroll
+# Copyright (c) 2018 - 2021 Pytroll Developers
 
 # Author(s):
 
-#   Adam.Dybbroe <adam.dybbroe@smhi.se>
+#   Adam.Dybbroe <Firstname.Lastname at smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,45 +20,57 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Utility functions for NWCSAF/pps runner(s)
+"""Utility functions for NWCSAF/pps runner(s).
 """
 
+import threading
+from trollsift.parser import parse  # @UnresolvedImport
+from posttroll.message import Message  # @UnresolvedImport
+from subprocess import Popen, PIPE
 import os
 import stat
-import netifaces
 import shlex
 from glob import glob
-from posttroll.message import Message
-from trollsift.parser import parse
 import socket
-from urlparse import urlparse
 from datetime import datetime, timedelta
-from nwcsafpps_runner.config import (LVL1_NPP_PATH, LVL1_EOS_PATH)
+#: Python 2/3 differences
+from six.moves.urllib.parse import urlparse
+
+from posttroll.address_receiver import get_local_ips
+
 import logging
 LOG = logging.getLogger(__name__)
 
 
-PPS_OUT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
-PPS_OUT_PATTERN_MULTIPLE = "S_NWC_{segment1}_{segment2}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}"
-PPS_STAT_PATTERN = "S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml"
+class NwpPrepareError(Exception):
+    pass
+
+
+PPS_OUT_PATTERN = ("S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_" +
+                   "{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}")
+PPS_OUT_PATTERN_MULTIPLE = ("S_NWC_{segment1}_{segment2}_{orig_platform_name}_{orbit_number:05d}_" +
+                            "{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z.{extention}")
+PPS_STAT_PATTERN = ("S_NWC_{segment}_{orig_platform_name}_{orbit_number:05d}_" +
+                    "{start_time:%Y%m%dT%H%M%S%f}Z_{end_time:%Y%m%dT%H%M%S%f}Z_statistics.xml")
 
 SUPPORTED_NOAA_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19']
 SUPPORTED_METOP_SATELLITES = ['Metop-B', 'Metop-A', 'Metop-C']
 SUPPORTED_EOS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
 SUPPORTED_JPSS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21']
+SUPPORTED_METEOSAT_SATELLITES = ['Meteosat-09', 'Meteosat-10', 'Meteosat-11']
 
 SUPPORTED_PPS_SATELLITES = (SUPPORTED_NOAA_SATELLITES +
                             SUPPORTED_METOP_SATELLITES +
                             SUPPORTED_EOS_SATELLITES +
+                            SUPPORTED_METEOSAT_SATELLITES +
                             SUPPORTED_JPSS_SATELLITES)
 
 GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
 DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 
-PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis']
+PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis', 'seviri']
 REQUIRED_MW_SENSORS = {}
 REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
-# REQUIRED_MW_SENSORS['NOAA-18'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['NOAA-18'] = []
 REQUIRED_MW_SENSORS['NOAA-19'] = ['amsu-a', 'mhs']
 REQUIRED_MW_SENSORS['Metop-A'] = ['amsu-a', 'mhs']
@@ -76,7 +88,9 @@ SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
                   'Metop-C': 'metop03',
                   'Suomi-NPP': 'npp',
                   'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21',
-                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1'}
+                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1',
+                  'Meteosat-09': 'meteosat09', 'Meteosat-10': 'meteosat10',
+                  'Meteosat-11': 'meteosat11'}
 SENSOR_LIST = {}
 for sat in SATELLITE_NAME:
     if sat in ['NOAA-15']:
@@ -85,13 +99,38 @@ for sat in SATELLITE_NAME:
         SENSOR_LIST[sat] = 'modis'
     elif sat in ['Suomi-NPP', 'NOAA-20', 'NOAA-21']:
         SENSOR_LIST[sat] = 'viirs'
+    elif 'Meteosat' in sat:
+        SENSOR_LIST[sat] = 'seviri'
     else:
         SENSOR_LIST[sat] = ['avhrr/3', 'mhs', 'amsu-a']
 
 
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
-# METOP_NUMBER = {'b': '01', 'a': '02'}
+
+
+def run_command(cmdstr):
+    """Run system command."""
+    myargs = shlex.split(str(cmdstr))
+
+    LOG.debug("Command: " + str(cmdstr))
+    LOG.debug('Command sequence= ' + str(myargs))
+    #: TODO: What is this
+    try:
+        proc = Popen(myargs, shell=False, stderr=PIPE, stdout=PIPE)
+    except NwpPrepareError:
+        LOG.exception("Failed when preparing NWP data for PPS...")
+
+    out_reader = threading.Thread(
+        target=logreader, args=(proc.stdout, LOG.info))
+    err_reader = threading.Thread(
+        target=logreader, args=(proc.stderr, LOG.info))
+    out_reader.start()
+    err_reader.start()
+    out_reader.join()
+    err_reader.join()
+
+    return proc.wait()
 
 
 def check_uri(uri):
@@ -114,7 +153,7 @@ def check_uri(uri):
                         "Data file %s unaccessible from this host" % uri)
 
     except socket.gaierror:
-        LOGGER.warning("Couldn't check file location, running anyway")
+        LOG.warning("Couldn't check file location, running anyway")
 
     return url.path
 
@@ -137,6 +176,11 @@ class SceneId(object):
                 str(self.orbit_number) + '_' +
                 str(self.starttime.strftime('%Y%m%d%H%M')))
 
+    def __hash__(self):
+        return hash(str(self.platform_name) + '_' +
+                    str(self.orbit_number) + '_' +
+                    str(self.starttime.strftime('%Y%m%d%H%M')))
+
     def __eq__(self, other):
 
         return (self.platform_name == other.platform_name and
@@ -154,17 +198,6 @@ def message_uid(msg):
     return SceneId(platform_name, orbit_number, starttime)
 
 
-def get_local_ips():
-    inet_addrs = [netifaces.ifaddresses(iface).get(netifaces.AF_INET)
-                  for iface in netifaces.interfaces()]
-    ips = []
-    for addr in inet_addrs:
-        if addr is not None:
-            for add in addr:
-                ips.append(add['addr'])
-    return ips
-
-
 def get_sceneid(platform_name, orbit_number, starttime):
 
     if starttime:
@@ -180,7 +213,7 @@ def get_sceneid(platform_name, orbit_number, starttime):
 
 
 def ready2run(msg, files4pps, **kwargs):
-    """Check whether pps is ready to run or not"""
+    """Check whether pps is ready to run or not."""
     # """Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
 
@@ -188,6 +221,8 @@ def ready2run(msg, files4pps, **kwargs):
     LOG.info("Got message: " + str(msg))
 
     sdr_granule_processing = kwargs.get('sdr_granule_processing')
+    stream_tag_name = kwargs.get('stream_tag_name', 'variant')
+    stream_name = kwargs.get('stream_name', 'EARS')
     destination = msg.data.get('destination')
 
     uris = []
@@ -203,7 +238,7 @@ def ready2run(msg, files4pps, **kwargs):
             msg.data['platform_name'] in SUPPORTED_JPSS_SATELLITES):
         LOG.info('Dataset: ' + str(msg.data['dataset']))
         LOG.info('Got a dataset on a JPSS/SNPP satellite')
-        if destination == None:
+        if destination is None:
             for obj in msg.data['dataset']:
                 uris.append(obj['uri'])
         else:
@@ -216,7 +251,7 @@ def ready2run(msg, files4pps, **kwargs):
                 uris.extend([mda['uri'] for mda in dataset['dataset']])
 
     elif msg.type == 'file':
-        if destination == None:
+        if destination is None:
             uris = [(msg.data['uri'])]
         else:
             uris = [os.path.join(destination, msg.data['uid'])]
@@ -248,7 +283,13 @@ def ready2run(msg, files4pps, **kwargs):
                  "Continue...")
         return False
 
-    if msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES:
+    if msg.data['platform_name'] in SUPPORTED_METEOSAT_SATELLITES:
+        if msg.data['sensor'] not in ['seviri', ]:
+            LOG.info(
+                'Sensor ' + str(msg.data['sensor']) +
+                ' not required for MODIS PPS processing...')
+            return False
+    elif msg.data['platform_name'] in SUPPORTED_EOS_SATELLITES:
         if msg.data['sensor'] not in ['modis', ]:
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) +
@@ -308,7 +349,8 @@ def ready2run(msg, files4pps, **kwargs):
             files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if (msg.data['variant'] in ['EARS', ] and platform_name in SUPPORTED_METOP_SATELLITES):
+    if (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
+            platform_name in SUPPORTED_METOP_SATELLITES):
         LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
     elif (platform_name in SUPPORTED_METOP_SATELLITES or
           platform_name in SUPPORTED_NOAA_SATELLITES):
@@ -337,19 +379,18 @@ def ready2run(msg, files4pps, **kwargs):
 
 
 def terminate_process(popen_obj, scene):
-    """Terminate a Popen process"""
-    if popen_obj.returncode == None:
+    """Terminate a Popen process."""
+    if popen_obj.returncode is None:
         popen_obj.kill()
         LOG.info(
             "Process timed out and pre-maturely terminated. Scene: " + str(scene))
     else:
         LOG.info(
             "Process finished before time out - workerScene: " + str(scene))
-    return
 
 
 def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
-    """Prepare the platform specific arguments to be passed to the PPS scripts/modules"""
+    """Prepare the platform specific arguments to be passed to the PPS scripts/modules."""
 
     orbit_number = kwargs.get('orbit_number')
     pps_args = {}
@@ -371,6 +412,10 @@ def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
 
 
 def create_pps_call_command_sequence(pps_script_name, scene, options):
+    LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH',
+                                   options.get('LVL1_NPP_PATH', None))
+    LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH',
+                                   options.get('LVL1_EOS_PATH', None))
 
     if scene['platform_name'] in SUPPORTED_EOS_SATELLITES:
         cmdstr = "%s %s %s %s %s" % (pps_script_name,
@@ -403,19 +448,21 @@ def create_pps2018_call_command(python_exec, pps_script_name, scene, sequence=Tr
     elif scene['platform_name'] in SUPPORTED_JPSS_SATELLITES:
         cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
                   " --csppfile %s" % scene['file4pps'])
+    elif scene['platform_name'] in SUPPORTED_METEOSAT_SATELLITES:
+        cmdstr = ("%s" % python_exec + " %s " % pps_script_name +
+                  "-af %s" % scene['file4pps'])
     else:
         cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
                   " --hrptfile %s" % scene['file4pps'])
-
     if sequence:
         return shlex.split(str(cmdstr))
-    else:
-        return cmdstr
+
+    return cmdstr
 
 
 def get_pps_inputfile(platform_name, ppsfiles):
     """From the set of files picked up in the PostTroll messages decide the input
-       file used in the PPS call
+    file used in the PPS call
     """
 
     if platform_name in SUPPORTED_EOS_SATELLITES:
@@ -434,18 +481,24 @@ def get_pps_inputfile(platform_name, ppsfiles):
         for ppsfile in ppsfiles:
             if os.path.basename(ppsfile).find('SVM01') >= 0:
                 return ppsfile
+    elif platform_name in SUPPORTED_METEOSAT_SATELLITES:
+        for ppsfile in ppsfiles:
+            if os.path.basename(ppsfile).find('NWC') >= 0:
+                return ppsfile
 
     return None
 
 
-def get_outputfiles(path, platform_name, orb, **kwargs):
-    """From the directory path and satellite id and orbit number scan the directory
-    and find all pps output files matching that scene and return the full
-    filenames. Since the orbit number is unstable there might be more than one
-    scene with the same orbit number and platform name. In order to avoid
-    picking up an older scene we check the file modifcation time, and if the
-    file is too old we discard it!
+def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
+    """Finds outputfiles depending on certain input criteria.
 
+    From the directory path and satellite id and orbit number,
+    scan the directory and find all pps output files matching that scene and
+    return the full filenames. Since the orbit number is unstable there might be
+    more than one scene with the same orbit number and platform name. In order
+    to avoid picking up an older scene we check the file modifcation time, and
+    if the file is too old we discard it! For a more specific search patern the
+    start time can be used, just add st_time=start-time
     """
 
     filelist = []
@@ -453,7 +506,7 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if h5_output:
         h5_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_*.h5')
+                     '_' + '%.5d' % int(orb) + '_%s*.h5' % st_time)
         LOG.info(
             "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
         filelist = filelist + glob(h5_output)
@@ -462,19 +515,14 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     if nc_output:
         nc_output = (os.path.join(path, 'S_NWC') + '*' +
                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_*.nc')
+                     '_' + '%.5d' % int(orb) + '_%s*.nc' % st_time)
         LOG.info(
             "Match string to do a file globbing on netcdf output files: " + str(nc_output))
         filelist = filelist + glob(nc_output)
 
     xml_output = kwargs.get('xml_output')
     if xml_output:
-        xml_output = (os.path.join(path, 'S_NWC') + '*' +
-                      str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                      '_' + '%.5d' % int(orb) + '_*.xml')
-        LOG.info(
-            "Match string to do a file globbing on xml output files: " + str(xml_output))
-        filelist = filelist + glob(xml_output)
+        filelist = filelist + get_xml_outputfiles(path, platform_name, orb, st_time)
 
     now = datetime.utcnow()
     time_threshold = timedelta(minutes=90.)
@@ -489,9 +537,45 @@ def get_outputfiles(path, platform_name, orb, **kwargs):
     return filtered_flist
 
 
+def get_xml_outputfiles(path, platform_name, orb, st_time=''):
+    """Finds xml outputfiles depending on certain input criteria.
+
+    From the directory path and satellite id and orbit number,
+    scan the directory and find all pps xml output files matching that scene and
+    return the full filenames.
+
+    The search allow for small deviations in orbit numbers between the actual
+    filename and the message.
+    """
+
+    xml_output = (os.path.join(path, 'S_NWC') + '*' +
+                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
+                  '_' + '%.5d' % int(orb) + '_%s*.xml' % st_time)
+    LOG.info(
+        "Match string to do a file globbing on xml output files: " + str(xml_output))
+    filelist = glob(xml_output)
+
+    if len(filelist) == 0:
+        # Perhaps there is an orbit number mismatch?
+        nxmlfiles = 0
+        for idx in [1, -1, 2, -2, 3, -3, 4, -4, 5, -5]:
+            tmp_orbit = int(orb) + idx
+            LOG.debug('Try with an orbitnumber of %d instead', tmp_orbit)
+            xml_output = (os.path.join(path, 'S_NWC') + '*' +
+                          str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
+                          '_' + '%.5d' % int(tmp_orbit) + '_%s*.xml' % st_time)
+
+            filelist = glob(xml_output)
+            nxmlfiles = len(filelist)
+            if nxmlfiles > 0:
+                break
+
+    return filelist
+
+
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
     """
-    Publish messages for the files provided
+    Publish messages for the files provided.
     """
 
     environment = kwargs.get('environment')
@@ -546,17 +630,18 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
                          '/' + station + '/' + environment +
                          '/polar/direct_readout/',
                          "file", to_send).encode()
-        LOG.debug("sending: " + str(pubmsg))
-        LOG.info("Sending: " + str(pubmsg))
-        publish_q.put(pubmsg)
-
-    return
+        LOG.info("Sending: %s", str(pubmsg))
+        try:
+            publish_q.put(pubmsg)
+        except Exception:
+            LOG.warning("Failed putting message on the queue, will send it now...")
+            publish_q.send(pubmsg)
 
 
 def logreader(stream, log_func):
     while True:
-        s = stream.readline()
-        if not s:
+        mystring = stream.readline()
+        if not mystring:
             break
-        log_func(s.strip())
+        log_func(mystring.strip())
     stream.close()

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018 Martin Raspaud
+# Copyright (c) 2013 - 2021 Pytroll Community
 
 # Author(s):
 
 #   Martin Raspaud <martin.raspaud@smhi.se>
+#   Adam Dybbroe <adam.dybbroe@smhi.se>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,15 +23,28 @@
 
 """Setup for pps-runner.
 """
-from setuptools import setup
-import imp
+from setuptools import setup, find_packages
 
-version = imp.load_source(
-    'nwcsafpps_runner.version', 'nwcsafpps_runner/version.py')
+try:
+    # HACK: https://github.com/pypa/setuptools_scm/issues/190#issuecomment-351181286
+    # Stop setuptools_scm from including all repository files
+    import setuptools_scm.integration
+    setuptools_scm.integration.find_files = lambda _: []
+except ImportError:
+    pass
 
-setup(name="pps_runner",
-      version=version.__version__,
-      description='Pytroll runner for PPS',
+description = 'Pytroll runner for PPS'
+
+try:
+    with open('./README', 'r') as fd:
+        long_description = fd.read()
+except IOError:
+    long_description = ''
+
+NAME = "nwcsafpps_runner"
+
+setup(name=NAME,
+      description=description,
       author='Adam Dybroe',
       author_email='adam.dybroe@smhi.se',
       classifiers=["Development Status :: 3 - Alpha",
@@ -41,13 +55,16 @@ setup(name="pps_runner",
                    "Programming Language :: Python",
                    "Topic :: Scientific/Engineering"],
       url="https://github.com/pytroll/pytroll-pps-runner",
-      packages=['nwcsafpps_runner', ],
-      scripts=['nwcsafpps_runner/pps_runner.py',
-               'nwcsafpps_runner/pps2018_runner.py',
-               'bin/pps_run.sh', ],
+      long_description=long_description,
+      license='GPLv3',
+      packages=find_packages(),
+      scripts=['bin/pps_runner.py',
+               'bin/pps2018_runner.py',
+               'bin/level1c_runner.py', ],
       data_files=[],
+      install_requires=['posttroll', 'trollsift', 'pygrib', ],
+      python_requires='>=3.6',
       zip_safe=False,
-      install_requires=['posttroll', ],
-      # test_requires=['mock'],
-      # test_suite='pps_runner.tests.suite',
+      setup_requires=['setuptools_scm', 'setuptools_scm_git_archive'],
+      use_scm_version=True
       )

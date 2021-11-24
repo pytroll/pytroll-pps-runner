@@ -1,0 +1,17 @@
+pps_hook:
+    post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
+      description: "This is a pps post hook for PostTroll messaging"
+      metadata:
+        # the publish topic can be a pattern, and the allowed keys are the ones
+        # provided here, plus pps_product, module, pps_version, platform_name,
+        # orbit, sensor, start_time, end_time, filename, file_was_already_processed
+        publish_topic: "/my/pps/publish/topic/{sensor}"
+        station: "mystation"
+        output_format: "CF"
+        level: "2"
+        variant: DR
+        geo_or_polar: "polar"
+        software: "NWCSAF-PPSv2021"
+
+    # Example publish topic: /polar/direct_readout/test/CF/2/CTTH/NWCSAF-PPSv2018/
+    # Example publish topic: /polar/direct_readout/CF/2/CTTH/NWCSAF-PPSv2018/test/
