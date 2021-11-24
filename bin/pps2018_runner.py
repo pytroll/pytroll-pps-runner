@@ -325,7 +325,8 @@ def pps(options):
     listener_q = Queue()
     publisher_q = Queue()
 
-    pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps2018_runner')
+    pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps2018_runner',
+                               nameservers=options.get('nameservers', None))
     pub_thread.start()
     listen_thread = FileListener(listener_q, options['subscribe_topics'])
     listen_thread.start()
