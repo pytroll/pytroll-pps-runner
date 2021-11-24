@@ -21,7 +21,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Posttroll runner for the NWCSAF/PPS v2018.
+"""Posttroll runner for the NWCSAF/PPS version >= v2018.
 """
 
 import logging
@@ -34,16 +34,18 @@ from subprocess import PIPE, Popen
 
 from six.moves.queue import Empty, Queue
 
-from nwcsafpps_runner.config import CONFIG_FILE, CONFIG_PATH, MODE, get_config
+from nwcsafpps_runner.config import CONFIG_FILE, CONFIG_PATH, get_config
 from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
                                     SENSOR_LIST, NwpPrepareError, PpsRunError,
-                                    create_pps2018_call_command,
+                                    create_pps_call_command,
                                     get_outputfiles, get_pps_inputfile,
                                     get_sceneid, logreader, message_uid,
                                     prepare_pps_arguments, publish_pps_files,
                                     ready2run, terminate_process)
+from nwcsafpps_runner.utils import create_xml_timestat_from_ascii
+from nwcsafpps_runner.utils import get_product_statistics_files
 
 LOG = logging.getLogger(__name__)
 
@@ -114,23 +116,19 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         min_thr = options['maximum_pps_processing_time_in_minutes']
         LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
-        # # Run core PPS PGEs in a serial fashion
-        # LOG.info("Run PPS module: pps_run_all_serial")
-        # pps_run_all_serial(**kwargs)
 
-        # # Run the PPS CmaskProb (probabilistic Cloudmask):
-        # if CMA_PROB:
-        #     LOG.info("Run PPS module: pps_cmask_prob")
-        #     pps_cmask_prob(**kwargs)
-        # else:
-        #     LOG.info("Will skip running the PPS module: pps_cmask_prob (probablistic cloud mask)")
+        py_exec = options.get('python')
+        pps_run_all = options.get('run_all_script')
+        pps_script = pps_run_all.get('name')
+        pps_run_all_flags = pps_run_all.get('flags')
+        if not pps_run_all_flags:
+            pps_run_all_flags = []
 
-        py_exec = options.get('python', '/bin/python')
-        pps_script = options.get('run_all_script')
-        cmd_str = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
-        run_cpp = options.get('run_pps_cpp', None)
-        if not run_cpp:
-            cmd_str = cmd_str + ' --no_cpp'
+        use_l1c = (options.get('pps_version') == 'v2021')
+        cmd_str = create_pps_call_command(py_exec, pps_script, scene, use_l1c=use_l1c)
+        for flag in pps_run_all_flags:
+            cmd_str = cmd_str + ' %s' % flag
+
         my_env = os.environ.copy()
         for envkey in my_env:
             LOG.debug("ENV: " + str(envkey) + " " + str(my_env[envkey]))
@@ -161,14 +159,15 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         if options['run_cmask_prob']:
             pps_script = options.get('run_cmaprob_script')
-            cmdl = create_pps2018_call_command(py_exec, pps_script, scene, sequence=False)
+            cmdl = create_pps_call_command(py_exec, pps_script, scene,  use_l1c=use_l1c)
 
             LOG.debug("Run command: " + str(cmdl))
             try:
                 pps_cmaprob_proc = Popen(cmdl, shell=True, stderr=PIPE, stdout=PIPE)
             except PpsRunError:
                 LOG.exception("Failed when trying to run the PPS Cma-prob")
-            timer_cmaprob = threading.Timer(min_thr * 60.0, terminate_process, args=(pps_cmaprob_proc, scene, ))
+            timer_cmaprob = threading.Timer(min_thr * 60.0, terminate_process,
+                                            args=(pps_cmaprob_proc, scene, ))
             timer_cmaprob.start()
 
             out_reader2 = threading.Thread(
@@ -180,60 +179,18 @@ def pps_worker(scene, publish_q, input_msg, options):
             out_reader2.join()
             err_reader2.join()
 
-        # Now try perform some time statistics editing with ppsTimeControl.py from
-        # pps:
-        do_time_control = True
-        try:
-            from pps_time_control import PPSTimeControl
-        except ImportError:
-            LOG.warning("Failed to import the PPSTimeControl from pps")
-            do_time_control = False
-        #: Create the start time (format dateTtime) to be used in file findings
-        if SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) == 'seviri':
-            st_time = scene['starttime'].strftime("%Y%m%dT%H%M%S.%f")
-        elif (SENSOR_LIST.get(scene['platform_name'], scene['platform_name']) in ['viirs', 'modis'] or
-              'avhrr/3' in SENSOR_LIST.get(scene['platform_name'], scene['platform_name'])):
-            st_time = scene['starttime'].strftime("%Y%m%dT%H%M%S")
-        else:
-            st_time = ''
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
-        if do_time_control:
-            LOG.info("Read time control ascii file and generate XML")
-            platform_id = SATELLITE_NAME.get(
-                scene['platform_name'], scene['platform_name'])
-            LOG.info("pps platform_id = " + str(platform_id))
-            txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
-                             str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
-                             '_' + '%.5d' % scene['orbit_number'] + '_' +
-                             st_time +
-                             '*.txt')
-            LOG.info("glob string = " + str(txt_time_file))
-            infiles = glob(txt_time_file)
-            LOG.info(
-                "Time control ascii file candidates: " + str(infiles))
-            if len(infiles) == 1:
-                infile = str(infiles[0])
-                LOG.info("Time control ascii file: " + str(infile))
-                ppstime_con = PPSTimeControl(infile)
-                ppstime_con.sum_up_processing_times()
-                try:
-                    ppstime_con.write_xml()
-                except Exception as e:  # TypeError as e:
-                    LOG.warning('Not able to write time control xml file')
-                    LOG.warning(e)
+        xml_files = create_xml_timestat_from_ascii(scene, pps_control_path)
+        xml_files = xml_files + get_product_statistics_files(pps_control_path,
+                                                             scene,
+                                                             options['product_statistics_filename'],
+                                                             options['pps_filetime_search_minutes'])
+        LOG.info("PPS summary statistics files: %s", str(xml_files))
+
         # The PPS post-hooks takes care of publishing the PPS cloud products
         # For the XML files we keep the publishing from here:
-        xml_files = get_outputfiles(pps_control_path,
-                                    SATELLITE_NAME[scene['platform_name']],
-                                    scene['orbit_number'],
-                                    st_time=st_time,
-                                    xml_output=True)
-
-        LOG.info("PPS summary statistics files: " + str(xml_files))
-
-        # Now publish:
         publish_pps_files(input_msg, publish_q, scene, xml_files,
-                          environment=MODE, servername=options['servername'],
+                          servername=options['servername'],
                           station=options['station'])
 
         dt_ = datetime.utcnow() - job_start_time
@@ -313,6 +270,11 @@ def pps(options):
     """
 
     LOG.info("*** Start the PPS level-2 runner:")
+    use_l1c = (options.get('pps_version') == 'v2021')
+    if use_l1c:
+        LOG.info("Use level-1c file as input (v2021 and greater)")
+    else:
+        LOG.info("Use original level-1 file as input (v2018)")
 
     LOG.info("First check if NWP data should be downloaded and prepared")
     nwp_handeling_module = options.get("nwp_handeling_module", None)
@@ -366,8 +328,13 @@ def pps(options):
                            sdr_granule_processing=options.get('sdr_processing') == 'granules')
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
-            scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
+            LOG.debug(files4pps[sceneid])
+            if use_l1c:
+                scene['file4pps'] = files4pps[sceneid][0]
+            else:
+                scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
 
+            LOG.debug("Files for PPS: %s", str(scene['file4pps']))
             LOG.info('Start a thread preparing the nwp data and run pps...')
 
             if options['number_of_threads'] == 1:
@@ -380,9 +347,7 @@ def pps(options):
                                                                      msg, options,
                                                                      nwp_handeling_module))
 
-            LOG.debug(
-                "Number of threads currently alive: " +
-                str(threading.active_count()))
+            LOG.debug("Number of threads currently alive: %s", str(threading.active_count()))
 
             # Clean the files4pps dict:
             LOG.debug("files4pps: " + str(files4pps))
@@ -403,10 +368,7 @@ def pps(options):
 if __name__ == "__main__":
 
     from logging import handlers
-    LOG.debug("Path to pps2018_runner config file = " + CONFIG_PATH)
-    LOG.debug("Pps2018_runner config file = " + CONFIG_FILE)
-    configfile = os.path.join(CONFIG_PATH, CONFIG_FILE)
-    OPTIONS = get_config(configfile)
+    OPTIONS = get_config(os.path.join(CONFIG_PATH, CONFIG_FILE))
 
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file',
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))
@@ -434,5 +396,7 @@ if __name__ == "__main__":
     logging.getLogger('posttroll').setLevel(logging.INFO)
 
     LOG = logging.getLogger('pps_runner')
+    LOG.debug("Path to PPS-runner config file = " + CONFIG_PATH)
+    LOG.debug("PPS-runner config file = " + CONFIG_FILE)
 
     pps(OPTIONS)
