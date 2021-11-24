@@ -59,7 +59,6 @@ nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
 
 nhsf_path = OPTIONS.get('nhsf_path', None)
 nhsf_prefix = OPTIONS.get('nhsf_prefix', None)
-nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift', None)
 nwp_outdir = OPTIONS.get('nwp_outdir', None)
 nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
 nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
@@ -146,7 +145,6 @@ def update_nwp(starttime, nlengths):
 
         LOG.debug("Analysis time and start time: %s %s", str(analysis_time), str(starttime))
         if analysis_time < starttime:
-            print "skip analysis"
             continue
         if forecast_step not in nlengths:
             LOG.debug("Skip step. Forecast step and nlengths: %s %s", str(forecast_step), str(nlengths))

@@ -231,35 +231,7 @@ def pps(options):
 
     LOG.info("First check if NWP data should be downloaded and prepared")
     now = datetime.utcnow()
-    try:
-        module_name = CONF.get("nwp_handeling_function", "module")
-    except (NoSectionError, NoOptionError):
-        LOG.debug("No custom nwp_handeling_function provided i config file...")
-        LOG.debug("Use build in.")
-        update_nwp(now - timedelta(days=1), NWP_FLENS)
-    else:
-        LOG.debug("Use custom nwp_handeling_function provided i config file...")
-        LOG.debug("module_name = %s", str(module_name))
-        try:
-            name = "update_nwp"
-            name = name.replace("/", "")
-            module = __import__(module_name, globals(), locals(), [name])
-            LOG.info("function : {} loaded from module: {}".format([name],module_name))
-        except ImportError:
-            LOG.debug("Failed to import custom compositer for %s", str(name))
-            #return []
-
-        try:
-            params = {}
-            params['starttime'] = now - timedelta(days=1)
-            params['nlengths'] = NWP_FLENS
-            params['options'] = OPTIONS
-            getattr(module, name)(params)
-            #LOG.debug("get_attr: {}".format(get_attr))
-        except AttributeError:
-            LOG.debug("Could not get attribute %s from %s", str(name), str(module))
-            #return []
-
+    update_nwp(now - timedelta(days=1), NWP_FLENS)
     LOG.info("Ready with nwp preparation...")
 
     listener_q = Queue.Queue()
@@ -285,11 +257,7 @@ def pps(options):
         orbit_number = int(msg.data['orbit_number'])
         platform_name = msg.data['platform_name']
         starttime = msg.data['start_time']
-        try:
-            endtime = msg.data['end_time']
-        except KeyError:
-            LOG.warning("end_time missing, set to start time + 15 minutes")
-            endtime = starttime + timedelta(minutes=15)
+        endtime = msg.data['end_time']
 
         satday = starttime.strftime('%Y%m%d')
         sathour = starttime.strftime('%H%M')
