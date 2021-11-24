@@ -204,7 +204,7 @@ class TestL1cProcessing(unittest.TestCase):
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG_NO_DATASET)
         with pytest.raises(MessageTypeNotSupported) as exec_info:
-            result = check_message_okay(input_msg)
+            _ = check_message_okay(input_msg)
 
         exception_raised = exec_info.value
         self.assertEqual("Not a dataset, don't do anything...", str(exception_raised))
@@ -214,7 +214,7 @@ class TestL1cProcessing(unittest.TestCase):
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG_NO_PLATFORM_NAME)
         with pytest.raises(MessageContentMissing) as exec_info:
-            result = check_message_okay(input_msg)
+            _ = check_message_okay(input_msg)
 
         exception_raised = exec_info.value
         self.assertEqual("Message is lacking crucial fields: platform_name", str(exception_raised))
@@ -224,7 +224,7 @@ class TestL1cProcessing(unittest.TestCase):
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG_NO_START_TIME)
         with pytest.raises(MessageContentMissing) as exec_info:
-            result = check_message_okay(input_msg)
+            _ = check_message_okay(input_msg)
 
         exception_raised = exec_info.value
         self.assertEqual("Message is lacking crucial fields: start_time", str(exception_raised))

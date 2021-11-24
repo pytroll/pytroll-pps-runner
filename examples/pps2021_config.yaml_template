@@ -1,0 +1,58 @@
+#: NWP
+nhsp_prefix: LL02_NHSP_
+nhsf_prefix: LL02_NHSF_
+ecmwf_prefix: LL02_NHSF
+#: Example filename: LL02_NHSF_202003240000+003H00M
+nhsf_file_name_sift: '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M'
+
+nwp_static_surface: /san1/pps/import/NWP_data/lsm_z.grib1
+nwp_output_prefix: LL02_NHSPSF_
+nwp_outdir: /san1/pps/import/NWP_data/source
+pps_nwp_requirements: /san1/pps/import/NWP_data/pps_nwp_list_of_required_fields.txt
+
+
+#: Publish/subscribe
+publish_topic: PPS
+subscribe_topics: [/segment/SDR/1C] #[AAPP-HRPT,AAPP-PPS,EOS/1B,segment/SDR/1B,1c/nc/0deg]
+#: Has to do with messegatype
+sdr_processing: granules
+
+
+#: Python and PPS related
+pps_version: v2021
+python: python
+run_all_script:
+  name: "{{ deploy_helper.new_release_path }}/lib/acpg/scr/ppsRunAll.py"
+  flags:
+    - '--no_cmaskprob'
+  
+run_cmaprob_script: "{{ deploy_helper.new_release_path }}/lib/acpg/scr/ppsCmaskProb.py"
+maximum_pps_processing_time_in_minutes: 20
+run_cmask_prob: yes
+
+
+#: Used for PPS log file
+log_rotation_days: 1
+log_rotation_backup: 10
+
+
+#: Uncategorised
+number_of_threads: 10
+# Allows to process several VIIRS granules in parallel. For SEVIRI (and
+# AVHRR/MODIS) this can be 1 (no parallel processing as one scan (5 min or 15
+# min) is processed before the next one arrives.
+
+station: norrkoping
+
+
+#: These are only used for the LOG output and to publish resultfiles and has nothing to do with PPS
+#: Incase the PPS environmental variables are sat they will overide these outdir
+#: PPS environmental variable SM_PRODUCT_DIR
+pps_outdir: /data/24/saf/polar_out/direct_readout
+#: PPS environmental variable STATISTICS_DIR
+pps_statistics_dir: /data/24/saf/polar_out/monitoring/direct_readout
+
+
+nhsp_path: /satnhsp
+nhsf_path: /satnhsf
+

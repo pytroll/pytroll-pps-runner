@@ -19,13 +19,25 @@ sdr_processing: granules
 
 
 #: Python and PPS related
+pps_version: v2018
 maximum_pps_processing_time_in_minutes: 20
 #: Only used in pps2018_runner
 python: python
-run_all_script: /local_disk/opt/acpg/v2018_cmsaf/scr/ppsRunAll.py
-run_cmaprob_script: /local_disk/opt/acpg/v2018_cmsaf/scr/ppsCmaskProb.py
+
+# In PPS v2021 the ppsRunAll script runs the cmaprob on default before CTTH If
+# you want to skip that and run it later the provide a flag 'no_cmaprob' below,
+# and possibly run it separately afterwards. Also instead of setting the
+# run_pps_cpp to yes you can provide the flag directly below. For PPSv2018 the
+# flag is called np_cpp, but in v2021 it called no_cmic.
+run_all_script:
+  name: /path/to/pps/script/ppsRunAll.py
+  flags:
+     - 'no_cmic'
+     - 'no_cmaskprob'
+     - 'no_cpp'
+
+run_cmaprob_script: /path/to/pps/script/ppsCmaskProb.py
 run_cmask_prob: yes
-run_pps_cpp: yes
 
 
 #: Used for PPS log file
@@ -35,6 +47,10 @@ log_rotation_backup: 10
 
 #: Uncategorised
 number_of_threads: 10
+# Allows to process several VIIRS granules in parallel. For SEVIRI (and
+# AVHRR/MODIS) this can be 1 (no parallel processing as one scan (5 min or 15
+# min) is processed before the next one arrives.
+
 station: norrkoping
 
 
@@ -45,6 +61,14 @@ pps_outdir: /data/24/saf/polar_out/direct_readout
 #: PPS environmental variable STATISTICS_DIR
 pps_statistics_dir: /data/24/saf/polar_out/monitoring/direct_readout
 
+# Products statistics file patterns
+# S_NWC_CTTH_metopc_15096_20211004T1551189Z_20211004T1601487Z_statistics.xml
+product_statistics_filename: 'S_NWC_{product:s}_{satellite:s}_{orbit:s}_{starttime:%Y%m%dT%H%M}{seconds1:s}_{endtime:%Y%m%dT%H%M}{seconds2}_statistics.xml'
+
+# For AVHRR in particular the start time in the message may not match exactly
+# with the time in the PPS output file. And a search may be necessary to find
+# the matching PPS file to the scene:
+pps_filetime_search_minutes: 1
 
 #:  Do not seams to be used.    
 level1_dir: /local_disk/data/pps/import/PPS_data/source
@@ -102,3 +126,5 @@ metno-test:
     nhsf_prefix: LL02_NHSF_
     nhsf_file_name_sift: '{nhsf_prefix:3s}{analyse_time:8s}{forecast_time:8s}{end:1s}'
 
+nhsp_path: /path/to/nwp/gribfiles/with/hybrid/and/pressure/level/data
+nhsf_path: /path/to/nwp/gribfiles/with/surface/level/data
