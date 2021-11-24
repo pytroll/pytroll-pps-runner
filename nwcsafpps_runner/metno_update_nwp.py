@@ -240,7 +240,7 @@ def update_nwp(params):
                         break
 
                     param = ecc.codes_get(gid, index_keys[0])
-                    parameters = [172, 129, 235, 167, 168, 137, 130, 131, 132, 133, 134, 157]
+                    parameters = [172, 129, 235, 167, 168, 137, 130, 131, 132, 133, 134, 157, 141]
                     if param in parameters:
                         LOG.debug("Doing param: %d", param)
                         copy_needed_field(gid, fout)
