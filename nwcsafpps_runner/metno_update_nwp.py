@@ -111,6 +111,23 @@ def update_nwp(params):
                 continue
             res = parser.parse("{}".format(os.path.basename(filename)))
 
+            filename_n1s = filename.replace('N2D', 'N1S')
+            if not os.path.exists(filename_n1s):
+                LOG.error("Could not find needed file %s", filename_n1s)
+                LOG.error("Skip preparing nwp file.")
+                continue
+
+            # Do the static fields
+            # Note: field not in the filename variable, but a configured filename for static fields
+            static_filename = params['options']['ecmwf_static_surface']
+            if not os.path.exists(static_filename):
+                static_filename = static_filename.replace("storeB", "storeA")
+                LOG.warning("Need to replace storeB with storeA")
+                if not os.path.exists(static_filename):
+                    LOG.error("Could not find needed file %s", static_filename)
+                    LOG.error("Skip preparing nwp file.")
+                    continue
+
             time_now = datetime.utcnow()
             if 'analysis_time' in res:
                 if res['analysis_time'].year == 1900:
@@ -207,19 +224,11 @@ def update_nwp(params):
         fout = open(_result_file, 'wb')
         try:
 
-            # Do the static fields
-            # Note: field not in the filename variable, but a configured filename for static fields
-            static_filename = params['options']['ecmwf_static_surface']
-            if not os.path.exists(static_filename):
-                static_filename = static_filename.replace("storeB", "storeA")
-                LOG.warning("Need to replace storeB with storeA")
-
             index_vals = []
             index_keys = ['paramId', 'level']
             LOG.debug("Start building index")
             LOG.debug("Handeling file: %s", filename)
             iid = ecc.codes_index_new_from_file(filename, index_keys)
-            filename_n1s = filename.replace('N2D', 'N1S')
             LOG.debug("Add to index %s", filename_n1s)
             ecc.codes_index_add_file(iid, filename_n1s)
             LOG.debug("Add to index %s", static_filename)
