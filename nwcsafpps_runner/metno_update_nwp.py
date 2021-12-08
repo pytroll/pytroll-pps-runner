@@ -100,6 +100,8 @@ def update_nwp(params):
     from trollsift import Parser, compose
     filelist.sort()
     for filename in filelist:
+        if os.path.basename(filename).endswith('md5'):
+            continue
         if params['options']['ecmwf_file_name_sift'] is not None:
             try:
                 parser = Parser(params['options']['ecmwf_file_name_sift'])
@@ -113,8 +115,7 @@ def update_nwp(params):
 
             filename_n1s = filename.replace('N2D', 'N1S')
             if not os.path.exists(filename_n1s):
-                LOG.error("Could not find needed file %s", filename_n1s)
-                LOG.error("Skip preparing nwp file.")
+                LOG.error("Could not find needed file %s. Skip.", filename_n1s)
                 continue
 
             # Do the static fields
