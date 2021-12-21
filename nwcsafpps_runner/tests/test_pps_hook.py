@@ -131,7 +131,7 @@ class TestPPSPublisher(unittest.TestCase):
     def setUp(self):
         self.test_nameservers = ['test1', 'test2']
 
-    def test_called_with_nameserver(self):
+    def test_called_with_nameservers(self):
         """Test calling the PPSPublisher with a list of specified nameservers."""
         mymock = MagicMock()
 
@@ -143,6 +143,20 @@ class TestPPSPublisher(unittest.TestCase):
             pub_thread.start()
 
         mypatch.assert_called_with('PPS', 0, nameservers=self.test_nameservers)
+        pub_thread.stop()
+
+    def test_called_without_nameservers(self):
+        """Test calling the PPSPublisher without specifying any nameservers."""
+        mymock = MagicMock()
+
+        manager = Manager()
+        publisher_q = manager.Queue()
+
+        with patch('nwcsafpps_runner.pps_posttroll_hook.Publish', return_value=mymock) as mypatch:
+            pub_thread = PPSPublisher(publisher_q)
+            pub_thread.start()
+
+        mypatch.assert_called_with('PPS', 0, nameservers=None)
         pub_thread.stop()
 
 
