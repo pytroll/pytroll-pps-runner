@@ -26,13 +26,17 @@ The message is created from metadata partly read from a yaml config file.
 """
 
 from datetime import datetime, timedelta
-import pytest
 import unittest
 from unittest.mock import patch, Mock, MagicMock
+import pytest
 import yaml
+from multiprocessing import Manager
+
 import nwcsafpps_runner
 from nwcsafpps_runner.pps_posttroll_hook import MANDATORY_FIELDS_FROM_YAML
 from nwcsafpps_runner.pps_posttroll_hook import SEC_DURATION_ONE_GRANULE
+from nwcsafpps_runner.pps_posttroll_hook import PPSPublisher
+
 
 START_TIME1 = datetime.fromisoformat("2020-12-17T14:08:25.800000")
 END_TIME1 = datetime.fromisoformat("2020-12-17T14:09:50")
@@ -114,10 +118,32 @@ pps_hook:
         nameservers: test1
 """
 
+
 def create_instance_from_yaml(yaml_content_str):
     """Create a PPSMessage instance from a yaml file."""
     from nwcsafpps_runner.pps_posttroll_hook import PPSMessage
     return yaml.load(yaml_content_str, Loader=yaml.UnsafeLoader)
+
+
+class TestPPSPublisher(unittest.TestCase):
+    """Test the PPSPublisher."""
+
+    def setUp(self):
+        self.test_nameservers = ['test1', 'test2']
+
+    def test_called_with_nameserver(self):
+        """Test calling the PPSPublisher with a list of specified nameservers."""
+        mymock = MagicMock()
+
+        manager = Manager()
+        publisher_q = manager.Queue()
+
+        with patch('nwcsafpps_runner.pps_posttroll_hook.Publish', return_value=mymock) as mypatch:
+            pub_thread = PPSPublisher(publisher_q, self.test_nameservers)
+            pub_thread.start()
+
+        mypatch.assert_called_with('PPS', 0, nameservers=self.test_nameservers)
+        pub_thread.stop()
 
 
 class TestPPSMessage(unittest.TestCase):
