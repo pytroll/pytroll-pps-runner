@@ -29,6 +29,7 @@ import unittest
 from posttroll.message import Message
 from datetime import datetime
 import yaml
+import tempfile
 
 from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
 from nwcsafpps_runner.l1c_processing import check_message_okay
@@ -112,6 +113,7 @@ TEST_VIIRS_MSG_DATA = {'start_time': datetime(2021, 6, 1, 5, 43, 11, 100000), 'e
 TEST_INPUT_MESSAGE_VIIRS_MSG = """pytroll://1b/viirs dataset safusr.u@lxserv1043.smhi.se 2021-05-18T14:28:54.154172 v1.01 application/json {"orbit_number": 49711, "data_type": "MSG4", "orig_platform_name": "MSG4", "start_time": "2021-05-18T14:15:00", "variant": "0DEG", "series": "MSG4", "platform_name": "Suomi-NPP", "channel": "", "nominal_time": "2021-05-18T14:15:00", "compressed": "", "origin": "172.18.0.248:9093", "dataset": [{"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__", "uid": "H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__"}, {"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__", "uid": "H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__"}], "sensor": ["seviri"]}"""
 
 TEST_INPUT_MESSAGE_VIIRS_NO_ORBIT_MSG = """pytroll://1b/viirs dataset safusr.u@lxserv1043.smhi.se 2021-05-18T14:28:54.154172 v1.01 application/json {"data_type": "MSG4", "orig_platform_name": "MSG4", "start_time": "2021-05-18T14:15:00", "variant": "0DEG", "series": "MSG4", "platform_name": "Suomi-NPP", "channel": "", "nominal_time": "2021-05-18T14:15:00", "compressed": "", "origin": "172.18.0.248:9093", "dataset": [{"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__", "uid": "H-000-MSG4__-MSG4________-_________-PRO______-202105181415-__"}, {"uri": "/san1/geo_in/0deg/H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__", "uid": "H-000-MSG4__-MSG4________-HRV______-000001___-202105181415-__"}], "sensor": ["seviri"]}"""
+
 
 class MyFakePublisher(object):
 
@@ -327,7 +329,7 @@ class TestL1cProcessing(unittest.TestCase):
 
         cpu_count.return_value = 1
         config.return_value = self.config_viirs_orbit_number_from_msg_ok
-        myconfig_filename = '/tmp/my/config/file'
+        myconfig_filename = tempfile.mktemp()
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_MSG)
 
@@ -344,7 +346,7 @@ class TestL1cProcessing(unittest.TestCase):
 
         cpu_count.return_value = 1
         config.return_value = self.config_viirs_orbit_number_from_msg_ok
-        myconfig_filename = '/tmp/my/config/file'
+        myconfig_filename = tempfile.mktemp()
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_NO_ORBIT_MSG)
 
@@ -365,7 +367,7 @@ class TestL1cProcessing(unittest.TestCase):
 
         cpu_count.return_value = 2
         config.return_value = self.config_complete_nameservers
-        myconfig_filename = '/tmp/my/config/file'
+        myconfig_filename = tempfile.mktemp()
 
         with patch('nwcsafpps_runner.l1c_processing.ThreadPool') as mock:
             mock.return_value = None
