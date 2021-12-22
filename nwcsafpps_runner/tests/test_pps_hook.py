@@ -26,13 +26,17 @@ The message is created from metadata partly read from a yaml config file.
 """
 
 from datetime import datetime, timedelta
-import pytest
 import unittest
 from unittest.mock import patch, Mock, MagicMock
+import pytest
 import yaml
+from multiprocessing import Manager
+
 import nwcsafpps_runner
 from nwcsafpps_runner.pps_posttroll_hook import MANDATORY_FIELDS_FROM_YAML
 from nwcsafpps_runner.pps_posttroll_hook import SEC_DURATION_ONE_GRANULE
+from nwcsafpps_runner.pps_posttroll_hook import PPSPublisher
+
 
 START_TIME1 = datetime.fromisoformat("2020-12-17T14:08:25.800000")
 END_TIME1 = datetime.fromisoformat("2020-12-17T14:09:50")
@@ -84,11 +88,76 @@ pps_hook:
         posttroll_topic: "/PPSv2018"
 """
 
+TEST_YAML_NAMESERVERS_CONTENT_OK = """
+pps_hook:
+    post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
+      description: "This is a pps post hook for PostTroll messaging"
+      metadata:
+        station: "norrkoping"
+        output_format: "CF"
+        level: "2"
+        variant: DR
+        geo_or_polar: "polar"
+        software: "NWCSAF-PPSv2018"
+        nameservers:
+        - 'test1'
+        - 'test2'
+"""
+
+TEST_YAML_NAMESERVERS_IS_LIST = """
+pps_hook:
+    post_hook: !!python/object:nwcsafpps_runner.pps_posttroll_hook.PPSMessage
+      description: "This is a pps post hook for PostTroll messaging"
+      metadata:
+        station: "norrkoping"
+        output_format: "CF"
+        level: "2"
+        variant: DR
+        geo_or_polar: "polar"
+        software: "NWCSAF-PPSv2018"
+        nameservers: test1
+"""
+
 
 def create_instance_from_yaml(yaml_content_str):
     """Create a PPSMessage instance from a yaml file."""
     from nwcsafpps_runner.pps_posttroll_hook import PPSMessage
     return yaml.load(yaml_content_str, Loader=yaml.UnsafeLoader)
+
+
+class TestPPSPublisher(unittest.TestCase):
+    """Test the PPSPublisher."""
+
+    def setUp(self):
+        self.test_nameservers = ['test1', 'test2']
+
+    def test_called_with_nameservers(self):
+        """Test calling the PPSPublisher with a list of specified nameservers."""
+        mymock = MagicMock()
+
+        manager = Manager()
+        publisher_q = manager.Queue()
+
+        with patch('nwcsafpps_runner.pps_posttroll_hook.Publish', return_value=mymock) as mypatch:
+            pub_thread = PPSPublisher(publisher_q, self.test_nameservers)
+            pub_thread.start()
+
+        mypatch.assert_called_with('PPS', 0, nameservers=self.test_nameservers)
+        pub_thread.stop()
+
+    def test_called_without_nameservers(self):
+        """Test calling the PPSPublisher without specifying any nameservers."""
+        mymock = MagicMock()
+
+        manager = Manager()
+        publisher_q = manager.Queue()
+
+        with patch('nwcsafpps_runner.pps_posttroll_hook.Publish', return_value=mymock) as mypatch:
+            pub_thread = PPSPublisher(publisher_q)
+            pub_thread.start()
+
+        mypatch.assert_called_with('PPS', 0, nameservers=None)
+        pub_thread.stop()
 
 
 class TestPPSMessage(unittest.TestCase):
@@ -117,6 +186,10 @@ class TestPostTrollMessage(unittest.TestCase):
         self.pps_message_instance_from_yaml_config_fail = create_instance_from_yaml(TEST_YAML_CONTENT_INSUFFICIENT)
         self.pps_message_instance_from_yaml_config_ok_publish_topic = create_instance_from_yaml(
             TEST_YAML_CONTENT_SPECIFY_PUBLISH_TOPIC_OK)
+        self.pps_message_instance_from_yaml_nameservers_config_ok = create_instance_from_yaml(
+            TEST_YAML_NAMESERVERS_CONTENT_OK)
+        self.pps_message_instance_from_yaml_nameservers_is_list = create_instance_from_yaml(
+            TEST_YAML_NAMESERVERS_IS_LIST)
 
         self.metadata = {'station': 'norrkoping',
                          'output_format': 'CF',
@@ -544,3 +617,45 @@ class TestPostTrollMessage(unittest.TestCase):
                     'format': 'CF',
                     'station': 'norrkoping'}
         self.assertDictEqual(posttroll_message._to_send, expected)
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_check_nameservers_as_metadata(self, mandatory_param, filename):
+        """Test if nameservers as metadata is used."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+        metadata = self.pps_message_instance_from_yaml_nameservers_config_ok['pps_hook']['post_hook'].metadata
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        result = posttroll_message.get_nameservers()
+        self.assertEqual(result, ['test1', 'test2'])
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_metadata_no_nameservers(self, mandatory_param, filename):
+        """Test that the no nameservers in metadata returns None."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+        metadata = self.pps_message_instance_from_yaml_config_ok['pps_hook']['post_hook'].metadata
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        result = posttroll_message.get_nameservers()
+        self.assertEqual(result, None)
+
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
+    @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
+    def test_metadata_nameservers_is_list(self, mandatory_param, filename):
+        """Test that the nameservers in metadata is list."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        mandatory_param.return_value = True
+        filename.return_value = True
+        metadata = self.pps_message_instance_from_yaml_nameservers_is_list['pps_hook']['post_hook'].metadata
+        posttroll_message = PostTrollMessage(0, metadata)
+
+        result = posttroll_message.get_nameservers()
+        self.assertEqual(result, None)

@@ -114,9 +114,10 @@ class PPSPublisher(threading.Thread):
 
     """
 
-    def __init__(self, queue):
+    def __init__(self, queue, nameservers=None):
         threading.Thread.__init__(self)
         self.queue = queue
+        self.nameservers = nameservers
 
     def stop(self):
         """Stops the file publisher"""
@@ -124,7 +125,7 @@ class PPSPublisher(threading.Thread):
 
     def run(self):
 
-        with Publish('PPS', 0, ) as publisher:
+        with Publish('PPS', 0, nameservers=self.nameservers) as publisher:
             time.sleep(WAIT_SECONDS_TO_ALLOW_PUBLISHER_TO_BE_REGISTERED)
 
             while True:
@@ -192,9 +193,18 @@ class PostTrollMessage(object):
         # Check that the metadata has what is required:
         self.check_metadata_contains_mandatory_parameters()
         self.check_metadata_contains_filename()
+        self.nameservers = self.get_nameservers()
 
         for key in self.metadata:
             LOG.debug("%s = %s", str(key), str(self.metadata[key]))
+
+    def get_nameservers(self):
+        """Get nameserver from metadata. Defaults to None"""
+        nameservers = self.metadata.get('nameservers', None)
+        if nameservers and not isinstance(nameservers, list):
+            LOG.warning("Nameserver metadata must be a list. Setting to None.")
+            nameservers = None
+        return nameservers
 
     def check_metadata_contains_mandatory_parameters(self):
         """Check that all necessary metadata attributes are available."""
@@ -243,7 +253,7 @@ class PostTrollMessage(object):
         manager = Manager()
         publisher_q = manager.Queue()
 
-        pub_thread = PPSPublisher(publisher_q)
+        pub_thread = PPSPublisher(publisher_q, self.nameservers)
         pub_thread.start()
         LOG.info("Sending: " + str(msg_to_publish))
         publisher_q.put(msg_to_publish)
