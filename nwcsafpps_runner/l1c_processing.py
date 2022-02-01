@@ -101,6 +101,7 @@ class L1cProcessor(object):
         self.nameservers = options.get('nameservers')
         if self.nameservers is not None and not isinstance(self.nameservers, list):
             self.nameservers = [self.nameservers]
+        self.orbit_number_from_msg = options.get('orbit_number_from_msg', False)
 
     def initialize(self, service):
         """Initialize the processor."""
@@ -123,6 +124,12 @@ class L1cProcessor(object):
         self.message_data = self._get_message_data(msg)
 
         level1_dataset = self.message_data.get('dataset')
+
+        if self.orbit_number_from_msg:
+            if 'orbit_number' in self.message_data:
+                self.orbit_number = int(self.message_data.get('orbit_number'))
+            else:
+                LOG.warning("You asked for orbit_number from the message, but its not there. Keep init orbit.")
 
         if len(level1_dataset) < 1:
             raise DatasetIsEmpty('No level-1 data in dataset!')
