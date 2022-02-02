@@ -646,6 +646,8 @@ def get_time_control_ascii_filename_candidates(pps_control_path, scene):
     norbit_candidates = [scene['orbit_number']]
     if sensors in ['modis', ]:
         norbit_candidates.append(0)
+    elif sensors in ['viirs', ]:
+        norbit_candidates.append(99999)
 
     infiles = []
     for norbit in norbit_candidates:
