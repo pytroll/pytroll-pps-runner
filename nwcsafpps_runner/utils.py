@@ -642,12 +642,14 @@ def get_time_control_ascii_filename_candidates(pps_control_path, scene):
             st_times.append(atime.strftime("%Y%m%dT%H%M"))
             atime = atime + timedelta(seconds=60)
 
-    # PPSv2018 MODIS files have the orbit number set to "00000"!
+    # For VIIRS we often see a orbit number difference of 1:
     norbit_candidates = [scene['orbit_number']]
+    for idx in [1, -1]:
+        norbit_candidates.append(int(scene['orbit_number']) + idx)
+
+    # PPSv2018 MODIS files have the orbit number set to "00000"!
     if sensors in ['modis', ]:
         norbit_candidates.append(0)
-    elif sensors in ['viirs', ]:
-        norbit_candidates.append(99999)
 
     infiles = []
     for norbit in norbit_candidates:
