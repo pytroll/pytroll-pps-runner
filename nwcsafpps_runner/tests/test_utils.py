@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2020, 2021 pps2018_runner developers
+# Copyright (c) 2020 - 2022 pps2018_runner developers
 #
-# Author(s):
-#
-#   Erik Johansson <erik.johansson@smhi.se>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,10 +21,13 @@
 import os
 import tempfile
 import unittest
+import pytest
 from datetime import datetime
 
 from nwcsafpps_runner.utils import get_outputfiles
 from nwcsafpps_runner.utils import get_time_control_ascii_filename_candidates
+from nwcsafpps_runner.utils import get_time_control_ascii_filename
+from nwcsafpps_runner.utils import FindTimeControlFileError
 from nwcsafpps_runner.utils import get_product_statistics_files
 
 
@@ -104,16 +104,26 @@ class TestTimeControlFiles(unittest.TestCase):
     """Testing the handling and generation of time control XML files."""
 
     def setUp(self):
-        self.testscene = {'platform_name': 'Metop-B', 'orbit_number': 46878, 'satday':
-                          '20210930', 'sathour': '0946',
+        self.testscene = {'platform_name': 'Metop-B', 'orbit_number': 46878,
+                          'satday': '20210930', 'sathour': '0946',
                           'starttime': datetime(2021, 9, 30, 9, 46, 24),
                           'endtime': datetime(2021, 9, 30, 10, 1, 43),
                           'sensor': ['avhrr/3', 'mhs', 'amsu-a'],
                           'file4pps': '/data/metop01_20210930_0946_46878/hrpt_metop01_20210930_0946_46878.l1b'}
         self.filename1 = 'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt'
         self.filename2 = 'S_NWC_timectrl_metopb_46878_20210930T0949289Z_20210930T1001459Z.txt'
+        self.filename3 = 'S_NWC_timectrl_metopb_46878_20210930T0945289Z_20210930T1001459Z.txt'
+        self.filename_timeoff = 'S_NWC_timectrl_metopb_46878_20210930T0950000Z_20210930T1001459Z.txt'
 
-    def test_get_time_control_ascii_filename_candidates(self):
+        self.modis_scene = {'platform_name': 'EOS-Aqua', 'orbit_number': 5161,
+                            'satday': '20220209', 'sathour': '2210',
+                            'starttime': datetime(2022, 2, 9, 22, 10, 11),
+                            'endtime': datetime(2022, 2, 9, 22, 14, 41),
+                            'sensor': 'modis',
+                            'file4pps': '/data/eos/lvl1/MYD021km_A22040_221011_2022040221451.hdf'}
+        self.filename1_modis = 'S_NWC_timectrl_eos2_00000_20220209T2210110Z_20220209T2212284Z.txt'
+
+    def test_get_time_control_ascii_filename_ok(self):
 
         with tempfile.TemporaryDirectory() as tmpdirname:
 
@@ -124,11 +134,82 @@ class TestTimeControlFiles(unittest.TestCase):
             with open(self.file2, 'w') as _:
                 pass
 
-            ascii_files = get_time_control_ascii_filename_candidates(tmpdirname, self.testscene)
+            ascii_file = get_time_control_ascii_filename(self.testscene, tmpdirname)
+
+        self.assertEqual(os.path.basename(ascii_file),
+                         'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt')
+
+    def test_get_time_control_ascii_filename_more_than_one_file(self):
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            self.file1 = os.path.join(tmpdirname, self.filename1)
+            with open(self.file1, 'w') as _:
+                pass
+            self.file2 = os.path.join(tmpdirname, self.filename3)
+            with open(self.file2, 'w') as _:
+                pass
+
+            with pytest.raises(FindTimeControlFileError) as exec_info:
+                ascii_file = get_time_control_ascii_filename(self.testscene, tmpdirname)
+
+            expected = 'More than one time control ascii file candidate found - unresolved ambiguity!'
+            assert str(exec_info.value) == expected
+
+    def test_get_time_control_ascii_filename_no_files(self):
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            self.file1 = os.path.join(tmpdirname, self.filename2)
+            with open(self.file1, 'w') as _:
+                pass
+
+            with pytest.raises(FindTimeControlFileError) as exec_info:
+                ascii_file = get_time_control_ascii_filename(self.testscene, tmpdirname)
+
+            expected = 'No time control ascii file candidate found!'
+            assert str(exec_info.value) == expected
+
+    def test_get_time_control_ascii_filename_candidates_orbit_ok_time_off(self):
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            self.file1 = os.path.join(tmpdirname, self.filename_timeoff)
+            with open(self.file1, 'w') as _:
+                pass
+
+            ascii_files = get_time_control_ascii_filename_candidates(self.testscene, tmpdirname)
+
+        self.assertEqual(len(ascii_files), 0)
+
+    def test_get_time_control_ascii_filename_candidates_orbit_off_by1(self):
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            self.file1 = os.path.join(tmpdirname, self.filename1)
+            with open(self.file1, 'w') as _:
+                pass
+
+            self.testscene['orbit_number'] = self.testscene['orbit_number'] + 1
+            ascii_files = get_time_control_ascii_filename_candidates(self.testscene, tmpdirname)
 
         self.assertEqual(len(ascii_files), 1)
         self.assertTrue(os.path.basename(ascii_files[0]) ==
                         'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt')
+
+    def test_get_time_control_ascii_filename_candidates_modis_zero_orbit(self):
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+
+            self.file1 = os.path.join(tmpdirname, self.filename1_modis)
+            with open(self.file1, 'w') as _:
+                pass
+
+            ascii_files = get_time_control_ascii_filename_candidates(self.modis_scene, tmpdirname)
+
+        self.assertEqual(len(ascii_files), 1)
+        self.assertTrue(os.path.basename(ascii_files[0]) ==
+                        'S_NWC_timectrl_eos2_00000_20220209T2210110Z_20220209T2212284Z.txt')
 
 
 class TestProductStatisticsFiles(unittest.TestCase):
