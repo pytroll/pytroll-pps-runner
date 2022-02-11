@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2018 - 2021 Pytroll Developers
+# Copyright (c) 2018 - 2022 Pytroll Developers
 
 # Author(s):
 
@@ -45,6 +45,10 @@ LOG = logging.getLogger(__name__)
 
 
 class NwpPrepareError(Exception):
+    pass
+
+
+class FindTimeControlFileError(Exception):
     pass
 
 
@@ -584,37 +588,49 @@ def get_xml_outputfiles(path, platform_name, orb, st_time=''):
 
 
 def create_xml_timestat_from_ascii(scene, pps_control_path):
-    """From ascii files with PPS time statistics create XML files and return a file list."""
-
+    """From ascii file(s) with PPS time statistics create XML file(s) and return a file list."""
     try:
         from pps_time_control import PPSTimeControl
     except ImportError:
         LOG.warning("Failed to import the PPSTimeControl from pps")
         return []
 
-    infiles = get_time_control_ascii_filename_candidates(pps_control_path, scene)
-    LOG.info("Time control ascii file candidates: " + str(infiles))
+    try:
+        infile = get_time_control_ascii_filename(scene, pps_control_path)
+    except FindTimeControlFileError:
+        LOG.exception('No XML Time statistics file created!')
+        return []
 
-    if len(infiles) == 1:
-        infile = str(infiles[0])
-        LOG.info("Time control ascii file: " + str(infile))
-        LOG.info("Read time control ascii file and generate XML")
-        ppstime_con = PPSTimeControl(infile)
-        ppstime_con.sum_up_processing_times()
-        try:
-            ppstime_con.write_xml()
-        except Exception as e:  # TypeError as e:
-            LOG.warning('Not able to write time control xml file')
-            LOG.warning(e)
+    LOG.info("Time control ascii file: " + str(infile))
+    LOG.info("Read time control ascii file and generate XML")
+    ppstime_con = PPSTimeControl(infile)
+    ppstime_con.sum_up_processing_times()
+    try:
+        ppstime_con.write_xml()
+    except Exception as e:  # TypeError as e:
+        LOG.warning('Not able to write time control xml file')
+        LOG.warning(e)
 
     # There should always be only one xml file for each ascii file found above!
     xmlfile = infile.replace('.txt', '.xml')
     return filter4oldfiles([xmlfile], 90.)
 
 
-def get_time_control_ascii_filename_candidates(pps_control_path, scene):
-    """From directory path, sensor and platform name get possible time-control filenames."""
+def get_time_control_ascii_filename(scene, pps_control_path):
+    """From the scene object and a file path get the time-control-ascii-filename (with path)."""
+    infiles = get_time_control_ascii_filename_candidates(scene, pps_control_path)
+    LOG.info("Time control ascii file candidates: " + str(infiles))
+    if len(infiles) == 0:
+        raise FindTimeControlFileError("No time control ascii file candidate found!")
+    elif len(infiles) > 1:
+        msg = "More than one time control ascii file candidate found - unresolved ambiguity!"
+        raise FindTimeControlFileError(msg)
 
+    return infiles[0]
+
+
+def get_time_control_ascii_filename_candidates(scene, pps_control_path):
+    """From directory path, sensor and platform name get possible time-control filenames."""
     sensors = SENSOR_LIST.get(scene['platform_name'], scene['platform_name'])
     platform_id = SATELLITE_NAME.get(scene['platform_name'], scene['platform_name'])
     LOG.info("pps platform_id = %s", str(platform_id))
@@ -634,15 +650,25 @@ def get_time_control_ascii_filename_candidates(pps_control_path, scene):
             st_times.append(atime.strftime("%Y%m%dT%H%M"))
             atime = atime + timedelta(seconds=60)
 
+    # For VIIRS we often see a orbit number difference of 1:
+    norbit_candidates = [scene['orbit_number']]
+    for idx in [1, -1]:
+        norbit_candidates.append(int(scene['orbit_number']) + idx)
+
+    # PPSv2018 MODIS files have the orbit number set to "00000"!
+    if sensors in ['modis', ]:
+        norbit_candidates.append(0)
+
     infiles = []
-    for st_time in st_times:
-        txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
-                         str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
-                         '_' + '%.5d' % scene['orbit_number'] + '_' +
-                         st_time +
-                         '*.txt')
-        LOG.info("glob string = " + str(txt_time_file))
-        infiles = infiles + glob(txt_time_file)
+    for norbit in norbit_candidates:
+        for st_time in st_times:
+            txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
+                             str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
+                             '_' + '%.5d' % norbit + '_' +
+                             st_time +
+                             '*.txt')
+            LOG.info("glob string = " + str(txt_time_file))
+            infiles = infiles + glob(txt_time_file)
 
     return infiles
 
