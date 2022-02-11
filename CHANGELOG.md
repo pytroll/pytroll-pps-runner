@@ -1,3 +1,32 @@
+## Version <v0.2.4> (2022/02/11)
+
+
+### Issues Closed
+
+* [Issue 41](https://github.com/pytroll/pytroll-pps-runner/issues/41) - level1c runner read orbit_number from posttroll message ([PR 42](https://github.com/pytroll/pytroll-pps-runner/pull/42) by [@TAlonglong](https://github.com/TAlonglong))
+* [Issue 34](https://github.com/pytroll/pytroll-pps-runner/issues/34) - pps hook publisher need configuration option for nameservers ([PR 36](https://github.com/pytroll/pytroll-pps-runner/pull/36) by [@TAlonglong](https://github.com/TAlonglong))
+* [Issue 27](https://github.com/pytroll/pytroll-pps-runner/issues/27) - Add a general level1c runner to the repo ([PR 29](https://github.com/pytroll/pytroll-pps-runner/pull/29) by [@adybbroe](https://github.com/adybbroe))
+
+In this release 3 issues were closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 49](https://github.com/pytroll/pytroll-pps-runner/pull/49) - Bugfix xml timestat from ascii
+
+#### Features added
+
+* [PR 42](https://github.com/pytroll/pytroll-pps-runner/pull/42) - Use orbit number from message. ([41](https://github.com/pytroll/pytroll-pps-runner/issues/41))
+* [PR 36](https://github.com/pytroll/pytroll-pps-runner/pull/36) - Add nameservers as metadata options ([34](https://github.com/pytroll/pytroll-pps-runner/issues/34))
+* [PR 31](https://github.com/pytroll/pytroll-pps-runner/pull/31) - Add nameserver config option in pps2018-runner
+* [PR 30](https://github.com/pytroll/pytroll-pps-runner/pull/30) - Make publish topic for pps posttroll hook patternable
+* [PR 29](https://github.com/pytroll/pytroll-pps-runner/pull/29) - Add pps2021 support ([27](https://github.com/pytroll/pytroll-pps-runner/issues/27))
+* [PR 28](https://github.com/pytroll/pytroll-pps-runner/pull/28) - Add level1c runner
+
+In this release 7 pull requests were closed.
+
+
 ## Version <v0.2.1> (2021/05/07)
 
 ### Pull Requests Merged
