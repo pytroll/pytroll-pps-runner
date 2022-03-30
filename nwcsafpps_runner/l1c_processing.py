@@ -41,7 +41,7 @@ SUPPORTED_SERVICE_NAMES = ['seviri-l1c', 'viirs-l1c', 'avhrr-l1c', 'modis-l1c']
 SUPPORTED_SATELLITES = {'seviri-l1c':
                         ['meteosat-8', 'meteosat-9', 'meteosat-10', 'meteosat-11'],
                         'viirs-l1c': ['suomi-npp', 'noaa-20', 'noaa-21'],
-                        'avhrr-l1c': ['noaa-19', 'noaa-18'],
+                        'avhrr-l1c': ['noaa-19', 'noaa-18', 'metop-b', 'metop-a', 'metop-c'],
                         'modis-l1c': ['eos-terra', 'eos-aqua']
                         }
 
