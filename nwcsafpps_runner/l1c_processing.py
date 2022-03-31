@@ -41,7 +41,7 @@ SUPPORTED_SERVICE_NAMES = ['seviri-l1c', 'viirs-l1c', 'avhrr-l1c', 'modis-l1c']
 SUPPORTED_SATELLITES = {'seviri-l1c':
                         ['meteosat-8', 'meteosat-9', 'meteosat-10', 'meteosat-11'],
                         'viirs-l1c': ['suomi-npp', 'noaa-20', 'noaa-21'],
-                        'avhrr-l1c': ['noaa-19', 'noaa-18'],
+                        'avhrr-l1c': ['noaa-19', 'noaa-18', 'metop-b', 'metop-a', 'metop-c'],
                         'modis-l1c': ['eos-terra', 'eos-aqua']
                         }
 
@@ -123,18 +123,21 @@ class L1cProcessor(object):
         self.sensor = str(msg.data['sensor'])
         self.message_data = self._get_message_data(msg)
 
-        level1_dataset = self.message_data.get('dataset')
-
         if self.orbit_number_from_msg:
             if 'orbit_number' in self.message_data:
                 self.orbit_number = int(self.message_data.get('orbit_number'))
             else:
                 LOG.warning("You asked for orbit_number from the message, but its not there. Keep init orbit.")
 
-        if len(level1_dataset) < 1:
-            raise DatasetIsEmpty('No level-1 data in dataset!')
+        try:
+            level1_dataset = self.message_data.get('dataset')
+            self.get_level1_files_from_dataset(level1_dataset)
+        except KeyError:
+            # Just one file; e.g. NOAA-POES or Metop AVHRR level-1 data
+            self.level1_files = self.message_data.get('file')
 
-        self.get_level1_files_from_dataset(level1_dataset)
+        if len(self.level1_files) < 1:
+            raise DatasetIsEmpty('No level-1 data in dataset!')
 
         l1c_proc = LVL1C_PROCESSOR_MAPPING.get(self.service)
         if not l1c_proc:
@@ -192,8 +195,8 @@ def get_seviri_level1_files_from_dataset(level1_dataset):
 
 def check_message_okay(msg):
     """Check that the message is okay and has the necessary fields."""
-    if msg.type != 'dataset':
-        raise MessageTypeNotSupported("Not a dataset, don't do anything...")
+    if msg.type != 'dataset' and msg.type != 'file':
+        raise MessageTypeNotSupported("Not a dataset or a file, don't do anything...")
 
     if ('platform_name' not in msg.data):
         raise MessageContentMissing("Message is lacking crucial fields: platform_name")
