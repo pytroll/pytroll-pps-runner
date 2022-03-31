@@ -133,7 +133,7 @@ class L1cProcessor(object):
             level1_dataset = self.message_data.get('dataset')
             self.get_level1_files_from_dataset(level1_dataset)
         except KeyError:
-             # Just one file; e.g. NOAA-POES or Metop AVHRR level-1 data
+            # Just one file; e.g. NOAA-POES or Metop AVHRR level-1 data
             self.level1_files = self.message_data.get('file')
 
         if len(self.level1_files) < 1:
