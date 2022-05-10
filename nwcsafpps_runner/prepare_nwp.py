@@ -230,11 +230,11 @@ def check_nwp_content(gribfile):
     with pygrib.open(gribfile) as grbs:
         entries = []
         for grb in grbs:
-            entries.append("%s %s %s %s" % (grb['paramId'],
-                                            grb['name'],
-                                            grb['level'],
-                                            grb['typeOfLevel']))
+            entries.append("%s %s %s" % (grb['paramId'],
+                                         grb['level'],
+                                         grb['typeOfLevel']))
         entries.sort()
+/home/a001865/git/pps2021-playbook/files/pps_nwp_list_of_required_fields.txt
 
     try:
         with open(nwp_req_filename, 'r') as fpt:
@@ -245,11 +245,11 @@ def check_nwp_content(gribfile):
         LOG.warning("Cannot check if NWP files is ok!")
         return True
 
-    srplines = [ll.strip('M ').strip('\n')
-                for ll in lines if str(ll).startswith('M')]
+    srplines = [ll.strip('M ').strip('\n') for ll in lines if str(ll).startswith('M')]
+    srplines_no_names = [" ".join([line.split(" ")[ind] for ind in [0, -2, -1]]) for line in srplines]
 
     file_ok = True
-    for item in srplines:
+    for item in srplines_no_names:
         if item not in entries:
             LOG.warning("Mandatory field missing in NWP file: %s", str(item))
             file_ok = False
