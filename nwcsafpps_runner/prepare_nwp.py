@@ -182,6 +182,7 @@ def update_nwp(starttime, nlengths):
             raise IOError('Failed getting static land-sea mask and topography')
 
         tmp_result_filename = make_temp_filename()
+        tmp_result_filename_cropped = tmp_result_filename + '_cropped'
         cmd = ('cat ' + tmp_filename + " " +
                os.path.join(nhsf_path, nhsf_prefix + timeinfo) +
                " " + nwp_lsmz_filename + " > " + tmp_result_filename)
@@ -204,14 +205,16 @@ def update_nwp(starttime, nlengths):
         else:
             LOG.warning("tmp file %s gone! Cannot clean it...", tmp_filename)
 
-        if check_nwp_content(tmp_result_filename):
-            LOG.info('A check of the NWP file content has been attempted: %s',
+        if check_and_modify_nwp_content(tmp_result_filename, tmp_result_filename_cropped):
+            LOG.info('NWP filewith reduced contend has been created: %s',
                      result_file)
+            if os.path.exists(tmp_result_filename):
+                os.remove(tmp_result_filename)
             _start = time.time()
-            os.rename(tmp_result_filename, result_file)
+            os.rename(tmp_result_filename_cropped, result_file)
             _end = time.time()
             LOG.debug("Rename file %s to %s: This took %f seconds",
-                      tmp_result_filename, result_file, _end - _start)
+                      tmp_result_filename_cropped, result_file, _end - _start)
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
@@ -221,21 +224,11 @@ def update_nwp(starttime, nlengths):
     return
 
 
-def check_nwp_content(gribfile):
+def check_and_modify_nwp_content(gribfile, result_file):
     """Check the content of the NWP file. If all fields required for PPS is
     available, then return True
 
     """
-
-    with pygrib.open(gribfile) as grbs:
-        entries = []
-        for grb in grbs:
-            entries.append("%s %s %s" % (grb['paramId'],
-                                         grb['level'],
-                                         grb['typeOfLevel']))
-        entries.sort()
-/home/a001865/git/pps2021-playbook/files/pps_nwp_list_of_required_fields.txt
-
     try:
         with open(nwp_req_filename, 'r') as fpt:
             lines = fpt.readlines()
@@ -247,16 +240,32 @@ def check_nwp_content(gribfile):
 
     srplines = [ll.strip('M ').strip('\n') for ll in lines if str(ll).startswith('M')]
     srplines_no_names = [" ".join([line.split(" ")[ind] for ind in [0, -2, -1]]) for line in srplines]
-
+    srplines_all = [" ".join([line.strip('\n').split(" ")[ind] for ind in [1, -2, -1]]) for line in lines]
+    LOG.info("Check fields in file: %s",  gribfile)
+    LOG.info("Write fields specified in %s to file: %s",  nwp_req_filename, result_file)
+    grbout = open(result_file, 'wb')
+    with pygrib.open(gribfile) as grbs:
+        entries = []
+        for grb in grbs:
+            field_id = ("%s %s %s" % (grb['paramId'],
+                                      grb['level'],
+                                      grb['typeOfLevel']))
+            if field_id in srplines_all:
+                # Keep fields from  nwp_req_filename
+                entries.append(field_id)
+                msg = grb.tostring()
+                grbout.write(msg)
+    grbout.close()
+    entries.sort()
     file_ok = True
     for item in srplines_no_names:
         if item not in entries:
             LOG.warning("Mandatory field missing in NWP file: %s", str(item))
             file_ok = False
+            os.remove(result_file)
 
     if file_ok:
-        LOG.info("NWP file has all required fields for PPS: %s", gribfile)
-
+        LOG.info("NWP file has all required fields for PPS: %s", result_file)
     return file_ok
 
 
@@ -281,4 +290,4 @@ if __name__ == "__main__":
 
     from datetime import timedelta
     now = datetime.utcnow()
-    update_nwp(now - timedelta(days=1), [9])
+    update_nwp(now - timedelta(days=2), [9])
