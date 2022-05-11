@@ -262,7 +262,8 @@ def check_and_modify_nwp_content(gribfile, result_file):
         if item not in entries:
             LOG.warning("Mandatory field missing in NWP file: %s", str(item))
             file_ok = False
-            os.remove(result_file)
+            if os.path.exists(result_file):
+                os.remove(result_file)
 
     if file_ok:
         LOG.info("NWP file has all required fields for PPS: %s", result_file)
