@@ -656,8 +656,8 @@ def get_time_control_ascii_filename_candidates(scene, pps_control_path):
         norbit_candidates.append(int(scene['orbit_number']) + idx)
 
     # PPSv2018 MODIS files have the orbit number set to "00000"!
-    if sensors in ['modis', ]:
-        norbit_candidates.append(0)
+    # Level1c4pps files have the orbit number configurable with default "00000"!
+    norbit_candidates.append(0)
 
     infiles = []
     for norbit in norbit_candidates:

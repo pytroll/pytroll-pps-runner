@@ -113,15 +113,8 @@ class TestTimeControlFiles(unittest.TestCase):
         self.filename1 = 'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt'
         self.filename2 = 'S_NWC_timectrl_metopb_46878_20210930T0949289Z_20210930T1001459Z.txt'
         self.filename3 = 'S_NWC_timectrl_metopb_46878_20210930T0945289Z_20210930T1001459Z.txt'
+        self.filename4_zero = 'S_NWC_timectrl_metopb_00000_20210930T0945289Z_20210930T1001459Z.txt'
         self.filename_timeoff = 'S_NWC_timectrl_metopb_46878_20210930T0950000Z_20210930T1001459Z.txt'
-
-        self.modis_scene = {'platform_name': 'EOS-Aqua', 'orbit_number': 5161,
-                            'satday': '20220209', 'sathour': '2210',
-                            'starttime': datetime(2022, 2, 9, 22, 10, 11),
-                            'endtime': datetime(2022, 2, 9, 22, 14, 41),
-                            'sensor': 'modis',
-                            'file4pps': '/data/eos/lvl1/MYD021km_A22040_221011_2022040221451.hdf'}
-        self.filename1_modis = 'S_NWC_timectrl_eos2_00000_20220209T2210110Z_20220209T2212284Z.txt'
 
     def test_get_time_control_ascii_filename_ok(self):
 
@@ -197,19 +190,21 @@ class TestTimeControlFiles(unittest.TestCase):
         self.assertTrue(os.path.basename(ascii_files[0]) ==
                         'S_NWC_timectrl_metopb_46878_20210930T0946289Z_20210930T1001458Z.txt')
 
-    def test_get_time_control_ascii_filename_candidates_modis_zero_orbit(self):
+    def test_get_time_control_ascii_filename_candidates_zero_orbit(self):
 
         with tempfile.TemporaryDirectory() as tmpdirname:
 
-            self.file1 = os.path.join(tmpdirname, self.filename1_modis)
+            self.file1 = os.path.join(tmpdirname, self.filename4_zero)
             with open(self.file1, 'w') as _:
                 pass
+            self.file2 = os.path.join(tmpdirname, self.filename3)
+            with open(self.file2, 'w') as _:
+                pass
+            ascii_files = get_time_control_ascii_filename_candidates(self.testscene, tmpdirname)
 
-            ascii_files = get_time_control_ascii_filename_candidates(self.modis_scene, tmpdirname)
-
-        self.assertEqual(len(ascii_files), 1)
-        self.assertTrue(os.path.basename(ascii_files[0]) ==
-                        'S_NWC_timectrl_eos2_00000_20220209T2210110Z_20220209T2212284Z.txt')
+        self.assertEqual(len(ascii_files), 2)
+        self.assertTrue(os.path.basename(sorted(ascii_files)[0]) ==
+                        'S_NWC_timectrl_metopb_00000_20210930T0945289Z_20210930T1001459Z.txt')
 
 
 class TestProductStatisticsFiles(unittest.TestCase):
