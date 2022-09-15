@@ -254,12 +254,8 @@ class TestL1cProcessing(unittest.TestCase):
         cpu_count.return_value = 2
         config.return_value = self.config_complete
 
-        with patch('nwcsafpps_runner.l1c_processing.ThreadPool') as mock:
-            mock.return_value = None
-            with tempfile.NamedTemporaryFile() as myconfig_file:
-                l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
-
-        mock.assert_called_once()
+        with tempfile.NamedTemporaryFile() as myconfig_file:
+            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')
@@ -270,7 +266,6 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
         self.assertEqual(l1c_proc.message_data, None)
-        self.assertEqual(l1c_proc.pool, None)
         self.assertEqual(l1c_proc.nameservers, None)
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
@@ -280,12 +275,8 @@ class TestL1cProcessing(unittest.TestCase):
         cpu_count.return_value = 1
         config.return_value = self.config_minimum
 
-        with patch('nwcsafpps_runner.l1c_processing.ThreadPool') as mock:
-            mock.return_value = None
-            with tempfile.NamedTemporaryFile() as myconfig_file:
-                l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
-
-        mock.assert_called_once_with(1)
+        with tempfile.NamedTemporaryFile() as myconfig_file:
+            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')
@@ -296,7 +287,6 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
         self.assertEqual(l1c_proc.message_data, None)
-        self.assertEqual(l1c_proc.pool, None)
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.l1c_processing.cpu_count')
@@ -305,10 +295,8 @@ class TestL1cProcessing(unittest.TestCase):
         cpu_count.return_value = 1
         config.return_value = self.config_viirs_ok
 
-        with patch('nwcsafpps_runner.l1c_processing.ThreadPool') as mock:
-            mock.return_value = None
-            with tempfile.NamedTemporaryFile() as myconfig_file:
-                l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+        with tempfile.NamedTemporaryFile() as myconfig_file:
+            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
 
         level1_dataset = TEST_VIIRS_MSG_DATA.get('dataset')
 
@@ -328,10 +316,9 @@ class TestL1cProcessing(unittest.TestCase):
 
         input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_MSG)
 
-        with patch('nwcsafpps_runner.l1c_processing.ThreadPool'):
-            with tempfile.NamedTemporaryFile() as myconfig_file:
-                l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
-                l1c_proc.run(input_msg)
+        with tempfile.NamedTemporaryFile() as myconfig_file:
+            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+            l1c_proc.run(input_msg)
 
         expected_orbit_number = TEST_VIIRS_MSG_DATA.get('orbit_number')
         self.assertEqual(l1c_proc.orbit_number, expected_orbit_number)
@@ -345,14 +332,13 @@ class TestL1cProcessing(unittest.TestCase):
         input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_NO_ORBIT_MSG)
 
         with self.assertLogs('nwcsafpps_runner.l1c_processing', level='INFO') as cm:
-            with patch('nwcsafpps_runner.l1c_processing.ThreadPool'):
-                with tempfile.NamedTemporaryFile() as myconfig_file:
-                    l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
-                    l1c_proc.run(input_msg)
-                expected_orbit_number = 99999
-                self.assertEqual(l1c_proc.orbit_number, expected_orbit_number)
+            with tempfile.NamedTemporaryFile() as myconfig_file:
+                l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+                l1c_proc.run(input_msg)
+            expected_orbit_number = 99999
+            self.assertEqual(l1c_proc.orbit_number, expected_orbit_number)
 
-        self.assertEqual(cm.output[2], 'WARNING:nwcsafpps_runner.l1c_processing:You asked for orbit_number '
+        self.assertEqual(cm.output[1], 'WARNING:nwcsafpps_runner.l1c_processing:You asked for orbit_number '
                                        'from the message, but its not there. Keep init orbit.')
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
@@ -362,12 +348,8 @@ class TestL1cProcessing(unittest.TestCase):
         cpu_count.return_value = 2
         config.return_value = self.config_complete_nameservers
 
-        with patch('nwcsafpps_runner.l1c_processing.ThreadPool') as mock:
-            mock.return_value = None
-            with tempfile.NamedTemporaryFile() as myconfig_file:
-                l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
-
-        mock.assert_called_once()
+        with tempfile.NamedTemporaryFile() as myconfig_file:
+            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')
@@ -378,5 +360,4 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
         self.assertEqual(l1c_proc.message_data, None)
-        self.assertEqual(l1c_proc.pool, None)
         self.assertEqual(l1c_proc.nameservers, ['test.nameserver'])
