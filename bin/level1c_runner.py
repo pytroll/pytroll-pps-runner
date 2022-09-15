@@ -29,7 +29,6 @@ import signal
 
 from posttroll.subscriber import Subscribe
 from posttroll.publisher import Publish
-
 from nwcsafpps_runner.logger import setup_logging
 from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
 from nwcsafpps_runner.l1c_processing import L1cProcessor
@@ -53,8 +52,10 @@ def _run_subscribe_publisher(l1c_proc, service_name, subscriber, publisher):
 
     while LOOP:
         for msg in subscriber.recv():
-
             l1c_proc.initialize(service_name)
+            LOG.debug(
+                "Received message data = %s", l1c_proc.message_data)
+
             if not msg:
                 continue
             try:
@@ -62,19 +63,15 @@ def _run_subscribe_publisher(l1c_proc, service_name, subscriber, publisher):
             except MessageTypeNotSupported as err:
                 LOG.warning(err)
                 continue
-
-            LOG.debug(
-                "Received message data = %s", str(l1c_proc.message_data))
-            LOG.info("Get the results from the multiptocessing pool-run")
-
-            l1c_proc.l1cfile = l1c_proc.l1c_result.get()
-
-            pub_msg = prepare_l1c_message(l1c_proc.l1cfile,
-                                          l1c_proc.message_data,
-                                          orbit=l1c_proc.orbit_number)
-            publish_l1c(publisher, pub_msg,
-                        publish_topic=l1c_proc.publish_topic)
-            LOG.info("L1C processing has completed.")
+            if l1c_proc.l1cfile is not None:
+                pub_msg = prepare_l1c_message(l1c_proc.l1cfile,
+                                              l1c_proc.message_data,
+                                              orbit=l1c_proc.orbit_number)
+                publish_l1c(publisher, pub_msg,
+                            publish_topic=l1c_proc.publish_topic)
+                LOG.info("L1C processing has completed.")
+            else:
+                LOG.debug("L1C processing has failed.")
 
 
 def l1c_runner(config_filename, service_name):
