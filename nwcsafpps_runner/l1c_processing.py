@@ -108,7 +108,7 @@ class L1cProcessor(object):
         self.level1_files = []
         self.service = service
 
-    def run_inner(self,  l1c_proc_func, result_dict):
+    def run_inner(self, l1c_proc_func, result_dict):
         """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
         result_dict["l1cfile"] = l1c_proc_func(self.level1_files,
                                                self.result_home,
