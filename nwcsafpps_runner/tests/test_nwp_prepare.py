@@ -33,7 +33,7 @@ import yaml
 import tempfile
 import os
 import logging
-import pygrib 
+import pygrib
 LOG = logging.getLogger(__name__)
 logging.basicConfig(
     format='%(levelname)s |%(asctime)s|: %(message)s',
