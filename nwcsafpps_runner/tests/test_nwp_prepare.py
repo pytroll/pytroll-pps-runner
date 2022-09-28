@@ -72,7 +72,7 @@ class NWPprepareRunner(unittest.TestCase):
         }
         self.OPTIONS_M = dict(self.OPTIONS)
         self.OPTIONS_M["pps_nwp_requirements"] = self.requirement_name_m
-        self.OPTIONS_M["nwp_output_prefix"] =  "PPS_ECMWF_MANDATORY_"
+        self.OPTIONS_M["nwp_output_prefix"] = "PPS_ECMWF_MANDATORY_"
         self.outfile = my_tmp_dir + "/PPS_ECMWF_202205100000+009H00M"
         fhand = open(self.OPTIONS["nwp_static_surface"], 'a')
         fhand.close()
@@ -100,7 +100,6 @@ class NWPprepareRunner(unittest.TestCase):
         nwc_prep.update_nwp(date - timedelta(days=2), [9])
         self.assertTrue(os.path.exists(self.outfile))
 
-
     @patch('nwcsafpps_runner.config.get_config')
     def test_update_nwp_missing_fields(self, mock_get_config):
         """Test that no file without mandatory data is created."""
@@ -114,7 +113,8 @@ class NWPprepareRunner(unittest.TestCase):
         os.remove(self.requirement_name_m)
 
     def tearDown(self):
-        for temp_file in [self.OPTIONS["nwp_static_surface"], self.requirement_name_m, self.requirement_name, self.outfile]:
+        for temp_file in [self.OPTIONS["nwp_static_surface"], self.requirement_name_m,
+                          self.requirement_name, self.outfile]:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
 
