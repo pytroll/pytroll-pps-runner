@@ -24,13 +24,9 @@
 """Unit testing the nwp_prepare runner code
 """
 
-import pytest
 from unittest.mock import patch
 import unittest
-from posttroll.message import Message
 from datetime import datetime
-import yaml
-import tempfile
 import os
 import logging
 import pygrib
@@ -40,6 +36,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     # datefmt='%Y-%m-%d %H:%M:%S')
     datefmt='%H:%M:%S')
+
 
 class NWPprepareRunner(unittest.TestCase):
     """Test the nwp prepare runer."""
@@ -51,8 +48,8 @@ class NWPprepareRunner(unittest.TestCase):
             pass
         else:
             os.mkdir(my_tmp_dir)
-        default_config_name = my_tmp_dir + '/pps2018_config.yaml'
-        req_file = open(default_config_name, 'w')
+        self.default_config_name = my_tmp_dir + '/pps2018_config.yaml'
+        req_file = open(self.default_config_name, 'w')
         req_file.write("M 235 Skin temperature 0 surface\n" +
                        "O 129 Geopotential 350 isobaricInhPa\n")
         req_file.close()
@@ -74,17 +71,21 @@ class NWPprepareRunner(unittest.TestCase):
 
     @patch('nwcsafpps_runner.config.get_config')
     def test_update_nwp(self, mock_get_config):
+        """Create config options and file."""
         mock_get_config.return_value = self.OPTIONS
-        #patch('nwcsafpps_runner.prepare_nwp.OPTIONS',)
         from nwcsafpps_runner.prepare_nwp import update_nwp
         from datetime import timedelta
         date = datetime(year=2022, month=5, day=10, hour=0)
 
         update_nwp(date - timedelta(days=2), [9])
-        self.assertEqual(1, 1)
+        self.assertTrue(os.path.exists("temp_test_dir/PPS_ECMWF202205100000+009H00M"))
+        os.remove("temp_test_dir/PPS_ECMWF202205100000+009H00M")
+        os.remove(self.default_config_name)
+        os.remove(self.OPTIONS["nwp_static_surface"])
+
 
 def suite():
-    """Create the test suite for test_seviri2pps."""
+    """Create the test suite for test_nwp_prepare."""
     loader = unittest.TestLoader()
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(NWPprepareRunner))
