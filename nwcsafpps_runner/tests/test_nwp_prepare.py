@@ -21,8 +21,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Unit testing the nwp_prepare runner code
-"""
+"""Unit testing the nwp_prepare runner code."""
 
 from unittest.mock import patch
 import unittest
@@ -55,7 +54,7 @@ class NWPprepareRunner(unittest.TestCase):
         req_file.close()
         self.OPTIONS = {
             "pps_nwp_requirements": my_tmp_dir + '/pps2018_config.yaml',
-            "nwp_outdir":  my_tmp_dir,
+            "nwp_outdir": my_tmp_dir,
             "nhsp_path": "nwcsafpps_runner/tests/files/",
             "nhsf_path": "nwcsafpps_runner/tests/files/",
             "nhsp_prefix": "LL02_NHSP_",

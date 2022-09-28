@@ -138,7 +138,7 @@ def update_nwp(starttime, nlengths):
                 res['forecast_time'] = res['forecast_time'].replace(year=datetime.utcnow().year)
             forecast_time = res['forecast_time']
             forecast_step = forecast_time - analysis_time
-            forecast_step = "{:03d}H{:02d}M".format(forecast_step.days*24 + forecast_step.seconds/3600, 0)
+            forecast_step = "{:03d}H{:02d}M".format(forecast_step.days * 24 + forecast_step.seconds / 3600, 0)
             timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime(
                 "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
         else:
@@ -287,7 +287,7 @@ def check_and_reduce_nwp_content(gribfile, result_file):
     if mandatory_fields is None:
         return None
 
-    LOG.info("Write fields specified in %s to file: %s",  nwp_req_filename, result_file)
+    LOG.info("Write fields specified in %s to file: %s", nwp_req_filename, result_file)
     grbout = open(result_file, 'wb')
     with pygrib.open(gribfile) as grbs:
         grb_entries = []
@@ -302,7 +302,7 @@ def check_and_reduce_nwp_content(gribfile, result_file):
                 grbout.write(msg)
     grbout.close()
 
-    LOG.info("Check fields in file: %s",  result_file)
+    LOG.info("Check fields in file: %s", result_file)
     return check_nwp_requirement(grb_entries, mandatory_fields, result_file)
 
 
