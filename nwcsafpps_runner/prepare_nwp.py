@@ -74,7 +74,17 @@ def logreader(stream, log_func):
     stream.close()
 
 
+def remove_file(filename):
+    """Remove a temporary file."""
+    if os.path.exists(filename):
+        LOG.warning("Removing tmp file: %s.", filename)
+        os.remove(filename)
+    else:
+        LOG.warning("tmp file %s gone! Cannot remove it...", filename)
+
+
 def make_temp_filename(*args, **kwargs):
+    """Make a temporary file."""
     tmp_filename_handle, tmp_filename = tempfile.mkstemp(*args, **kwargs)
     os.close(tmp_filename_handle)
     return tmp_filename
@@ -181,8 +191,8 @@ def update_nwp(starttime, nlengths):
                       "topography available. Can't prepare NWP data")
             raise IOError('Failed getting static land-sea mask and topography')
 
-        tmp_result_filename = make_temp_filename()
-        tmp_result_filename_cropped = tmp_result_filename + '_cropped'
+        tmp_result_filename = result_file + "_tmp"
+        tmp_result_filename_reduced = tmp_result_filename + '_reduced'
         cmd = ('cat ' + tmp_filename + " " +
                os.path.join(nhsf_path, nhsf_prefix + timeinfo) +
                " " + nwp_lsmz_filename + " > " + tmp_result_filename)
@@ -195,40 +205,33 @@ def update_nwp(starttime, nlengths):
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
             LOG.warning("Failed generating nwp file %s ...", result_file)
-            if os.path.exists(tmp_result_filename):
-                os.remove(tmp_result_filename)
+            remove_file(tmp_result_filename)
             raise IOError("Failed adding topography and land-sea " +
                           "mask data to grib file")
+        remove_file(tmp_filename)
 
-        if os.path.exists(tmp_filename):
-            os.remove(tmp_filename)
-        else:
-            LOG.warning("tmp file %s gone! Cannot clean it...", tmp_filename)
-
-        nwp_file_ok = check_and_reduce_nwp_content(tmp_result_filename, tmp_result_filename_cropped)
+        nwp_file_ok = check_and_reduce_nwp_content(tmp_result_filename, tmp_result_filename_reduced)
 
         if nwp_file_ok is None:
             LOG.info('NWP file content cloud not be checked, use anyway.')
-            LOG.debug("Rename file %s to %s: This took %f seconds",
-                      tmp_result_filename, result_file, _end - _start)
-            os.rename(tmp_result_filename, result_file)
-        elif nwp_file_ok:
-            if os.path.exists(tmp_result_filename):
-                os.remove(tmp_result_filename)
             _start = time.time()
-            os.rename(tmp_result_filename_cropped, result_file)
+            os.rename(tmp_result_filename, result_file)
             _end = time.time()
             LOG.debug("Rename file %s to %s: This took %f seconds",
-                      tmp_result_filename_cropped, result_file, _end - _start)
+                      tmp_result_filename, result_file, _end - _start)
+        elif nwp_file_ok:
+            remove_file(tmp_result_filename)
+            _start = time.time()
+            os.rename(tmp_result_filename_reduced, result_file)
+            _end = time.time()
+            LOG.debug("Rename file %s to %s: This took %f seconds",
+                      tmp_result_filename_reduced, result_file, _end - _start)
             LOG.info('NWP file with reduced content has been created: %s',
                      result_file)
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
-            if os.path.exists(tmp_result_filename):
-                os.remove(tmp_result_filename)
-            if os.path.exists(tmp_result_filename):
-                os.remove(tmp_result_filename)
+            remove_file(tmp_result_filename)
     return
 
 
@@ -276,7 +279,7 @@ def check_nwp_requirement(grb_entries, mandatory_fields, result_file):
 
 
 def check_and_reduce_nwp_content(gribfile, result_file):
-    """Check the content of the NWP file. Create a cropped file.
+    """Check the content of the NWP file. Create a reduced file.
 
     """
     LOG.info("Get nwp requirements.")
