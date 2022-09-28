@@ -28,7 +28,6 @@ import unittest
 from datetime import datetime
 import os
 import logging
-import pygrib
 LOG = logging.getLogger(__name__)
 logging.basicConfig(
     format='%(levelname)s |%(asctime)s|: %(message)s',
