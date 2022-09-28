@@ -205,9 +205,14 @@ def update_nwp(starttime, nlengths):
         else:
             LOG.warning("tmp file %s gone! Cannot clean it...", tmp_filename)
 
-        if check_and_modify_nwp_content(tmp_result_filename, tmp_result_filename_cropped):
-            LOG.info('NWP filewith reduced contend has been created: %s',
-                     result_file)
+        nwp_file_ok = check_and_reduce_nwp_content(tmp_result_filename, tmp_result_filename_cropped)
+
+        if nwp_file_ok is None:
+            LOG.info('NWP file content cloud not be checked, use anyway.')
+            LOG.debug("Rename file %s to %s: This took %f seconds",
+                      tmp_result_filename, result_file, _end - _start)
+            os.rename(tmp_result_filename, result_file)
+        elif nwp_file_ok:
             if os.path.exists(tmp_result_filename):
                 os.remove(tmp_result_filename)
             _start = time.time()
@@ -215,18 +220,33 @@ def update_nwp(starttime, nlengths):
             _end = time.time()
             LOG.debug("Rename file %s to %s: This took %f seconds",
                       tmp_result_filename_cropped, result_file, _end - _start)
+            LOG.info('NWP file with reduced content has been created: %s',
+                     result_file)
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
             if os.path.exists(tmp_result_filename):
                 os.remove(tmp_result_filename)
-
+            if os.path.exists(tmp_result_filename):
+                os.remove(tmp_result_filename)
     return
 
 
-def check_and_modify_nwp_content(gribfile, result_file):
-    """Check the content of the NWP file. If all fields required for PPS is
-    available, then return True
+def get_mandatory_and_all_fields(lines):
+    """Get info requirement file. Mandatory lines starts with M.
+
+    """
+    # M 129 Geopotential 100 isobaricInhPa
+    # O 129 Geopotential 350 isobaricInhPa
+    # Return 129 100 isobaricInhPa
+    mandatory_lines = [ll.strip('M ').strip('\n') for ll in lines if str(ll).startswith('M')]
+    mandatory_fields = [" ".join([line.split(" ")[ind] for ind in [0, -2, -1]]) for line in mandatory_lines]
+    all_fields = [" ".join([line.strip('\n').split(" ")[ind] for ind in [1, -2, -1]]) for line in lines]
+    return mandatory_fields, all_fields
+
+
+def get_nwp_requirement():
+    """Read the new requirement file. Return list with mandatory and wanted fields.
 
     """
     try:
@@ -236,38 +256,51 @@ def check_and_modify_nwp_content(gribfile, result_file):
         LOG.exception(
             "Failed reading nwp-requirements file: %s", nwp_req_filename)
         LOG.warning("Cannot check if NWP files is ok!")
-        return True
+        return None, None
+    return get_mandatory_and_all_fields(lines)
 
-    srplines = [ll.strip('M ').strip('\n') for ll in lines if str(ll).startswith('M')]
-    srplines_no_names = [" ".join([line.split(" ")[ind] for ind in [0, -2, -1]]) for line in srplines]
-    srplines_all = [" ".join([line.strip('\n').split(" ")[ind] for ind in [1, -2, -1]]) for line in lines]
-    LOG.info("Check fields in file: %s",  gribfile)
+
+def check_nwp_requirement(grb_entries, mandatory_fields, result_file):
+    """Check nwp file all mandatory enteries should be present.
+
+    """
+    grb_entries.sort()
+    for item in mandatory_fields:
+        if item not in grb_entries:
+            LOG.warning("Mandatory field missing in NWP file: %s", str(item))
+            if os.path.exists(result_file):
+                os.remove(result_file)
+            return False
+    LOG.info("NWP file has all required fields for PPS: %s", result_file)
+    return True
+
+
+def check_and_reduce_nwp_content(gribfile, result_file):
+    """Check the content of the NWP file. Create a cropped file.
+
+    """
+    LOG.info("Get nwp requirements.")
+    mandatory_fields, all_fields = get_nwp_requirement()
+    if mandatory_fields is None:
+        return None
+
     LOG.info("Write fields specified in %s to file: %s",  nwp_req_filename, result_file)
     grbout = open(result_file, 'wb')
     with pygrib.open(gribfile) as grbs:
-        entries = []
+        grb_entries = []
         for grb in grbs:
             field_id = ("%s %s %s" % (grb['paramId'],
                                       grb['level'],
                                       grb['typeOfLevel']))
-            if field_id in srplines_all:
-                # Keep fields from  nwp_req_filename
-                entries.append(field_id)
+            if field_id in all_fields:
+                # Keep fields from nwp_req_filename
+                grb_entries.append(field_id)
                 msg = grb.tostring()
                 grbout.write(msg)
     grbout.close()
-    entries.sort()
-    file_ok = True
-    for item in srplines_no_names:
-        if item not in entries:
-            LOG.warning("Mandatory field missing in NWP file: %s", str(item))
-            file_ok = False
-            if os.path.exists(result_file):
-                os.remove(result_file)
 
-    if file_ok:
-        LOG.info("NWP file has all required fields for PPS: %s", result_file)
-    return file_ok
+    LOG.info("Check fields in file: %s",  result_file)
+    return check_nwp_requirement(grb_entries, mandatory_fields, result_file)
 
 
 if __name__ == "__main__":
