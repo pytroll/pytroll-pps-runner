@@ -101,6 +101,7 @@ def update_nwp(starttime, nlengths):
     LOG.info("Prepare_nwp config file = %s", str(CONFIG_FILE))
     LOG.info("Path to nhsf files: %s", str(nhsf_path))
     LOG.info("Path to nhsp files: %s", str(nhsp_path))
+    LOG.info("nwp_output_prefix %s", OPTIONS["nwp_output_prefix"])
 
     # tempfile.tempdir = nwp_outdir
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
@@ -213,7 +214,7 @@ def update_nwp(starttime, nlengths):
         nwp_file_ok = check_and_reduce_nwp_content(tmp_result_filename, tmp_result_filename_reduced)
 
         if nwp_file_ok is None:
-            LOG.info('NWP file content cloud not be checked, use anyway.')
+            LOG.info('NWP file content could not be checked, use anyway.')
             _start = time.time()
             os.rename(tmp_result_filename, result_file)
             _end = time.time()
@@ -255,7 +256,7 @@ def get_nwp_requirement():
     try:
         with open(nwp_req_filename, 'r') as fpt:
             lines = fpt.readlines()
-    except IOError:
+    except (IOError, FileNotFoundError):
         LOG.exception(
             "Failed reading nwp-requirements file: %s", nwp_req_filename)
         LOG.warning("Cannot check if NWP files is ok!")
