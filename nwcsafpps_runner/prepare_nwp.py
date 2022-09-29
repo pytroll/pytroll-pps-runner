@@ -103,7 +103,6 @@ def update_nwp(starttime, nlengths):
     LOG.info("Path to nhsp files: %s", str(nhsp_path))
     LOG.info("nwp_output_prefix %s", OPTIONS["nwp_output_prefix"])
 
-    # tempfile.tempdir = nwp_outdir
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
         LOG.info("No input files! dir = %s", str(nhsf_path))

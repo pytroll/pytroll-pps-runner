@@ -112,7 +112,18 @@ class NWPprepareRunner(unittest.TestCase):
         os.remove(self.OPTIONS["nwp_static_surface"])
         os.remove(self.requirement_name_m)
 
+    @patch('nwcsafpps_runner.config.get_config')
+    def test_remove_filename(self, mock_get_config):
+        """Test the function for removing files."""
+        from nwcsafpps_runner.prepare_nwp import remove_file
+        mock_get_config.return_value = self.OPTIONS
+        remove_file(self.OPTIONS["nwp_static_surface"])
+        self.assertFalse(os.path.exists(self.OPTIONS["nwp_static_surface"]))
+        # Should be able to run on already removed file without raising exception
+        remove_file(self.OPTIONS["nwp_static_surface"])
+
     def tearDown(self):
+        """Remove files after testing."""
         for temp_file in [self.OPTIONS["nwp_static_surface"], self.requirement_name_m,
                           self.requirement_name, self.outfile]:
             if os.path.exists(temp_file):
