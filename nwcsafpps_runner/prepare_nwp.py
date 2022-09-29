@@ -238,10 +238,13 @@ def update_nwp(starttime, nlengths):
 def get_mandatory_and_all_fields(lines):
     """Get info requirement file. Mandatory lines starts with M.
 
+    M 129 Geopotential 100 isobaricInhPa
+    O 129 Geopotential 350 isobaricInhPa
+
+    Returns:
+       ["129 100 isobaricInhPa"],  ["129 100 isobaricInhPa", "129 350 isobaricInhPa"]
+
     """
-    # M 129 Geopotential 100 isobaricInhPa
-    # O 129 Geopotential 350 isobaricInhPa
-    # Return 129 100 isobaricInhPa
     mandatory_lines = [ll.strip('M ').strip('\n') for ll in lines if str(ll).startswith('M')]
     mandatory_fields = [" ".join([line.split(" ")[ind] for ind in [0, -2, -1]]) for line in mandatory_lines]
     all_fields = [" ".join([line.strip('\n').split(" ")[ind] for ind in [1, -2, -1]]) for line in lines]
