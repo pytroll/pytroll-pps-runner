@@ -80,6 +80,7 @@ class L1cProcessor(object):
 
         self.initialize(service_name)
         self._l1c_processor_call_kwargs = options.get('l1cprocess_call_arguments', {})
+        self.time_limit_seconds = options.get('time_limit_seconds', 60)
 
         self.subscribe_topics = options['message_types']
         LOG.debug("Listens for messages of type: %s", str(self.subscribe_topics))
@@ -116,7 +117,6 @@ class L1cProcessor(object):
 
     def run(self, msg):
         """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
-
         check_message_okay(msg)
 
         self.platform_name = str(msg.data['platform_name'])
@@ -153,7 +153,7 @@ class L1cProcessor(object):
             target=self.run_inner,
             args=(l1c_proc, result_dict))
         process1.start()
-        process1.join(60)  # Normally takes 3-8s, do not wait longer than 60.
+        process1.join(self.time_limit_seconds)  # Normally takes 3-8s for VIIRS
         self.l1cfile = result_dict.get("l1cfile", None)
         try:
             process1.close()

@@ -30,6 +30,7 @@ from posttroll.message import Message
 from datetime import datetime
 import yaml
 import tempfile
+import time
 
 from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
 from nwcsafpps_runner.l1c_processing import check_message_okay
@@ -76,6 +77,7 @@ viirs-l1c:
   publish_topic: [/segment/SDR/1C]
   instrument: 'viirs'
   num_of_cpus: 2
+  time_limit_seconds: 1
 
   output_dir: /san1/polar_in/lvl1c
   orbit_number_from_msg: True
@@ -122,6 +124,11 @@ class MyFakePublisher(object):
 
     def send(self, message):
         pass
+
+
+def my_fake_l1proc_function(dummy1, dummy2, dummy3):
+    """Create fake function that takes some timeto execute."""
+    time.sleep(65)
 
 
 def create_config_from_yaml(yaml_content_str):
@@ -322,6 +329,18 @@ class TestL1cProcessing(unittest.TestCase):
 
         expected_orbit_number = TEST_VIIRS_MSG_DATA.get('orbit_number')
         self.assertEqual(l1c_proc.orbit_number, expected_orbit_number)
+
+    @patch('nwcsafpps_runner.config.load_config_from_file')
+    @patch.dict('nwcsafpps_runner.l1c_processing.LVL1C_PROCESSOR_MAPPING',  {'viirs-l1c': my_fake_l1proc_function})
+    def test_process_timeout(self, config):
+        """Make sure hanged processes are terminated."""
+        start_time = time.time()
+        config.return_value = self.config_viirs_orbit_number_from_msg_ok
+        input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_MSG)
+        with tempfile.NamedTemporaryFile() as myconfig_file:
+            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+            l1c_proc.run(input_msg)
+        self.assertTrue(time.time() - start_time < 2)
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.l1c_processing.cpu_count')
