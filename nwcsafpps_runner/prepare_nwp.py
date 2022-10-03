@@ -74,7 +74,17 @@ def logreader(stream, log_func):
     stream.close()
 
 
+def remove_file(filename):
+    """Remove a temporary file."""
+    if os.path.exists(filename):
+        LOG.warning("Removing tmp file: %s.", filename)
+        os.remove(filename)
+    else:
+        LOG.warning("tmp file %s gone! Cannot remove it...", filename)
+
+
 def make_temp_filename(*args, **kwargs):
+    """Make a temporary file."""
     tmp_filename_handle, tmp_filename = tempfile.mkstemp(*args, **kwargs)
     os.close(tmp_filename_handle)
     return tmp_filename
@@ -91,8 +101,8 @@ def update_nwp(starttime, nlengths):
     LOG.info("Prepare_nwp config file = %s", str(CONFIG_FILE))
     LOG.info("Path to nhsf files: %s", str(nhsf_path))
     LOG.info("Path to nhsp files: %s", str(nhsp_path))
+    LOG.info("nwp_output_prefix %s", OPTIONS["nwp_output_prefix"])
 
-    tempfile.tempdir = nwp_outdir
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
         LOG.info("No input files! dir = %s", str(nhsf_path))
@@ -128,7 +138,7 @@ def update_nwp(starttime, nlengths):
                 res['forecast_time'] = res['forecast_time'].replace(year=datetime.utcnow().year)
             forecast_time = res['forecast_time']
             forecast_step = forecast_time - analysis_time
-            forecast_step = "{:03d}H{:02d}M".format(forecast_step.days*24 + forecast_step.seconds/3600, 0)
+            forecast_step = "{:03d}H{:02d}M".format(forecast_step.days * 24 + forecast_step.seconds / 3600, 0)
             timeinfo = "{:s}{:s}{:s}".format(analysis_time.strftime(
                 "%m%d%H%M"), forecast_time.strftime("%m%d%H%M"), res['end'])
         else:
@@ -181,7 +191,8 @@ def update_nwp(starttime, nlengths):
                       "topography available. Can't prepare NWP data")
             raise IOError('Failed getting static land-sea mask and topography')
 
-        tmp_result_filename = make_temp_filename()
+        tmp_result_filename = result_file + "_tmp"
+        tmp_result_filename_reduced = tmp_result_filename + '_reduced'
         cmd = ('cat ' + tmp_filename + " " +
                os.path.join(nhsf_path, nhsf_prefix + timeinfo) +
                " " + nwp_lsmz_filename + " > " + tmp_result_filename)
@@ -194,70 +205,108 @@ def update_nwp(starttime, nlengths):
         LOG.debug("Returncode = " + str(retv))
         if retv != 0:
             LOG.warning("Failed generating nwp file %s ...", result_file)
-            if os.path.exists(tmp_result_filename):
-                os.remove(tmp_result_filename)
+            remove_file(tmp_result_filename)
             raise IOError("Failed adding topography and land-sea " +
                           "mask data to grib file")
+        remove_file(tmp_filename)
 
-        if os.path.exists(tmp_filename):
-            os.remove(tmp_filename)
-        else:
-            LOG.warning("tmp file %s gone! Cannot clean it...", tmp_filename)
+        nwp_file_ok = check_and_reduce_nwp_content(tmp_result_filename, tmp_result_filename_reduced)
 
-        if check_nwp_content(tmp_result_filename):
-            LOG.info('A check of the NWP file content has been attempted: %s',
-                     result_file)
+        if nwp_file_ok is None:
+            LOG.info('NWP file content could not be checked, use anyway.')
             _start = time.time()
             os.rename(tmp_result_filename, result_file)
             _end = time.time()
             LOG.debug("Rename file %s to %s: This took %f seconds",
                       tmp_result_filename, result_file, _end - _start)
+        elif nwp_file_ok:
+            remove_file(tmp_result_filename)
+            _start = time.time()
+            os.rename(tmp_result_filename_reduced, result_file)
+            _end = time.time()
+            LOG.debug("Rename file %s to %s: This took %f seconds",
+                      tmp_result_filename_reduced, result_file, _end - _start)
+            LOG.info('NWP file with reduced content has been created: %s',
+                     result_file)
         else:
             LOG.warning("Missing important fields. No nwp file %s written to disk",
                         result_file)
-            if os.path.exists(tmp_result_filename):
-                os.remove(tmp_result_filename)
-
+            remove_file(tmp_result_filename)
     return
 
 
-def check_nwp_content(gribfile):
-    """Check the content of the NWP file. If all fields required for PPS is
-    available, then return True
+def get_mandatory_and_all_fields(lines):
+    """Get info requirement file. Mandatory lines starts with M.
+
+    M 129 Geopotential 100 isobaricInhPa
+    O 129 Geopotential 350 isobaricInhPa
+
+    Returns:
+       ["129 100 isobaricInhPa"],  ["129 100 isobaricInhPa", "129 350 isobaricInhPa"]
 
     """
+    mandatory_lines = [ll.strip('M ').strip('\n') for ll in lines if str(ll).startswith('M')]
+    mandatory_fields = [" ".join([line.split(" ")[ind] for ind in [0, -2, -1]]) for line in mandatory_lines]
+    all_fields = [" ".join([line.strip('\n').split(" ")[ind] for ind in [1, -2, -1]]) for line in lines]
+    return mandatory_fields, all_fields
 
-    with pygrib.open(gribfile) as grbs:
-        entries = []
-        for grb in grbs:
-            entries.append("%s %s %s %s" % (grb['paramId'],
-                                            grb['name'],
-                                            grb['level'],
-                                            grb['typeOfLevel']))
-        entries.sort()
 
+def get_nwp_requirement():
+    """Read the new requirement file. Return list with mandatory and wanted fields.
+
+    """
     try:
         with open(nwp_req_filename, 'r') as fpt:
             lines = fpt.readlines()
-    except IOError:
+    except (IOError, FileNotFoundError):
         LOG.exception(
             "Failed reading nwp-requirements file: %s", nwp_req_filename)
         LOG.warning("Cannot check if NWP files is ok!")
-        return True
+        return None, None
+    return get_mandatory_and_all_fields(lines)
 
-    srplines = [ll.strip('M ').strip('\n')
-                for ll in lines if str(ll).startswith('M')]
 
-    file_ok = True
-    for item in srplines:
-        if item not in entries:
+def check_nwp_requirement(grb_entries, mandatory_fields, result_file):
+    """Check nwp file all mandatory enteries should be present.
+
+    """
+    grb_entries.sort()
+    for item in mandatory_fields:
+        if item not in grb_entries:
             LOG.warning("Mandatory field missing in NWP file: %s", str(item))
-            file_ok = False
+            if os.path.exists(result_file):
+                os.remove(result_file)
+            return False
+    LOG.info("NWP file has all required fields for PPS: %s", result_file)
+    return True
 
-    if file_ok:
-        LOG.info("NWP file has all required fields for PPS: %s", gribfile)
 
-    return file_ok
+def check_and_reduce_nwp_content(gribfile, result_file):
+    """Check the content of the NWP file. Create a reduced file.
+
+    """
+    LOG.info("Get nwp requirements.")
+    mandatory_fields, all_fields = get_nwp_requirement()
+    if mandatory_fields is None:
+        return None
+
+    LOG.info("Write fields specified in %s to file: %s", nwp_req_filename, result_file)
+    grbout = open(result_file, 'wb')
+    with pygrib.open(gribfile) as grbs:
+        grb_entries = []
+        for grb in grbs:
+            field_id = ("%s %s %s" % (grb['paramId'],
+                                      grb['level'],
+                                      grb['typeOfLevel']))
+            if field_id in all_fields:
+                # Keep fields from nwp_req_filename
+                grb_entries.append(field_id)
+                msg = grb.tostring()
+                grbout.write(msg)
+    grbout.close()
+
+    LOG.info("Check fields in file: %s", result_file)
+    return check_nwp_requirement(grb_entries, mandatory_fields, result_file)
 
 
 if __name__ == "__main__":
@@ -281,4 +330,4 @@ if __name__ == "__main__":
 
     from datetime import timedelta
     now = datetime.utcnow()
-    update_nwp(now - timedelta(days=1), [9])
+    update_nwp(now - timedelta(days=2), [9])
