@@ -340,7 +340,7 @@ class TestL1cProcessing(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as myconfig_file:
             l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
             l1c_proc.run(input_msg)
-        self.assertTrue(time.time() - start_time < 2)
+        self.assertTrue(time.time() - start_time < 5)
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.l1c_processing.cpu_count')

@@ -160,7 +160,7 @@ class L1cProcessor(object):
         except ValueError:
             # if process1.is_alive():
             LOG.warning(
-                "Processing level1c file not terminated after 60s.")
+                "Processing level1c file not terminated after {:d}s.".format(int(self.time_limit_seconds)))
             process1.terminate()
 
     def _get_message_data(self, message):
