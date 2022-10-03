@@ -84,7 +84,6 @@ pps_outdir: /data/24/saf/polar_out/direct_readout
 pps_statistics_dir: /data/24/saf/polar_out/monitoring/direct_readout
 
 level1_dir: /path/to/lvl1c/data
-ncpus: 4
 
 nhsp_path: /path/to/nwp/data/atm_level_fiels/
 nhsf_path: /path/to/nwp/data/surface_fields/
@@ -159,7 +158,7 @@ class TestGetConfig(unittest.TestCase):
                     '/data/24/saf/polar_out/direct_readout',
                     'pps_statistics_dir': '/data/24/saf/polar_out/monitoring/direct_readout',
                     'level1_dir': '/path/to/lvl1c/data',
-                    'ncpus': 4, 'nhsp_path':
+                    'nhsp_path':
                     '/path/to/nwp/data/atm_level_fiels/',
                     'nhsf_path': '/path/to/nwp/data/surface_fields/',
                     'servername': 'my.local.host'}
