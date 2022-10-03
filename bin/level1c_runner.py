@@ -71,7 +71,7 @@ def _run_subscribe_publisher(l1c_proc, service_name, subscriber, publisher):
                             publish_topic=l1c_proc.publish_topic)
                 LOG.info("L1C processing has completed.")
             else:
-                LOG.debug("L1C processing has failed.")
+                LOG.warning("L1C processing has failed.")
 
 
 def l1c_runner(config_filename, service_name):
