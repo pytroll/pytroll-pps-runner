@@ -331,7 +331,7 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.orbit_number, expected_orbit_number)
 
     @patch('nwcsafpps_runner.config.load_config_from_file')
-    @patch.dict('nwcsafpps_runner.l1c_processing.LVL1C_PROCESSOR_MAPPING',  {'viirs-l1c': my_fake_l1proc_function})
+    @patch.dict('nwcsafpps_runner.l1c_processing.LVL1C_PROCESSOR_MAPPING', {'viirs-l1c': my_fake_l1proc_function})
     def test_process_timeout(self, config):
         """Make sure hanged processes are terminated."""
         start_time = time.time()
