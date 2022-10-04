@@ -589,18 +589,18 @@ def get_xml_outputfiles(path, platform_name, orb, st_time=''):
 
 def create_xml_timestat_from_lvl1c(scene, pps_control_path):
     """From lvl1c file create XML file and return a file list."""
-    if 'file4pps' in scene:
+    try:
         return [create_pps_file_from_lvl1c(scene['file4pps'], pps_control_path, "timectrl", ".xml")]
-    else:
+    except KeyError:
         return []
 
 
 def create_product_statistics_from_lvl1c(scene, pps_control_path):
     """From lvl1c file create product XML files and return a file list."""
-    if 'file4pps' in scene:
+    try:
         glob_pattern = create_pps_file_from_lvl1c(scene['file4pps'], pps_control_path, "*", "_statistics.xml")
         return glob(glob_pattern)
-    else:
+    except KeyError:
         return []
 
 

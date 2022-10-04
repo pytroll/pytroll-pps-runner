@@ -182,7 +182,7 @@ def pps_worker(scene, publish_q, input_msg, options):
             err_reader2.join()
 
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
-        if "file4pps" in scene:
+        if use_l1c:
             # v2021
             xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
             xml_files += create_product_statistics_from_lvl1c(scene, pps_control_path)
