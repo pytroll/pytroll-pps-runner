@@ -589,23 +589,28 @@ def get_xml_outputfiles(path, platform_name, orb, st_time=''):
 
 def create_xml_timestat_from_lvl1c(scene, pps_control_path):
     """From lvl1c file create XML file and return a file list."""
-    return [create_pps_file_from_lvl1c(scene, pps_control_path, "timectrl", ".xml")]
+    if 'file4pps' in scene:
+        return [create_pps_file_from_lvl1c(scene['file4pps'], pps_control_path, "timectrl", ".xml")]
+    else:
+        return []
 
 
 def create_product_statistics_from_lvl1c(scene, pps_control_path):
     """From lvl1c file create product XML files and return a file list."""
-    glob_pattern = create_pps_file_from_lvl1c(scene, pps_control_path, "*", "_statistics.xml")
-    return glob(glob_pattern)
-
-
-def create_pps_file_from_lvl1c(scene, pps_control_path, name_tag, file_type):
-    """From lvl1c file create name_tag-file of type file_type."""
     if 'file4pps' in scene:
-        l1c_path, l1c_file = os.path.split(scene['file4pps'])
-        l1c_file_as_list = l1c_file.split("_")
-        l1c_file_as_list[2] = name_tag
-        l1c_file_as_list[-1] = l1c_file_as_list[-1].replace(".nc", file_type)
-        return os.path.join(pps_control_path, ("_").join(l1c_file_as_list))
+        glob_pattern = create_pps_file_from_lvl1c(scene['file4pps'], pps_control_path, "*", "_statistics.xml")
+        return glob(glob_pattern)
+    else:
+        return []
+
+
+def create_pps_file_from_lvl1c(l1c_file_name, pps_control_path, name_tag, file_type):
+    """From lvl1c file create name_tag-file of type file_type."""
+    l1c_path, l1c_file = os.path.split(l1c_file_name)
+    l1c_file_as_list = l1c_file.split("_")
+    l1c_file_as_list[2] = name_tag
+    l1c_file_as_list[-1] = l1c_file_as_list[-1].replace(".nc", file_type)
+    return os.path.join(pps_control_path, ("_").join(l1c_file_as_list))
 
 
 def create_xml_timestat_from_ascii(scene, pps_control_path):

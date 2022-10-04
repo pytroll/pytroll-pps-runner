@@ -73,6 +73,15 @@ def test_create_xml_timestat_from_lvl1c(tmp_path):
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
 
+    scene = {}
+    #: Test xml files for timectrl no file4pps attribute
+    res = create_xml_timestat_from_lvl1c(scene, mydir_out)
+    assert res == []
+
+    #: Test xml files for products no file4pps attribute
+    res = create_product_statistics_from_lvl1c(scene, mydir_out)
+    assert res == []
+
 
 def test_outputfiles(tmp_path):
     """Test get_outputfiles.
