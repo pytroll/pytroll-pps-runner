@@ -52,7 +52,6 @@ pps_statistics_dir = /data/24/saf/polar_out/monitoring/direct_readout
 
 #:  Do not seams to be used.    
 level1_dir = /local_disk/data/pps/import/PPS_data/source
-ncpus = 4
 #: In pps_runner.py there is a environmental variable PPS_SCRIPT
 pps_script = /usr/bin/pps_run.sh
 

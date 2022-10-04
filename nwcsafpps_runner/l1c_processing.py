@@ -26,7 +26,7 @@
 import logging
 from six.moves.urllib.parse import urlparse
 from multiprocessing import cpu_count
-from multiprocessing.pool import ThreadPool
+from multiprocessing import Process, Manager
 from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
 from level1c4pps.viirs2pps_lib import process_one_scene as process_viirs
 from level1c4pps.modis2pps_lib import process_one_scene as process_modis
@@ -80,16 +80,13 @@ class L1cProcessor(object):
 
         self.initialize(service_name)
         self._l1c_processor_call_kwargs = options.get('l1cprocess_call_arguments', {})
+        self.time_limit_seconds = options.get('time_limit_seconds', 60)
 
         self.subscribe_topics = options['message_types']
         LOG.debug("Listens for messages of type: %s", str(self.subscribe_topics))
 
         ncpus_available = cpu_count()
         LOG.info("Number of CPUs available = %s", str(ncpus_available))
-        ncpus = int(options.get('num_of_cpus', 1))
-        LOG.info("Will use %d CPUs when running the level-1c processing instances", ncpus)
-
-        self.pool = ThreadPool(ncpus)
 
         self.sensor = "unknown"
         self.orbit_number = 99999  # Initialized orbit number
@@ -112,9 +109,14 @@ class L1cProcessor(object):
         self.level1_files = []
         self.service = service
 
+    def run_inner(self, l1c_proc_func, result_dict):
+        """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
+        result_dict["l1cfile"] = l1c_proc_func(self.level1_files,
+                                               self.result_home,
+                                               self._l1c_processor_call_kwargs)
+
     def run(self, msg):
         """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
-
         check_message_okay(msg)
 
         self.platform_name = str(msg.data['platform_name'])
@@ -142,10 +144,24 @@ class L1cProcessor(object):
         l1c_proc = LVL1C_PROCESSOR_MAPPING.get(self.service)
         if not l1c_proc:
             raise AttributeError("Could not find suitable level-1c processor! Service = %s" % self.service)
-
-        self.l1c_result = self.pool.apply_async(l1c_proc, (self.level1_files,
-                                                           self.result_home),
-                                                self._l1c_processor_call_kwargs)
+        LOG.debug(
+            "Starting level1c processing in separate process.")
+        manager = Manager()
+        result_dict = manager.dict()
+        process1 = Process(
+            name="Process one level1c file in a separate process.",
+            target=self.run_inner,
+            args=(l1c_proc, result_dict))
+        process1.start()
+        process1.join(self.time_limit_seconds)  # Normally takes 3-8s for VIIRS
+        self.l1cfile = result_dict.get("l1cfile", None)
+        try:
+            process1.close()
+        except ValueError:
+            # if process1.is_alive():
+            LOG.warning(
+                "Processing level1c file not terminated after {:d}s.".format(int(self.time_limit_seconds)))
+            process1.terminate()
 
     def _get_message_data(self, message):
         """Return the data dict in the Posttroll message."""
