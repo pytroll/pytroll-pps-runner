@@ -31,15 +31,16 @@ from nwcsafpps_runner.utils import FindTimeControlFileError
 from nwcsafpps_runner.utils import get_product_statistics_files
 
 
-def test_create_xml_timestat_from_lvl1c(tmp_path):
-    """Test xml files that for a level1c file."""
-    #: Create temp_path
+@pytest.fixture
+def fake_file_dir(tmp_path):
+    """Create directory with test files."""
     mydir = tmp_path / "import"
     mydir.mkdir()
     mydir_out = tmp_path / "export"
     mydir_out.mkdir()
+    mydir = mydir
+    mydir_out = mydir_out
 
-    #: Create test files
     def create_files(mydir, file_tag, typ):
         #: These files should always be found
         f1 = mydir / "S_NWC_{}_npp_12345_19810305T0715000Z_19810305T0730000Z{}".format(file_tag, typ)
@@ -57,30 +58,47 @@ def test_create_xml_timestat_from_lvl1c(tmp_path):
     create_files(mydir_out, "CTTH", "_statistics.xml")
     create_files(mydir_out, "timectrl", ".xml")
     create_files(mydir_out, "timectrl", "_dummy.xml")
-    scene = {'file4pps': "S_NWC_viirs_npp_12345_19810305T0715000Z_19810305T0730000Z.nc"}
+    return mydir, mydir_out
 
-    #: Test xml files for timectrl
-    res = create_xml_timestat_from_lvl1c(scene, mydir_out)
-    expected = [os.path.join(mydir_out, "S_NWC_timectrl_npp_12345_19810305T0715000Z_19810305T0730000Z.xml")]
-    assert len(res) == len(set(res))
-    assert set(res) == set(expected)
 
-    #: Test xml files for products
-    res = create_product_statistics_from_lvl1c(scene, mydir_out)
-    expected = [os.path.join(mydir_out, "S_NWC_CMAPROB_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
-                os.path.join(mydir_out, "S_NWC_CTTH_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
-                os.path.join(mydir_out, "S_NWC_CMIC_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml")]
-    assert len(res) == len(set(res))
-    assert set(res) == set(expected)
+class TestCreateXmlFromLvl1c:
+    """Test finding xml files form level1c file."""
 
-    scene = {}
-    #: Test xml files for timectrl no file4pps attribute
-    res = create_xml_timestat_from_lvl1c(scene, mydir_out)
-    assert res == []
+    def setup(self):
+        """Define the level1c filename."""
+        self.scene = {'file4pps': "S_NWC_viirs_npp_12345_19810305T0715000Z_19810305T0730000Z.nc"}
+        self.empty_scene = {}
 
-    #: Test xml files for products no file4pps attribute
-    res = create_product_statistics_from_lvl1c(scene, mydir_out)
-    assert res == []
+    def test_xml_for_timectrl(self, fake_file_dir):
+        """Test xml files for timectrl."""
+        mydir, mydir_out = fake_file_dir
+        res = create_xml_timestat_from_lvl1c(self.scene, mydir_out)
+        expected = [os.path.join(mydir_out, "S_NWC_timectrl_npp_12345_19810305T0715000Z_19810305T0730000Z.xml")]
+        assert len(res) == len(set(res))
+        assert set(res) == set(expected)
+
+    def test_xml_for_products(self, fake_file_dir):
+        """Test xml files for products statistics files."""
+        mydir, mydir_out = fake_file_dir
+        res = create_product_statistics_from_lvl1c(self.scene, mydir_out)
+        expected = [
+            os.path.join(mydir_out, "S_NWC_CMAPROB_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
+            os.path.join(mydir_out, "S_NWC_CTTH_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
+            os.path.join(mydir_out, "S_NWC_CMIC_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml")]
+        assert len(res) == len(set(res))
+        assert set(res) == set(expected)
+
+    def test_xml_for_timectrl_no_file4pps(self, fake_file_dir):
+        """Test xml files for timectrl without file4pps attribute."""
+        mydir, mydir_out = fake_file_dir
+        res = create_xml_timestat_from_lvl1c(self.empty_scene, mydir_out)
+        assert res == []
+
+    def test_xml_for_products_no_file4pps(self, fake_file_dir):
+        """Test xml files for products without file4pps attribute."""
+        mydir, mydir_out = fake_file_dir
+        res = create_product_statistics_from_lvl1c(self.empty_scene, mydir_out)
+        assert res == []
 
 
 def test_outputfiles(tmp_path):
