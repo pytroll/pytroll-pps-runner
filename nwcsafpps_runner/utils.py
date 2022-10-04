@@ -704,8 +704,8 @@ def get_product_statistics_files(pps_control_path, scene, product_statistics_fil
     scene_start_time = scene['starttime']
     possible_filetimes = [scene_start_time]
     for nmin in range(1, max_abs_deviation_minutes + 1):
-        possible_filetimes.append(scene_start_time - timedelta(seconds=60*nmin))
-        possible_filetimes.append(scene_start_time + timedelta(seconds=60*nmin))
+        possible_filetimes.append(scene_start_time - timedelta(seconds=60 * nmin))
+        possible_filetimes.append(scene_start_time + timedelta(seconds=60 * nmin))
 
     for product_name in ['CMA', 'CT', 'CTTH', 'CPP', 'CMAPROB']:
         for start_time in possible_filetimes:

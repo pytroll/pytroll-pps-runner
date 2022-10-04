@@ -32,8 +32,7 @@ from nwcsafpps_runner.utils import get_product_statistics_files
 
 
 def test_create_xml_timestat_from_lvl1c(tmp_path):
-    """Test xml files that for a level1c file.
-    """
+    """Test xml files that for a level1c file."""
     #: Create temp_path
     mydir = tmp_path / "import"
     mydir.mkdir()
@@ -50,26 +49,24 @@ def test_create_xml_timestat_from_lvl1c(tmp_path):
         f1 = mydir / "S_NWC_{}_npp_82345_19820305T0715000Z_19820305T0730000Z{}".format(file_tag, typ)
         f1.write_text("test_file type {:s}".format(typ))
 
-    #: Test xml files without start time
-    typ = "xml"
+    #: Create the level1c and xml files
     create_files(mydir, "viirs", ".nc")
+    create_files(mydir_out, "CMAPROB", ".nc")
     create_files(mydir_out, "CMAPROB", "_statistics.xml")
     create_files(mydir_out, "CMIC", "_statistics.xml")
     create_files(mydir_out, "CTTH", "_statistics.xml")
     create_files(mydir_out, "timectrl", ".xml")
     create_files(mydir_out, "timectrl", "_dummy.xml")
-
     scene = {'file4pps': "S_NWC_viirs_npp_12345_19810305T0715000Z_19810305T0730000Z.nc"}
-    res = create_xml_timestat_from_lvl1c(scene, mydir_out)
-    print(res)
 
+    #: Test xml files for timectrl
+    res = create_xml_timestat_from_lvl1c(scene, mydir_out)
     expected = [os.path.join(mydir_out, "S_NWC_timectrl_npp_12345_19810305T0715000Z_19810305T0730000Z.xml")]
     assert len(res) == len(set(res))
     assert set(res) == set(expected)
 
-    #: Test xml files with start time
+    #: Test xml files for products
     res = create_product_statistics_from_lvl1c(scene, mydir_out)
-    print(res)
     expected = [os.path.join(mydir_out, "S_NWC_CMAPROB_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
                 os.path.join(mydir_out, "S_NWC_CTTH_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
                 os.path.join(mydir_out, "S_NWC_CMIC_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml")]
