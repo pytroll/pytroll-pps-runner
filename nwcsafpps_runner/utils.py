@@ -606,11 +606,13 @@ def create_product_statistics_from_lvl1c(scene, pps_control_path):
 
 def create_pps_file_from_lvl1c(l1c_file_name, pps_control_path, name_tag, file_type):
     """From lvl1c file create name_tag-file of type file_type."""
+    from trollsift import parse, compose
+    f_pattern = 'S_NWC_{name_tag}_{platform_id}_{orbit_number}_{start_time}Z_{end_time}Z{file_type}'
     l1c_path, l1c_file = os.path.split(l1c_file_name)
-    l1c_file_as_list = l1c_file.split("_")
-    l1c_file_as_list[2] = name_tag
-    l1c_file_as_list[-1] = l1c_file_as_list[-1].replace(".nc", file_type)
-    return os.path.join(pps_control_path, ("_").join(l1c_file_as_list))
+    data = parse(f_pattern, l1c_file)
+    data["name_tag"] = name_tag
+    data["file_type"] = file_type
+    return os.path.join(pps_control_path, compose(f_pattern, data))
 
 
 def create_xml_timestat_from_ascii(scene, pps_control_path):
