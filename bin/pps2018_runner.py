@@ -41,6 +41,8 @@ from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
                                     SENSOR_LIST, NwpPrepareError, PpsRunError,
                                     create_pps_call_command,
                                     get_outputfiles, get_pps_inputfile,
+                                    create_xml_timestat_from_lvl1c,
+                                    create_product_statistics_from_lvl1c,
                                     get_sceneid, logreader, message_uid,
                                     prepare_pps_arguments, publish_pps_files,
                                     ready2run, terminate_process)
@@ -180,11 +182,18 @@ def pps_worker(scene, publish_q, input_msg, options):
             err_reader2.join()
 
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
-        xml_files = create_xml_timestat_from_ascii(scene, pps_control_path)
-        xml_files = xml_files + get_product_statistics_files(pps_control_path,
-                                                             scene,
-                                                             options['product_statistics_filename'],
-                                                             options['pps_filetime_search_minutes'])
+        if use_l1c:
+            # v2021
+            xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
+            xml_files += create_product_statistics_from_lvl1c(scene, pps_control_path)
+        else:
+            # v2018
+            xml_files = create_xml_timestat_from_ascii(scene, pps_control_path)
+            xml_files = xml_files + get_product_statistics_files(pps_control_path,
+                                                                 scene,
+                                                                 options['product_statistics_filename'],
+                                                                 options['pps_filetime_search_minutes'])
+
         LOG.info("PPS summary statistics files: %s", str(xml_files))
 
         # The PPS post-hooks takes care of publishing the PPS cloud products

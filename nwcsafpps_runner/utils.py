@@ -587,6 +587,34 @@ def get_xml_outputfiles(path, platform_name, orb, st_time=''):
     return filelist
 
 
+def create_xml_timestat_from_lvl1c(scene, pps_control_path):
+    """From lvl1c file create XML file and return a file list."""
+    try:
+        return [create_pps_file_from_lvl1c(scene['file4pps'], pps_control_path, "timectrl", ".xml")]
+    except KeyError:
+        return []
+
+
+def create_product_statistics_from_lvl1c(scene, pps_control_path):
+    """From lvl1c file create product XML files and return a file list."""
+    try:
+        glob_pattern = create_pps_file_from_lvl1c(scene['file4pps'], pps_control_path, "*", "_statistics.xml")
+        return glob(glob_pattern)
+    except KeyError:
+        return []
+
+
+def create_pps_file_from_lvl1c(l1c_file_name, pps_control_path, name_tag, file_type):
+    """From lvl1c file create name_tag-file of type file_type."""
+    from trollsift import parse, compose
+    f_pattern = 'S_NWC_{name_tag}_{platform_id}_{orbit_number}_{start_time}Z_{end_time}Z{file_type}'
+    l1c_path, l1c_file = os.path.split(l1c_file_name)
+    data = parse(f_pattern, l1c_file)
+    data["name_tag"] = name_tag
+    data["file_type"] = file_type
+    return os.path.join(pps_control_path, compose(f_pattern, data))
+
+
 def create_xml_timestat_from_ascii(scene, pps_control_path):
     """From ascii file(s) with PPS time statistics create XML file(s) and return a file list."""
     try:
@@ -683,8 +711,8 @@ def get_product_statistics_files(pps_control_path, scene, product_statistics_fil
     scene_start_time = scene['starttime']
     possible_filetimes = [scene_start_time]
     for nmin in range(1, max_abs_deviation_minutes + 1):
-        possible_filetimes.append(scene_start_time - timedelta(seconds=60*nmin))
-        possible_filetimes.append(scene_start_time + timedelta(seconds=60*nmin))
+        possible_filetimes.append(scene_start_time - timedelta(seconds=60 * nmin))
+        possible_filetimes.append(scene_start_time + timedelta(seconds=60 * nmin))
 
     for product_name in ['CMA', 'CT', 'CTTH', 'CPP', 'CMAPROB']:
         for start_time in possible_filetimes:

@@ -23,12 +23,82 @@ import tempfile
 import unittest
 import pytest
 from datetime import datetime
-
+from nwcsafpps_runner.utils import create_xml_timestat_from_lvl1c, create_product_statistics_from_lvl1c
 from nwcsafpps_runner.utils import get_outputfiles
 from nwcsafpps_runner.utils import get_time_control_ascii_filename_candidates
 from nwcsafpps_runner.utils import get_time_control_ascii_filename
 from nwcsafpps_runner.utils import FindTimeControlFileError
 from nwcsafpps_runner.utils import get_product_statistics_files
+
+
+@pytest.fixture
+def fake_file_dir(tmp_path):
+    """Create directory with test files."""
+    mydir = tmp_path / "import"
+    mydir.mkdir()
+    mydir_out = tmp_path / "export"
+    mydir_out.mkdir()
+    mydir = mydir
+    mydir_out = mydir_out
+
+    def create_files(mydir, file_tag, typ):
+        #: These files should always be found
+        f1 = mydir / "S_NWC_{}_npp_12345_19810305T0715000Z_19810305T0730000Z{}".format(file_tag, typ)
+        f1.write_text("test_file type {:s}".format(typ))
+        f1 = mydir / "S_NWC_{}_noaa20_12345_19810305T0715000Z_19810305T0730000Z{}".format(file_tag, typ)
+        f1.write_text("test_file type {:s}".format(typ))
+        f1 = mydir / "S_NWC_{}_npp_82345_19820305T0715000Z_19820305T0730000Z{}".format(file_tag, typ)
+        f1.write_text("test_file type {:s}".format(typ))
+
+    #: Create the level1c and xml files
+    create_files(mydir, "viirs", ".nc")
+    create_files(mydir_out, "CMAPROB", ".nc")
+    create_files(mydir_out, "CMAPROB", "_statistics.xml")
+    create_files(mydir_out, "CMIC", "_statistics.xml")
+    create_files(mydir_out, "CTTH", "_statistics.xml")
+    create_files(mydir_out, "timectrl", ".xml")
+    create_files(mydir_out, "timectrl", "_dummy.xml")
+    return mydir, mydir_out
+
+
+class TestCreateXmlFromLvl1c:
+    """Test finding xml files form level1c file."""
+
+    def setup(self):
+        """Define the level1c filename."""
+        self.scene = {'file4pps': "S_NWC_viirs_npp_12345_19810305T0715000Z_19810305T0730000Z.nc"}
+        self.empty_scene = {}
+
+    def test_xml_for_timectrl(self, fake_file_dir):
+        """Test xml files for timectrl."""
+        mydir, mydir_out = fake_file_dir
+        res = create_xml_timestat_from_lvl1c(self.scene, mydir_out)
+        expected = [os.path.join(mydir_out, "S_NWC_timectrl_npp_12345_19810305T0715000Z_19810305T0730000Z.xml")]
+        assert len(res) == len(set(res))
+        assert set(res) == set(expected)
+
+    def test_xml_for_products(self, fake_file_dir):
+        """Test xml files for products statistics files."""
+        mydir, mydir_out = fake_file_dir
+        res = create_product_statistics_from_lvl1c(self.scene, mydir_out)
+        expected = [
+            os.path.join(mydir_out, "S_NWC_CMAPROB_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
+            os.path.join(mydir_out, "S_NWC_CTTH_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
+            os.path.join(mydir_out, "S_NWC_CMIC_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml")]
+        assert len(res) == len(set(res))
+        assert set(res) == set(expected)
+
+    def test_xml_for_timectrl_no_file4pps(self, fake_file_dir):
+        """Test xml files for timectrl without file4pps attribute."""
+        mydir, mydir_out = fake_file_dir
+        res = create_xml_timestat_from_lvl1c(self.empty_scene, mydir_out)
+        assert res == []
+
+    def test_xml_for_products_no_file4pps(self, fake_file_dir):
+        """Test xml files for products without file4pps attribute."""
+        mydir, mydir_out = fake_file_dir
+        res = create_product_statistics_from_lvl1c(self.empty_scene, mydir_out)
+        assert res == []
 
 
 def test_outputfiles(tmp_path):
