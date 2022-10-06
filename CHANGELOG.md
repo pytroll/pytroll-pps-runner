@@ -1,4 +1,4 @@
-## Version <v0.2.4> (2022/10/05)
+## Version <v0.2.5> (2022/10/05)
 
 ### Issues Closed
 
