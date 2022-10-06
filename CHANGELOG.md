@@ -1,5 +1,25 @@
-## Version <v0.2.4> (2022/02/11)
+## Version <v0.2.4> (2022/10/05)
 
+### Issues Closed
+
+* [Issue 35](https://github.com/pytroll/pytroll-pps-runner/issues/35) - Mem leak in level1c_runner
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 54](https://github.com/pytroll/pytroll-pps-runner/pull/54) - Fix find xml from l1c
+
+#### Features added
+
+* [PR 50](https://github.com/pytroll/pytroll-pps-runner/pull/50) - Update level1c runner for AVHRR
+
+In this release 2 pull requests were closed.
+
+
+## Version <v0.2.4> (2022/02/11)
 
 ### Issues Closed
 
