@@ -42,11 +42,11 @@ from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
                                     create_pps_call_command,
                                     get_outputfiles, get_pps_inputfile,
                                     create_xml_timestat_from_lvl1c,
-                                    create_product_statistics_from_lvl1c,
+                                    find_product_statistics_from_lvl1c,
                                     get_sceneid, logreader, message_uid,
                                     prepare_pps_arguments, publish_pps_files,
                                     ready2run, terminate_process)
-from nwcsafpps_runner.utils import create_xml_timestat_from_ascii
+from nwcsafpps_runner.utils import create_xml_timestat_from_scene
 from nwcsafpps_runner.utils import get_product_statistics_files
 
 LOG = logging.getLogger(__name__)
@@ -185,10 +185,10 @@ def pps_worker(scene, publish_q, input_msg, options):
         if use_l1c:
             # v2021
             xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
-            xml_files += create_product_statistics_from_lvl1c(scene, pps_control_path)
+            xml_files += find_product_statistics_from_lvl1c(scene, pps_control_path)
         else:
             # v2018
-            xml_files = create_xml_timestat_from_ascii(scene, pps_control_path)
+            xml_files = create_xml_timestat_from_scene(scene, pps_control_path)
             xml_files = xml_files + get_product_statistics_files(pps_control_path,
                                                                  scene,
                                                                  options['product_statistics_filename'],

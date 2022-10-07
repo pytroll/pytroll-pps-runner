@@ -22,8 +22,9 @@ import os
 import tempfile
 import unittest
 import pytest
+from unittest.mock import patch, MagicMock
 from datetime import datetime
-from nwcsafpps_runner.utils import create_xml_timestat_from_lvl1c, create_product_statistics_from_lvl1c
+from nwcsafpps_runner.utils import create_xml_timestat_from_lvl1c, find_product_statistics_from_lvl1c
 from nwcsafpps_runner.utils import get_outputfiles
 from nwcsafpps_runner.utils import get_time_control_ascii_filename_candidates
 from nwcsafpps_runner.utils import get_time_control_ascii_filename
@@ -56,6 +57,7 @@ def fake_file_dir(tmp_path):
     create_files(mydir_out, "CMAPROB", "_statistics.xml")
     create_files(mydir_out, "CMIC", "_statistics.xml")
     create_files(mydir_out, "CTTH", "_statistics.xml")
+    create_files(mydir_out, "timectrl", ".txt")
     create_files(mydir_out, "timectrl", ".xml")
     create_files(mydir_out, "timectrl", "_dummy.xml")
     return mydir, mydir_out
@@ -68,10 +70,13 @@ class TestCreateXmlFromLvl1c:
         """Define the level1c filename."""
         self.scene = {'file4pps': "S_NWC_viirs_npp_12345_19810305T0715000Z_19810305T0730000Z.nc"}
         self.empty_scene = {}
-
+        
     def test_xml_for_timectrl(self, fake_file_dir):
         """Test xml files for timectrl."""
         mydir, mydir_out = fake_file_dir
+        mymodule = MagicMock()
+        import sys
+        sys.modules["pps_time_control"] = mymodule
         res = create_xml_timestat_from_lvl1c(self.scene, mydir_out)
         expected = [os.path.join(mydir_out, "S_NWC_timectrl_npp_12345_19810305T0715000Z_19810305T0730000Z.xml")]
         assert len(res) == len(set(res))
@@ -80,7 +85,7 @@ class TestCreateXmlFromLvl1c:
     def test_xml_for_products(self, fake_file_dir):
         """Test xml files for products statistics files."""
         mydir, mydir_out = fake_file_dir
-        res = create_product_statistics_from_lvl1c(self.scene, mydir_out)
+        res = find_product_statistics_from_lvl1c(self.scene, mydir_out)
         expected = [
             os.path.join(mydir_out, "S_NWC_CMAPROB_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
             os.path.join(mydir_out, "S_NWC_CTTH_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
@@ -97,7 +102,7 @@ class TestCreateXmlFromLvl1c:
     def test_xml_for_products_no_file4pps(self, fake_file_dir):
         """Test xml files for products without file4pps attribute."""
         mydir, mydir_out = fake_file_dir
-        res = create_product_statistics_from_lvl1c(self.empty_scene, mydir_out)
+        res = find_product_statistics_from_lvl1c(self.empty_scene, mydir_out)
         assert res == []
 
 
