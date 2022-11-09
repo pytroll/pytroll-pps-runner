@@ -41,7 +41,6 @@ from nwcsafpps_runner.utils import NwpPrepareError
 import logging
 LOG = logging.getLogger(__name__)
 
-
 LOG.debug("Path to prepare_nwp config file = %s", str(CONFIG_PATH))
 LOG.debug("Prepare_nwp config file = %s", str(CONFIG_FILE))
 OPTIONS = get_config(CONFIG_FILE)
@@ -191,7 +190,7 @@ def update_nwp(starttime, nlengths):
                       "topography available. Can't prepare NWP data")
             raise IOError('Failed getting static land-sea mask and topography')
 
-        tmp_result_filename = result_file + "_tmp"
+        tmp_result_filename = tmp_filename + "_tmp_result"
         tmp_result_filename_reduced = tmp_result_filename + '_reduced'
         cmd = ('cat ' + tmp_filename + " " +
                os.path.join(nhsf_path, nhsf_prefix + timeinfo) +
