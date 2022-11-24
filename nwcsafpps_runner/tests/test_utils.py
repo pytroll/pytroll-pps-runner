@@ -22,8 +22,11 @@ import os
 import tempfile
 import unittest
 import pytest
+from unittest.mock import patch, MagicMock
 from datetime import datetime
-from nwcsafpps_runner.utils import create_xml_timestat_from_lvl1c, create_product_statistics_from_lvl1c
+from nwcsafpps_runner.utils import (create_xml_timestat_from_lvl1c,
+                                    find_product_statistics_from_lvl1c,
+                                    create_xml_timestat_from_scene)
 from nwcsafpps_runner.utils import get_outputfiles
 from nwcsafpps_runner.utils import get_time_control_ascii_filename_candidates
 from nwcsafpps_runner.utils import get_time_control_ascii_filename
@@ -56,6 +59,7 @@ def fake_file_dir(tmp_path):
     create_files(mydir_out, "CMAPROB", "_statistics.xml")
     create_files(mydir_out, "CMIC", "_statistics.xml")
     create_files(mydir_out, "CTTH", "_statistics.xml")
+    create_files(mydir_out, "timectrl", ".txt")
     create_files(mydir_out, "timectrl", ".xml")
     create_files(mydir_out, "timectrl", "_dummy.xml")
     return mydir, mydir_out
@@ -66,26 +70,42 @@ class TestCreateXmlFromLvl1c:
 
     def setup(self):
         """Define the level1c filename."""
-        self.scene = {'file4pps': "S_NWC_viirs_npp_12345_19810305T0715000Z_19810305T0730000Z.nc"}
+        self.scene = {'file4pps': "S_NWC_viirs_npp_12345_19810305T0715000Z_19810305T0730000Z.nc",
+                      'starttime': datetime.strptime('19810305T0715000', "%Y%m%dT%H%M%S%f"),
+                      'orbit_number': 12345,
+                      'platform_name': 'Suomi-NPP'}
         self.empty_scene = {}
 
     def test_xml_for_timectrl(self, fake_file_dir):
         """Test xml files for timectrl."""
         mydir, mydir_out = fake_file_dir
+        mymodule = MagicMock()
+        import sys
+        sys.modules["pps_time_control"] = mymodule
         res = create_xml_timestat_from_lvl1c(self.scene, mydir_out)
         expected = [os.path.join(mydir_out, "S_NWC_timectrl_npp_12345_19810305T0715000Z_19810305T0730000Z.xml")]
-        assert len(res) == len(set(res))
+        assert len(res) == len(set(expected))
         assert set(res) == set(expected)
+
+    def test_xml_for_timectrl_files_missing(self, fake_file_dir):
+        """Test xml files for timectrl."""
+        mydir, mydir_out = fake_file_dir
+        mymodule = MagicMock()
+        import sys
+        sys.modules["pps_time_control"] = mymodule
+        res = create_xml_timestat_from_lvl1c(self.scene, mydir)  # Look in wrong place
+        expected = []
+        assert res == expected
 
     def test_xml_for_products(self, fake_file_dir):
         """Test xml files for products statistics files."""
         mydir, mydir_out = fake_file_dir
-        res = create_product_statistics_from_lvl1c(self.scene, mydir_out)
+        res = find_product_statistics_from_lvl1c(self.scene, mydir_out)
         expected = [
             os.path.join(mydir_out, "S_NWC_CMAPROB_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
             os.path.join(mydir_out, "S_NWC_CTTH_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml"),
             os.path.join(mydir_out, "S_NWC_CMIC_npp_12345_19810305T0715000Z_19810305T0730000Z_statistics.xml")]
-        assert len(res) == len(set(res))
+        assert len(res) == len(set(expected))
         assert set(res) == set(expected)
 
     def test_xml_for_timectrl_no_file4pps(self, fake_file_dir):
@@ -97,9 +117,23 @@ class TestCreateXmlFromLvl1c:
     def test_xml_for_products_no_file4pps(self, fake_file_dir):
         """Test xml files for products without file4pps attribute."""
         mydir, mydir_out = fake_file_dir
-        res = create_product_statistics_from_lvl1c(self.empty_scene, mydir_out)
+        res = find_product_statistics_from_lvl1c(self.empty_scene, mydir_out)
         assert res == []
 
+    def test_create_xml_timestat_from_scene(self, fake_file_dir):
+        """Test xml files for scene (used for versions <= v2018)."""
+        mydir, mydir_out = fake_file_dir
+        res = create_xml_timestat_from_scene(self.scene, mydir_out)
+        expected = [os.path.join(mydir_out, "S_NWC_timectrl_npp_12345_19810305T0715000Z_19810305T0730000Z.xml")]
+        assert len(res) == len(set(expected))
+        assert set(res) == set(expected)
+
+    def test_create_xml_timestat_from_scene_missing_files(self, fake_file_dir):
+        """Test missing xml files for scene (used for versions <= v2018)."""
+        mydir, mydir_out = fake_file_dir
+        res = create_xml_timestat_from_scene(self.scene, mydir)
+        expected = []
+        assert res == expected
 
 def test_outputfiles(tmp_path):
     """Test get_outputfiles.
