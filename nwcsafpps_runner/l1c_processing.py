@@ -131,12 +131,12 @@ class L1cProcessor(object):
             else:
                 LOG.warning("You asked for orbit_number from the message, but its not there. Keep init orbit.")
 
-        try:
-            level1_dataset = self.message_data.get('dataset')
+        level1_dataset = self.message_data.get('dataset', None)
+        if dataset is not None:
             self.get_level1_files_from_dataset(level1_dataset)
-        except KeyError:
+        else:
             # Just one file; e.g. NOAA-POES or Metop AVHRR level-1 data
-            self.level1_files = self.message_data.get('file')
+            self.level1_files = [urlparse(self.message_data.get('uri')).path]
 
         if len(self.level1_files) < 1:
             raise DatasetIsEmpty('No level-1 data in dataset!')
