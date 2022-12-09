@@ -218,7 +218,7 @@ def get_sceneid(platform_name, orbit_number, starttime):
     return sceneid
 
 
-def ready2run(msg, files4pps, **kwargs):
+def ready2run(msg, files4pps, use_l1c, **kwargs):
     """Check whether pps is ready to run or not."""
     # """Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
     # LOG.debug("Received message: " + str(msg))
@@ -355,7 +355,11 @@ def ready2run(msg, files4pps, **kwargs):
             files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
+    if use_l1c:
+        if len(files4pps[sceneid]) < 1:
+            LOG.info("No level1c files!")
+            return False
+    elif (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
             platform_name in SUPPORTED_EARS_AVHRR_SATELLITES):
         LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
     elif (platform_name in SUPPORTED_AVHRR_SATELLITES):
