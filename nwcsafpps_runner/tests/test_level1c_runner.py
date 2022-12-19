@@ -289,7 +289,7 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.sensor, 'unknown')
         self.assertEqual(l1c_proc.orbit_number, 99999)
         self.assertEqual(l1c_proc.service, 'seviri-l1c')
-        self.assertDictEqual(l1c_proc._l1c_processor_call_kwargs, {})
+        self.assertDictEqual(l1c_proc._l1c_processor_call_kwargs, {'engine': 'h5netcdf'})
         self.assertEqual(l1c_proc.result_home, '/tmp')
         self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])
