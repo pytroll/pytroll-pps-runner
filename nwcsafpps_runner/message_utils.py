@@ -54,7 +54,7 @@ def prepare_l1c_message(result_file, mda, **kwargs):
         to_send["orig_orbit_number"] = to_send["orbit_number"]
         to_send["orbit_number"] = kwargs['orbit']
 
-    to_send["uri"] = urlunsplit(('ssh', socket.gethostname(), result_file, '', ''))
+    to_send["uri"] = result_file
     filename = os.path.basename(result_file)
     to_send["uid"] = filename
 
