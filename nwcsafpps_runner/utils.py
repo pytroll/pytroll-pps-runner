@@ -342,17 +342,8 @@ def ready2run(msg, files4pps, use_l1c, **kwargs):
         files4pps[sceneid] = []
 
     LOG.debug("level1_files = %s", level1_files)
-    if platform_name in SUPPORTED_MODIS_SATELLITES:
-        for item in level1_files:
-            fname = os.path.basename(item)
-            LOG.debug("EOS level-1 file: %s", item)
-            if (fname.startswith(GEOLOC_PREFIX[platform_name]) or
-                    fname.startswith(DATA1KM_PREFIX[platform_name])):
-                files4pps[sceneid].append(item)
-    else:
-        for item in level1_files:
-            # fname = os.path.basename(item)
-            files4pps[sceneid].append(item)
+    for item in level1_files:
+        files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
     if use_l1c:
