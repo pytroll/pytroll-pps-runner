@@ -306,7 +306,7 @@ class TestPostTrollMessage(unittest.TestCase):
                     'software': 'NWCSAF-PPSv2018',
                     'start_time': START_TIME1, 'end_time': END_TIME1,
                     'sensor': 'viirs',
-                    'filename': '/tmp/xxx',
+                    'filename': '/my_tmp/xxx',
                     'platform_name': 'npp'}
 
         posttroll_message = PostTrollMessage(0, metadata)
@@ -513,7 +513,14 @@ class TestPostTrollMessage(unittest.TestCase):
 
         posttroll_message = PostTrollMessage(0, metadata)
         mymessage = posttroll_message.get_message_with_uri_and_uid()
+        self.assertDictEqual(mymessage, result_message)
 
+        metadata.update({'filename': ['/tmp/xxx', '/tmp/xxx2']})
+        result_message = {'dataset': [{'uri': '/tmp/xxx', 'uid': 'xxx'},
+                                      {'uri': '/tmp/xxx2', 'uid': 'xxx2'}]}
+
+        posttroll_message = PostTrollMessage(0, metadata)
+        mymessage = posttroll_message.get_message_with_uri_and_uid()
         self.assertDictEqual(mymessage, result_message)
 
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
