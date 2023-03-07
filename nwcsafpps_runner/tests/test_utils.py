@@ -26,6 +26,7 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime
 from nwcsafpps_runner.utils import (create_xml_timestat_from_lvl1c,
                                     find_product_statistics_from_lvl1c,
+                                    publish_pps_files,
                                     create_xml_timestat_from_scene)
 from nwcsafpps_runner.utils import get_outputfiles
 from nwcsafpps_runner.utils import get_time_control_ascii_filename_candidates
@@ -383,6 +384,24 @@ class TestProductStatisticsFiles(unittest.TestCase):
 
             filename = os.path.basename(xmlfiles[0])
             self.assertEqual(filename, 'S_NWC_CTTH_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml')
+
+
+class TestPublishPPSFiles(unittest.TestCase):
+    def test_publish_pps_files(self):
+        from posttroll.message import Message
+        from multiprocessing import Manager
+        file1 = "S_NWC_CTTH_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml"
+        file2 = "S_NWC_CMA_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml"
+        scene = {'instrument': 'avhrr', 'platform_name': 'EOS-Terra', 'orbit_number': "46878"}
+        input_msg = Message(data={'dataset': 'dummy'}, atype='dataset', subject='test')
+        result_files = [file1, file2]
+        manager = Manager()
+        publish_q = manager.Queue()
+        publish_q.put = MagicMock()
+        publish_pps_files(input_msg, publish_q, scene, result_files)
+        msg_out = publish_q.put.call_args_list
+        self.assertTrue(file2 in msg_out[1].args[0])
+        self.assertTrue(file1 in msg_out[0].args[0])
 
 
 if __name__ == "__main__":
