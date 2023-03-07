@@ -282,7 +282,7 @@ class TestPostTrollMessage(unittest.TestCase):
                            'software': 'NWCSAF-PPSv2018',
                            'start_time': START_TIME1, 'end_time': END_TIME1,
                            'sensor': 'viirs', 'platform_name': 'Suomi-NPP',
-                           'status': 'OK', 'uri': 'ssh://TEST_SERVERNAME/tmp/xxx',
+                           'status': 'OK', 'uri': '/tmp/xxx',
                            'uid': 'xxx', 'data_processing_level': '2', 'format': 'CF'}
 
         message_type = 'file'
@@ -509,7 +509,7 @@ class TestPostTrollMessage(unittest.TestCase):
         self.assertFalse(mymessage)
 
         metadata.update({'filename': '/tmp/xxx'})
-        result_message = {'uri': 'ssh://TEST_SERVERNAME/tmp/xxx', 'uid': 'xxx'}
+        result_message = {'uri': '/tmp/xxx', 'uid': 'xxx'}
 
         posttroll_message = PostTrollMessage(0, metadata)
         mymessage = posttroll_message.get_message_with_uri_and_uid()
