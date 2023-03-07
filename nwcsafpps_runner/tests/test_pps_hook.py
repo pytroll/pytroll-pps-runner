@@ -200,7 +200,7 @@ class TestPostTrollMessage(unittest.TestCase):
                                        'output_format': 'CF',
                                        'geo_or_polar': 'polar',
                                        'software': 'NWCSAF-PPSv2018',
-                                       'level': '2', 'variant': 'DR', 'filename': '/tmp/xxx'}
+                                       'level': '2', 'variant': 'DR', 'filename': '/my_dummy_dir/xxx'}
         self.metadata_with_start_and_end_times = {'station': 'norrkoping', 'output_format': 'CF',
                                                   'level': '2', 'variant': 'DR',
                                                   'geo_or_polar': 'polar',
@@ -267,7 +267,7 @@ class TestPostTrollMessage(unittest.TestCase):
                     'software': 'NWCSAF-PPSv2018',
                     'start_time': START_TIME1, 'end_time': END_TIME1,
                     'sensor': 'viirs',
-                    'filename': '/tmp/xxx',
+                    'filename': '/my_dummy_dir/xxx',
                     'platform_name': 'npp'}
 
         posttroll_message = PostTrollMessage(0, metadata)
@@ -282,7 +282,7 @@ class TestPostTrollMessage(unittest.TestCase):
                            'software': 'NWCSAF-PPSv2018',
                            'start_time': START_TIME1, 'end_time': END_TIME1,
                            'sensor': 'viirs', 'platform_name': 'Suomi-NPP',
-                           'status': 'OK', 'uri': '/tmp/xxx',
+                           'status': 'OK', 'uri': '/my_dummy_dir/xxx',
                            'uid': 'xxx', 'data_processing_level': '2', 'format': 'CF'}
 
         message_type = 'file'
@@ -306,7 +306,7 @@ class TestPostTrollMessage(unittest.TestCase):
                     'software': 'NWCSAF-PPSv2018',
                     'start_time': START_TIME1, 'end_time': END_TIME1,
                     'sensor': 'viirs',
-                    'filename': '/my_tmp/xxx',
+                    'filename': '/my_dummy_dir/xxx',
                     'platform_name': 'npp'}
 
         posttroll_message = PostTrollMessage(0, metadata)
@@ -333,7 +333,7 @@ class TestPostTrollMessage(unittest.TestCase):
                     'software': 'NWCSAF-PPSv2018',
                     'start_time': START_TIME1, 'end_time': END_TIME1,
                     'sensor': 'viirs',
-                    'filename': '/tmp/xxx',
+                    'filename': '/my_dummy_dir/xxx',
                     'platform_name': 'npp'}
 
         posttroll_message = PostTrollMessage(0, metadata)
@@ -359,7 +359,7 @@ class TestPostTrollMessage(unittest.TestCase):
                     'software': 'NWCSAF-PPSv2018',
                     'start_time': START_TIME1, 'end_time': END_TIME1,
                     'sensor': 'viirs',
-                    'filename': '/tmp/xxx',
+                    'filename': '/my_dummy_dir/xxx',
                     'platform_name': 'npp'}
 
         posttroll_message = PostTrollMessage(0, metadata)
@@ -508,16 +508,16 @@ class TestPostTrollMessage(unittest.TestCase):
 
         self.assertFalse(mymessage)
 
-        metadata.update({'filename': '/tmp/xxx'})
-        result_message = {'uri': '/tmp/xxx', 'uid': 'xxx'}
+        metadata.update({'filename': '/my_dummy_dir/xxx'})
+        result_message = {'uri': '/my_dummy_dir/xxx', 'uid': 'xxx'}
 
         posttroll_message = PostTrollMessage(0, metadata)
         mymessage = posttroll_message.get_message_with_uri_and_uid()
         self.assertDictEqual(mymessage, result_message)
 
-        metadata.update({'filename': ['/tmp/xxx', '/tmp/xxx2']})
-        result_message = {'dataset': [{'uri': '/tmp/xxx', 'uid': 'xxx'},
-                                      {'uri': '/tmp/xxx2', 'uid': 'xxx2'}]}
+        metadata.update({'filename': ['/my_dummy_dir/xxx', '/my_dummy_dir/xxx2']})
+        result_message = {'dataset': [{'uri': '/my_dummy_dir/xxx', 'uid': 'xxx'},
+                                      {'uri': '/my_dummy_dir/xxx2', 'uid': 'xxx2'}]}
 
         posttroll_message = PostTrollMessage(0, metadata)
         mymessage = posttroll_message.get_message_with_uri_and_uid()
