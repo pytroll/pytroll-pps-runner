@@ -156,7 +156,7 @@ class TestPublishMessage(unittest.TestCase):
                     'nominal_time': datetime(2021, 5, 18, 14, 15),
                     'compressed': '',
                     'origin': '172.18.0.248:9093', 'sensor': ['seviri'],
-                    'uri': 'ssh://my_local_server/my/level1c/file/path/level1c.nc',
+                    'uri': '/my/level1c/file/path/level1c.nc',
                     'uid': 'level1c.nc',
                     'format': 'PPS-L1C',
                     'type': 'NETCDF',
@@ -179,7 +179,7 @@ class TestPublishMessage(unittest.TestCase):
                        'nominal_time': datetime(2021, 5, 18, 14, 15),
                        'compressed': '',
                        'origin': '172.18.0.248:9093', 'sensor': ['seviri'],
-                       'uri': 'ssh://my_local_server/my/level1c/file/path/level1c.nc',
+                       'uri': '/my/level1c/file/path/level1c.nc',
                        'uid': 'level1c.nc',
                        'format': 'PPS-L1C',
                        'type': 'NETCDF',
@@ -289,7 +289,7 @@ class TestL1cProcessing(unittest.TestCase):
         self.assertEqual(l1c_proc.sensor, 'unknown')
         self.assertEqual(l1c_proc.orbit_number, 99999)
         self.assertEqual(l1c_proc.service, 'seviri-l1c')
-        self.assertDictEqual(l1c_proc._l1c_processor_call_kwargs, {})
+        self.assertDictEqual(l1c_proc._l1c_processor_call_kwargs, {'engine': 'h5netcdf'})
         self.assertEqual(l1c_proc.result_home, '/tmp')
         self.assertEqual(l1c_proc.publish_topic, ['/1c/nc/0deg'])
         self.assertEqual(l1c_proc.subscribe_topics, ['/1b/hrit/0deg'])

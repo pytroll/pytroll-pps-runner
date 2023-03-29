@@ -218,10 +218,8 @@ def get_sceneid(platform_name, orbit_number, starttime):
     return sceneid
 
 
-def ready2run(msg, files4pps, **kwargs):
+def ready2run(msg, files4pps, use_l1c, **kwargs):
     """Check whether pps is ready to run or not."""
-    # """Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
-    # LOG.debug("Received message: " + str(msg))
 
     LOG.debug("Ready to run...")
     LOG.info("Got message: " + str(msg))
@@ -342,20 +340,15 @@ def ready2run(msg, files4pps, **kwargs):
         files4pps[sceneid] = []
 
     LOG.debug("level1_files = %s", level1_files)
-    if platform_name in SUPPORTED_MODIS_SATELLITES:
-        for item in level1_files:
-            fname = os.path.basename(item)
-            LOG.debug("EOS level-1 file: %s", item)
-            if (fname.startswith(GEOLOC_PREFIX[platform_name]) or
-                    fname.startswith(DATA1KM_PREFIX[platform_name])):
-                files4pps[sceneid].append(item)
-    else:
-        for item in level1_files:
-            # fname = os.path.basename(item)
-            files4pps[sceneid].append(item)
+    for item in level1_files:
+        files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
+    if use_l1c:
+        if len(files4pps[sceneid]) < 1:
+            LOG.info("No level1c files!")
+            return False
+    elif (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
             platform_name in SUPPORTED_EARS_AVHRR_SATELLITES):
         LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
     elif (platform_name in SUPPORTED_AVHRR_SATELLITES):
@@ -762,8 +755,7 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         to_send = input_msg.data.copy()
         to_send.pop('dataset', None)
         to_send.pop('collection', None)
-        to_send['uri'] = (
-            'ssh://%s/%s' % (servername, result_file))
+        to_send['uri'] = result_file
         to_send['uid'] = filename
         to_send['sensor'] = scene.get('instrument', None)
         if not to_send['sensor']:

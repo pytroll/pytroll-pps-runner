@@ -333,6 +333,7 @@ def pps(options):
                  }
 
         status = ready2run(msg, files4pps,
+                           use_l1c,
                            stream_tag_name=options.get('stream_tag_name', 'variant'),
                            stream_name=options.get('stream_name', 'EARS'),
                            sdr_granule_processing=options.get('sdr_processing') == 'granules')

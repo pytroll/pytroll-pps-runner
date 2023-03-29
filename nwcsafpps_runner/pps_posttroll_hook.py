@@ -345,13 +345,13 @@ class PostTrollMessage(object):
         if isinstance(self.metadata['filename'], list):
             dataset = []
             for filename in self.metadata['filename']:
-                uri = 'ssh://{server}{path}'.format(server=servername, path=os.path.abspath(filename))
+                uri = os.path.abspath(filename)
                 uid = os.path.basename(filename)
                 dataset.append({'uri': uri, 'uid': uid})
             msg['dataset'] = dataset
         else:
             filename = self.metadata['filename']
-            uri = 'ssh://{server}{path}'.format(server=servername, path=os.path.abspath(filename))
+            uri = os.path.abspath(filename)
             msg['uri'] = uri
             if 'uid' not in self.metadata:
                 LOG.debug("Add uid as it was not included in the metadata from PPS")

@@ -79,7 +79,7 @@ class L1cProcessor(object):
         options = get_config(config_filename, service_name)
 
         self.initialize(service_name)
-        self._l1c_processor_call_kwargs = options.get('l1cprocess_call_arguments', {})
+        self._l1c_processor_call_kwargs = options.get('l1cprocess_call_arguments', {'engine': 'h5netcdf'})
         self.time_limit_seconds = options.get('time_limit_seconds', 60)
 
         self.subscribe_topics = options['message_types']
@@ -113,7 +113,7 @@ class L1cProcessor(object):
         """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
         result_dict["l1cfile"] = l1c_proc_func(self.level1_files,
                                                self.result_home,
-                                               self._l1c_processor_call_kwargs)
+                                               **self._l1c_processor_call_kwargs)
 
     def run(self, msg):
         """Start the L1c processing using the relevant sensor specific function from level1c4pps."""
@@ -131,12 +131,12 @@ class L1cProcessor(object):
             else:
                 LOG.warning("You asked for orbit_number from the message, but its not there. Keep init orbit.")
 
-        try:
+        if msg.type == 'dataset':
             level1_dataset = self.message_data.get('dataset')
             self.get_level1_files_from_dataset(level1_dataset)
-        except KeyError:
+        else:
             # Just one file; e.g. NOAA-POES or Metop AVHRR level-1 data
-            self.level1_files = self.message_data.get('file')
+            self.level1_files = [urlparse(self.message_data.get('uri')).path]
 
         if len(self.level1_files) < 1:
             raise DatasetIsEmpty('No level-1 data in dataset!')
