@@ -387,7 +387,10 @@ class TestProductStatisticsFiles(unittest.TestCase):
 
 
 class TestPublishPPSFiles(unittest.TestCase):
+    """Test publish pps files."""
+
     def test_publish_pps_files(self):
+        """Test publish pps files."""
         from posttroll.message import Message
         from multiprocessing import Manager
         file1 = "S_NWC_CTTH_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml"

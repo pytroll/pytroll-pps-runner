@@ -220,8 +220,6 @@ def get_sceneid(platform_name, orbit_number, starttime):
 
 def ready2run(msg, files4pps, use_l1c, **kwargs):
     """Check whether pps is ready to run or not."""
-    # """Start the PPS processing on a NOAA/Metop/S-NPP/EOS scene"""
-    # LOG.debug("Received message: " + str(msg))
 
     LOG.debug("Ready to run...")
     LOG.info("Got message: " + str(msg))
