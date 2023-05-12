@@ -76,6 +76,7 @@ PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
                        'ppsPrecipPrepare': 'PC-PRE'}
 
 PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
+                                 'noaa21': 'NOAA-21',
                                  'noaa19': 'NOAA-19',
                                  'noaa18': 'NOAA-18',
                                  'noaa15': 'NOAA-15',
