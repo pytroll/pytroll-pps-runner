@@ -37,7 +37,7 @@ from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
 
 LOG = logging.getLogger(__name__)
 
-SUPPORTED_SERVICE_NAMES = ['seviri-l1c', 'viirs-l1c', 'avhrr-l1c', 'modis-l1c']
+SUPPORTED_SERVICE_NAMES = ['seviri-l1c', 'viirs-l1c', 'avhrr-l1c', 'modis-l1c', 'metimage-l1c']
 
 SUPPORTED_SATELLITES = {'seviri-l1c': ['meteosat-8', 'meteosat-9', 'meteosat-10', 'meteosat-11'],
                         'metimage-l1c': ['metop-sg-a1', 'metop-sg-a2', 'metop-sg-a3'],
