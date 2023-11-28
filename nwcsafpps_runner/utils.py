@@ -63,18 +63,20 @@ SUPPORTED_AVHRR_SATELLITES = ['NOAA-15', 'NOAA-18', 'NOAA-19',
                               'Metop-B', 'Metop-A', 'Metop-C']
 SUPPORTED_EARS_AVHRR_SATELLITES = ['Metop-B', 'Metop-C']
 SUPPORTED_MODIS_SATELLITES = ['EOS-Terra', 'EOS-Aqua']
-SUPPORTED_VIIRS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21', 'NOAA-22']
+SUPPORTED_VIIRS_SATELLITES = ['Suomi-NPP', 'NOAA-20', 'NOAA-21', 'NOAA-22', 'NOAA-23']
 SUPPORTED_SEVIRI_SATELLITES = ['Meteosat-09', 'Meteosat-10', 'Meteosat-11']
+SUPPORTED_METIMAGE_SATELLITES = ['Metop-SG-A1', 'Metop-SG-A2', 'Metop-SG-A3']
 
 SUPPORTED_PPS_SATELLITES = (SUPPORTED_AVHRR_SATELLITES +
                             SUPPORTED_MODIS_SATELLITES +
                             SUPPORTED_SEVIRI_SATELLITES +
+                            SUPPORTED_METIMAGE_SATELLITES +
                             SUPPORTED_VIIRS_SATELLITES)
 
 GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
 DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 
-PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis', 'seviri']
+PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis', 'seviri', 'metimage']
 REQUIRED_MW_SENSORS = {}
 REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
 REQUIRED_MW_SENSORS['NOAA-18'] = []
@@ -92,8 +94,11 @@ SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
                   'NOAA-15': 'noaa15',
                   'Metop-A': 'metop02', 'Metop-B': 'metop01',
                   'Metop-C': 'metop03',
+                  'Metop-SG-A1': 'metopsga1',
+                  'Metop-SG-A2': 'metopsga2',
+                  'Metop-SG-A3': 'metopsga3',
                   'Suomi-NPP': 'npp',
-                  'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21',
+                  'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21', 'NOAA-23': 'noaa23',
                   'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1',
                   'Meteosat-09': 'meteosat09', 'Meteosat-10': 'meteosat10',
                   'Meteosat-11': 'meteosat11'}
@@ -107,6 +112,8 @@ for sat in SATELLITE_NAME:
         SENSOR_LIST[sat] = 'viirs'
     elif 'Meteosat' in sat:
         SENSOR_LIST[sat] = 'seviri'
+    elif 'Metop-SG' in sat:
+        SENSOR_LIST[sat] = 'metimage'
     else:
         SENSOR_LIST[sat] = ['avhrr/3', 'mhs', 'amsu-a']
 
@@ -304,6 +311,12 @@ def ready2run(msg, files4pps, use_l1c, **kwargs):
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) +
                 ' not required for S-NPP/VIIRS PPS processing...')
+            return False
+    elif msg.data['platform_name'] in SUPPORTED_METIMAGE_SATELLITES:
+        if msg.data['sensor'] not in ['metimage', ]:
+            LOG.info(
+                'Sensor ' + str(msg.data['sensor']) +
+                ' not required for METIMAGE PPS processing...')
             return False
     else:
         if msg.data['sensor'] not in NOAA_METOP_PPS_SENSORNAMES:
