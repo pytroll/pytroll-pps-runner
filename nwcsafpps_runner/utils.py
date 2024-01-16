@@ -211,20 +211,6 @@ def message_uid(msg):
     return SceneId(platform_name, orbit_number, starttime)
 
 
-def get_sceneid(platform_name, orbit_number, starttime):
-
-    if starttime:
-        sceneid = (str(platform_name) + '_' +
-                   str(orbit_number) + '_' +
-                   str(starttime.strftime('%Y%m%d%H%M%S')))
-    else:
-        sceneid = (str(platform_name) + '_' +
-                   str(orbit_number))
-
-    LOG.debug("Scene identifier = " + str(sceneid))
-    return sceneid
-
-
 def ready2run(msg, files4pps, **kwargs):
     """Check whether pps is ready to run or not."""
 
@@ -341,39 +327,6 @@ def terminate_process(popen_obj, scene):
             "Process finished before time out - workerScene: " + str(scene))
 
 
-def create_pps_call_command_sequence(pps_script_name, scene, options):
-    """Create the PPS call commnd sequence.
-
-    Applies to NWCSAF/PPS v2014.
-    """
-    LVL1_NPP_PATH = os.environ.get('LVL1_NPP_PATH',
-                                   options.get('LVL1_NPP_PATH', None))
-    LVL1_EOS_PATH = os.environ.get('LVL1_EOS_PATH',
-                                   options.get('LVL1_EOS_PATH', None))
-
-    if scene['platform_name'] in SUPPORTED_MODIS_SATELLITES:
-        cmdstr = "%s %s %s %s %s" % (pps_script_name,
-                                     SATELLITE_NAME[
-                                         scene['platform_name']],
-                                     scene['orbit_number'], scene[
-                                         'satday'],
-                                     scene['sathour'])
-    else:
-        cmdstr = "%s %s %s 0 0" % (pps_script_name,
-                                   SATELLITE_NAME[
-                                       scene['platform_name']],
-                                   scene['orbit_number'])
-
-    cmdstr = cmdstr + ' ' + str(options['aapp_level1files_max_minutes_old'])
-
-    if scene['platform_name'] in SUPPORTED_VIIRS_SATELLITES and LVL1_NPP_PATH:
-        cmdstr = cmdstr + ' ' + str(LVL1_NPP_PATH)
-    elif scene['platform_name'] in SUPPORTED_MODIS_SATELLITES and LVL1_EOS_PATH:
-        cmdstr = cmdstr + ' ' + str(LVL1_EOS_PATH)
-
-    return shlex.split(str(cmdstr))
-
-
 def create_pps_call_command(python_exec, pps_script_name, scene):
     """Create the pps call command.
 
@@ -383,68 +336,6 @@ def create_pps_call_command(python_exec, pps_script_name, scene):
               "-af %s" % scene['file4pps'])
     LOG.debug("PPS call command: %s", str(cmdstr))
     return cmdstr
-
-
-
-def get_pps_inputfile(platform_name, ppsfiles):
-    """From the set of files picked up in the PostTroll messages decide the input
-    file used in the PPS call
-    """
-
-    if platform_name in SUPPORTED_MODIS_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('021km') > 0:
-                return ppsfile
-    elif platform_name in SUPPORTED_AVHRR_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('hrpt_') >= 0:
-                return ppsfile
-    elif platform_name in SUPPORTED_VIIRS_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('SVM01') >= 0:
-                return ppsfile
-    elif platform_name in SUPPORTED_SEVIRI_SATELLITES:
-        for ppsfile in ppsfiles:
-            if os.path.basename(ppsfile).find('NWC') >= 0:
-                return ppsfile
-
-    return None
-
-
-def get_xml_outputfiles(path, platform_name, orb, st_time=''):
-    """Finds xml outputfiles depending on certain input criteria.
-
-    From the directory path and satellite id and orbit number,
-    scan the directory and find all pps xml output files matching that scene and
-    return the full filenames.
-
-    The search allow for small deviations in orbit numbers between the actual
-    filename and the message.
-    """
-
-    xml_output = (os.path.join(path, 'S_NWC') + '*' +
-                  str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                  '_' + '%.5d' % int(orb) + '_%s*.xml' % st_time)
-    LOG.info(
-        "Match string to do a file globbing on xml output files: " + str(xml_output))
-    filelist = glob(xml_output)
-
-    if len(filelist) == 0:
-        # Perhaps there is an orbit number mismatch?
-        nxmlfiles = 0
-        for idx in [1, -1, 2, -2, 3, -3, 4, -4, 5, -5]:
-            tmp_orbit = int(orb) + idx
-            LOG.debug('Try with an orbitnumber of %d instead', tmp_orbit)
-            xml_output = (os.path.join(path, 'S_NWC') + '*' +
-                          str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                          '_' + '%.5d' % int(tmp_orbit) + '_%s*.xml' % st_time)
-
-            filelist = glob(xml_output)
-            nxmlfiles = len(filelist)
-            if nxmlfiles > 0:
-                break
-
-    return filelist
 
 
 def create_xml_timestat_from_lvl1c(scene, pps_control_path):
