@@ -225,43 +225,17 @@ def get_sceneid(platform_name, orbit_number, starttime):
     return sceneid
 
 
-def ready2run(msg, files4pps, use_l1c, **kwargs):
+def ready2run(msg, files4pps, **kwargs):
     """Check whether pps is ready to run or not."""
 
     LOG.debug("Ready to run...")
     LOG.info("Got message: " + str(msg))
 
-    sdr_granule_processing = kwargs.get('sdr_granule_processing')
-    stream_tag_name = kwargs.get('stream_tag_name', 'variant')
-    stream_name = kwargs.get('stream_name', 'EARS')
     destination = msg.data.get('destination')
 
     uris = []
-    if (msg.type == 'dataset' and
-            msg.data['platform_name'] in SUPPORTED_MODIS_SATELLITES):
-        LOG.info('Dataset: ' + str(msg.data['dataset']))
-        LOG.info('Got a dataset on an EOS satellite')
-        LOG.info('\t ...thus we can assume we have everything we need for PPS')
-        for obj in msg.data['dataset']:
-            uris.append(obj['uri'])
 
-    elif (sdr_granule_processing and msg.type == 'dataset' and
-            msg.data['platform_name'] in SUPPORTED_VIIRS_SATELLITES):
-        LOG.info('Dataset: ' + str(msg.data['dataset']))
-        LOG.info('Got a dataset on a JPSS/SNPP satellite')
-        if destination is None:
-            for obj in msg.data['dataset']:
-                uris.append(obj['uri'])
-        else:
-            for obj in msg.data['dataset']:
-                uris.append(os.path.join(destination, obj['uid']))
-
-    elif msg.type == 'collection' and not sdr_granule_processing:
-        if 'dataset' in msg.data['collection'][0]:
-            for dataset in msg.data['collection']:
-                uris.extend([mda['uri'] for mda in dataset['dataset']])
-
-    elif msg.type == 'file':
+    if msg.type == 'file':
         if destination is None:
             uris = [(msg.data['uri'])]
         else:
@@ -323,18 +297,7 @@ def ready2run(msg, files4pps, use_l1c, **kwargs):
             LOG.info(
                 'Sensor ' + str(msg.data['sensor']) + ' not required...')
             return False
-        required_mw_sensors = REQUIRED_MW_SENSORS.get(
-            msg.data['platform_name'])
-        if (msg.data['sensor'] in required_mw_sensors and
-                msg.data['data_processing_level'] != '1C'):
-            if msg.data['data_processing_level'] == '1c':
-                LOG.warning("Level should be in upper case!")
-            else:
-                LOG.info('Level not the required type for PPS for this sensor: ' +
-                         str(msg.data['sensor']) + ' ' +
-                         str(msg.data['data_processing_level']))
-                return False
-
+      
     # The orbit number is mandatory!
     orbit_number = int(msg.data['orbit_number'])
     LOG.debug("Orbit number: " + str(orbit_number))
@@ -347,38 +310,16 @@ def ready2run(msg, files4pps, use_l1c, **kwargs):
         return False
 
     starttime = msg.data.get('start_time')
-    sceneid = get_sceneid(platform_name, orbit_number, starttime)
-
-    if sceneid not in files4pps:
-        files4pps[sceneid] = []
 
     LOG.debug("level1_files = %s", level1_files)
     for item in level1_files:
         files4pps[sceneid].append(item)
 
     LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if use_l1c:
-        if len(files4pps[sceneid]) < 1:
-            LOG.info("No level1c files!")
-            return False
-    elif (stream_tag_name in msg.data and msg.data[stream_tag_name] in [stream_name, ] and
-            platform_name in SUPPORTED_EARS_AVHRR_SATELLITES):
-        LOG.info("EARS Metop data. Only require the HRPT/AVHRR level-1b file to be ready!")
-    elif (platform_name in SUPPORTED_AVHRR_SATELLITES):
-        if len(files4pps[sceneid]) < len(REQUIRED_MW_SENSORS[platform_name]) + 1:
-            LOG.info("Not enough NOAA/Metop sensor data available yet...")
-            return False
-    elif platform_name in SUPPORTED_MODIS_SATELLITES:
-        if len(files4pps[sceneid]) < 2:
-            LOG.info("Not enough MODIS level 1 files available yet...")
-            return False
+    if len(files4pps[sceneid]) < 1:
+        LOG.info("No level1c files!")
+        return False
 
-    if len(files4pps[sceneid]) > 10:
-        LOG.info(
-            "Number of level 1 files ready = " + str(len(files4pps[sceneid])))
-        LOG.info("Scene = " + str(sceneid))
-    else:
-        LOG.info("Level 1 files ready: " + str(files4pps[sceneid]))
 
     if msg.data['platform_name'] in SUPPORTED_PPS_SATELLITES:
         LOG.info(
@@ -398,25 +339,6 @@ def terminate_process(popen_obj, scene):
     else:
         LOG.info(
             "Process finished before time out - workerScene: " + str(scene))
-
-
-def prepare_pps_arguments(platform_name, level1_filepath, **kwargs):
-    """Prepare the platform specific arguments to be passed to the PPS scripts/modules."""
-
-    orbit_number = kwargs.get('orbit_number')
-    pps_args = {}
-
-    if platform_name in SUPPORTED_MODIS_SATELLITES:
-        pps_args['modisorbit'] = orbit_number
-        pps_args['modisfile'] = level1_filepath
-
-    elif platform_name in SUPPORTED_VIIRS_SATELLITES:
-        pps_args['csppfile'] = level1_filepath
-
-    elif platform_name in SUPPORTED_AVHRR_SATELLITES:
-        pps_args['hrptfile'] = level1_filepath
-
-    return pps_args
 
 
 def create_pps_call_command_sequence(pps_script_name, scene, options):
@@ -452,30 +374,16 @@ def create_pps_call_command_sequence(pps_script_name, scene, options):
     return shlex.split(str(cmdstr))
 
 
-def create_pps_call_command(python_exec, pps_script_name, scene, use_l1c=False):
+def create_pps_call_command(python_exec, pps_script_name, scene):
     """Create the pps call command.
 
-    Supports PPSv2018 and PPSv2021.
+    Supports PPSv2021.
     """
-    if use_l1c:
-        cmdstr = ("%s" % python_exec + " %s " % pps_script_name +
-                  "-af %s" % scene['file4pps'])
-        LOG.debug("PPS call command: %s", str(cmdstr))
-        return cmdstr
-
-    if scene['platform_name'] in SUPPORTED_MODIS_SATELLITES:
-        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
-                  " --modisfile %s" % scene['file4pps'])
-    elif scene['platform_name'] in SUPPORTED_VIIRS_SATELLITES:
-        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
-                  " --csppfile %s" % scene['file4pps'])
-    elif scene['platform_name'] in SUPPORTED_AVHRR_SATELLITES:
-        cmdstr = ("%s " % python_exec + " %s " % pps_script_name +
-                  " --hrptfile %s" % scene['file4pps'])
-    else:
-        raise
-
+    cmdstr = ("%s" % python_exec + " %s " % pps_script_name +
+              "-af %s" % scene['file4pps'])
+    LOG.debug("PPS call command: %s", str(cmdstr))
     return cmdstr
+
 
 
 def get_pps_inputfile(platform_name, ppsfiles):
@@ -637,9 +545,6 @@ def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
         if result_file.endswith("nc"):
             to_send['format'] = 'CF'
             to_send['type'] = 'netCDF4'
-        if result_file.endswith("h5"):
-            to_send['format'] = 'PPS'
-            to_send['type'] = 'HDF5'
         to_send['data_processing_level'] = '2'
 
         to_send['start_time'], to_send['end_time'] = starttime, endtime
