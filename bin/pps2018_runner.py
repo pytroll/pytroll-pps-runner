@@ -120,7 +120,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         if not pps_run_all_flags:
             pps_run_all_flags = []
 
-        use_l1c = (options.get('pps_version') == 'v2021')
+
         cmd_str = create_pps_call_command(py_exec, pps_script, scene)
         for flag in pps_run_all_flags:
             cmd_str = cmd_str + ' %s' % flag
@@ -178,7 +178,6 @@ def pps_worker(scene, publish_q, input_msg, options):
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
         xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
         xml_files += find_product_statistics_from_lvl1c(scene, pps_control_path)
-
         LOG.info("PPS summary statistics files: %s", str(xml_files))
 
         # The PPS post-hooks takes care of publishing the PPS cloud products
@@ -264,11 +263,7 @@ def pps(options):
     """
 
     LOG.info("*** Start the PPS level-2 runner:")
-    use_l1c = (options.get('pps_version') == 'v2021')
-    if use_l1c:
-        LOG.info("Use level-1c file as input (v2021 and greater)")
-    else:
-        LOG.info("Use original level-1 file as input (v2018)")
+    LOG.info("Use level-1c file as input")
 
     LOG.info("First check if NWP data should be downloaded and prepared")
     nwp_handeling_module = options.get("nwp_handeling_module", None)
@@ -318,17 +313,13 @@ def pps(options):
                  }
 
         status = ready2run(msg, files4pps,
-                           use_l1c,
                            stream_tag_name=options.get('stream_tag_name', 'variant'),
                            stream_name=options.get('stream_name', 'EARS'),
                            sdr_granule_processing=options.get('sdr_processing') == 'granules')
         if status:
             sceneid = get_sceneid(platform_name, orbit_number, starttime)
             LOG.debug(files4pps[sceneid])
-            if use_l1c:
-                scene['file4pps'] = files4pps[sceneid][0]
-            else:
-                scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
+            scene['file4pps'] = files4pps[sceneid][0]
 
             LOG.debug("Files for PPS: %s", str(scene['file4pps']))
             LOG.info('Start a thread preparing the nwp data and run pps...')
