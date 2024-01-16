@@ -503,60 +503,6 @@ def get_pps_inputfile(platform_name, ppsfiles):
     return None
 
 
-def get_outputfiles(path, platform_name, orb, st_time='', **kwargs):
-    """Finds outputfiles depending on certain input criteria.
-
-    From the directory path and satellite id and orbit number,
-    scan the directory and find all pps output files matching that scene and
-    return the full filenames. Since the orbit number is unstable there might be
-    more than one scene with the same orbit number and platform name. In order
-    to avoid picking up an older scene we check the file modifcation time, and
-    if the file is too old we discard it! For a more specific search patern the
-    start time can be used, just add st_time=start-time
-    """
-
-    filelist = []
-    h5_output = kwargs.get('h5_output')
-    if h5_output:
-        h5_output = (os.path.join(path, 'S_NWC') + '*' +
-                     str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_%s*.h5' % st_time)
-        LOG.info(
-            "Match string to do a file globbing on hdf5 output files: " + str(h5_output))
-        filelist = filelist + glob(h5_output)
-
-    nc_output = kwargs.get('nc_output')
-    if nc_output:
-        nc_output = (os.path.join(path, 'S_NWC') + '*' +
-                     str(METOP_NAME_LETTER.get(platform_name, platform_name)) +
-                     '_' + '%.5d' % int(orb) + '_%s*.nc' % st_time)
-        LOG.info(
-            "Match string to do a file globbing on netcdf output files: " + str(nc_output))
-        filelist = filelist + glob(nc_output)
-
-    xml_output = kwargs.get('xml_output')
-    if xml_output:
-        filelist = filelist + get_xml_outputfiles(path, platform_name, orb, st_time)
-
-    return filter4oldfiles(filelist)
-
-
-def filter4oldfiles(filelist, minutes_thr=90.):
-    """Check if the PPS file is older than threshold and only consider fresh ones."""
-
-    now = datetime.utcnow()
-    time_threshold = timedelta(minutes=minutes_thr)
-    filtered_flist = []
-    for fname in filelist:
-        mtime = datetime.utcfromtimestamp(os.stat(fname)[stat.ST_MTIME])
-        if (now - mtime) < time_threshold:
-            filtered_flist.append(fname)
-        else:
-            LOG.info("Found old PPS result: %s", fname)
-
-    return filtered_flist
-
-
 def get_xml_outputfiles(path, platform_name, orb, st_time=''):
     """Finds xml outputfiles depending on certain input criteria.
 
@@ -606,16 +552,6 @@ def create_xml_timestat_from_lvl1c(scene, pps_control_path):
         return []
 
 
-def create_xml_timestat_from_scene(scene, pps_control_path):
-    """From lvl1c file create XML file and return a file list, v2018."""
-    try:
-        txt_time_control = get_time_control_ascii_filename(scene, pps_control_path)
-    except FindTimeControlFileError:
-        LOG.exception('No XML Time statistics file created!')
-        return []
-    return create_xml_timestat_from_ascii(txt_time_control, pps_control_path)
-
-
 def find_product_statistics_from_lvl1c(scene, pps_control_path):
     """From lvl1c file find product XML files and return a file list."""
     try:
@@ -655,87 +591,6 @@ def create_xml_timestat_from_ascii(infile, pps_control_path):
 
     # There should always be only one xml file for each ascii file found above!
     return [infile.replace('.txt', '.xml')]
-
-
-def get_time_control_ascii_filename(scene, pps_control_path):
-    """From the scene object and a file path get the time-control-ascii-filename (with path)."""
-    infiles = get_time_control_ascii_filename_candidates(scene, pps_control_path)
-    LOG.info("Time control ascii file candidates: " + str(infiles))
-    if len(infiles) == 0:
-        raise FindTimeControlFileError("No time control ascii file candidate found!")
-    elif len(infiles) > 1:
-        msg = "More than one time control ascii file candidate found - unresolved ambiguity!"
-        raise FindTimeControlFileError(msg)
-
-    return infiles[0]
-
-
-def get_time_control_ascii_filename_candidates(scene, pps_control_path):
-    """From directory path, sensor and platform name get possible time-control filenames."""
-    sensors = SENSOR_LIST.get(scene['platform_name'], scene['platform_name'])
-    platform_id = SATELLITE_NAME.get(scene['platform_name'], scene['platform_name'])
-    LOG.info("pps platform_id = %s", str(platform_id))
-
-    #: Create the start time (format dateTtime) to be used in file findings
-    st_times = []
-    if sensors == 'seviri':
-        st_times.append(scene['starttime'].strftime("%Y%m%dT%H%M%S.%f"))
-    elif sensors in ['viirs', ]:
-        st_times.append(scene['starttime'].strftime("%Y%m%dT%H%M%S"))
-    elif 'avhrr/3' in sensors or sensors in ['modis', ]:
-        # At least for the AVHRR data the PPS filenames differ by a few
-        # seconds from the start time in the message - it seems sufficient
-        # to truncate the seconds, but we check for minutes +- 1
-        atime = scene['starttime'] - timedelta(seconds=60)
-        while atime < scene['starttime'] + timedelta(seconds=120):
-            st_times.append(atime.strftime("%Y%m%dT%H%M"))
-            atime = atime + timedelta(seconds=60)
-
-    # For VIIRS we often see a orbit number difference of 1:
-    norbit_candidates = [scene['orbit_number']]
-    for idx in [1, -1]:
-        norbit_candidates.append(int(scene['orbit_number']) + idx)
-
-    # PPSv2018 MODIS files have the orbit number set to "00000"!
-    # Level1c4pps files have the orbit number configurable with default "00000"!
-    norbit_candidates.append(0)
-
-    infiles = []
-    for norbit in norbit_candidates:
-        for st_time in st_times:
-            txt_time_file = (os.path.join(pps_control_path, 'S_NWC_timectrl_') +
-                             str(METOP_NAME_LETTER.get(platform_id, platform_id)) +
-                             '_' + '%.5d' % norbit + '_' +
-                             st_time +
-                             '*.txt')
-            LOG.info("glob string = " + str(txt_time_file))
-            infiles = infiles + glob(txt_time_file)
-
-    return infiles
-
-
-def get_product_statistics_files(pps_control_path, scene, product_statistics_filename,
-                                 max_abs_deviation_minutes):
-    """From directory path, sensor and platform name get possible product statistics filenames."""
-
-    platform_id = SATELLITE_NAME.get(scene['platform_name'], scene['platform_name'])
-    platform_id = METOP_NAME_LETTER.get(platform_id, platform_id)
-    product_stat_flist = []
-    scene_start_time = scene['starttime']
-    possible_filetimes = [scene_start_time]
-    for nmin in range(1, max_abs_deviation_minutes + 1):
-        possible_filetimes.append(scene_start_time - timedelta(seconds=60 * nmin))
-        possible_filetimes.append(scene_start_time + timedelta(seconds=60 * nmin))
-
-    for product_name in ['CMA', 'CT', 'CTTH', 'CPP', 'CMAPROB']:
-        for start_time in possible_filetimes:
-            glbify = globify(product_statistics_filename, {'product': product_name,
-                                                           'satellite': platform_id,
-                                                           'orbit': '%.5d' % scene['orbit_number'],
-                                                           'starttime': start_time})
-            product_stat_flist = product_stat_flist + glob(os.path.join(pps_control_path, glbify))
-
-    return product_stat_flist
 
 
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
