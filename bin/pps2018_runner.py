@@ -40,11 +40,10 @@ from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
                                     SENSOR_LIST, NwpPrepareError, PpsRunError,
                                     create_pps_call_command,
-                                    get_outputfiles, get_pps_inputfile,
                                     create_xml_timestat_from_lvl1c,
                                     find_product_statistics_from_lvl1c,
                                     get_sceneid, logreader, message_uid,
-                                    prepare_pps_arguments, publish_pps_files,
+                                    publish_pps_files,
                                     ready2run, terminate_process)
 from nwcsafpps_runner.utils import create_xml_timestat_from_scene
 from nwcsafpps_runner.utils import get_product_statistics_files
@@ -111,11 +110,6 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.debug("Platform name: %s", scene['platform_name'])
         LOG.debug("Orbit number: %s", str(scene['orbit_number']))
 
-        kwargs = prepare_pps_arguments(scene['platform_name'],
-                                       scene['file4pps'],
-                                       orbit_number=scene['orbit_number'])
-        LOG.debug("pps-arguments: %s", str(kwargs))
-
         min_thr = options['maximum_pps_processing_time_in_minutes']
         LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
 
@@ -127,7 +121,7 @@ def pps_worker(scene, publish_q, input_msg, options):
             pps_run_all_flags = []
 
         use_l1c = (options.get('pps_version') == 'v2021')
-        cmd_str = create_pps_call_command(py_exec, pps_script, scene, use_l1c=use_l1c)
+        cmd_str = create_pps_call_command(py_exec, pps_script, scene)
         for flag in pps_run_all_flags:
             cmd_str = cmd_str + ' %s' % flag
 
@@ -161,7 +155,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         if options['run_cmask_prob']:
             pps_script = options.get('run_cmaprob_script')
-            cmdl = create_pps_call_command(py_exec, pps_script, scene,  use_l1c=use_l1c)
+            cmdl = create_pps_call_command(py_exec, pps_script, scene)
 
             LOG.debug("Run command: " + str(cmdl))
             try:
@@ -182,17 +176,8 @@ def pps_worker(scene, publish_q, input_msg, options):
             err_reader2.join()
 
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
-        if use_l1c:
-            # v2021
-            xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
-            xml_files += find_product_statistics_from_lvl1c(scene, pps_control_path)
-        else:
-            # v2018
-            xml_files = create_xml_timestat_from_scene(scene, pps_control_path)
-            xml_files = xml_files + get_product_statistics_files(pps_control_path,
-                                                                 scene,
-                                                                 options['product_statistics_filename'],
-                                                                 options['pps_filetime_search_minutes'])
+        xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
+        xml_files += find_product_statistics_from_lvl1c(scene, pps_control_path)
 
         LOG.info("PPS summary statistics files: %s", str(xml_files))
 
