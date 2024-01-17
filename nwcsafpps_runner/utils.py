@@ -25,16 +25,14 @@
 
 import threading
 from trollsift.parser import parse  # @UnresolvedImport
-from trollsift.parser import globify
 # from trollsift import Parser
 from posttroll.message import Message  # @UnresolvedImport
 from subprocess import Popen, PIPE
 import os
-import stat
 import shlex
 from glob import glob
 import socket
-from datetime import datetime, timedelta
+
 #: Python 2/3 differences
 from six.moves.urllib.parse import urlparse
 
@@ -106,7 +104,6 @@ for sat in SUPPORTED_PPS_SATELLITES:
         SENSOR_LIST[sat] = ['seviri']
     elif sat in SUPPORTED_METIMAGE_SATELLITES:
         SENSOR_LIST[sat] = ['metimage']
-    
 
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
@@ -194,12 +191,12 @@ def get_lvl1c_file_from_msg(msg):
 
     return level1c_files[0]
 
-    
+
 def ready2run(msg, scene, **kwargs):
     """Check whether pps is ready to run or not."""
 
     LOG.info("Got message: " + str(msg))
-    if len(scene['file4pps']) !=1:
+    if len(scene['file4pps']) != 1:
         return False
     try:
         url_ip = socket.gethostbyname(msg.host)
@@ -213,9 +210,9 @@ def ready2run(msg, scene, **kwargs):
     if msg.data['platform_name'] in SUPPORTED_PPS_SATELLITES:
         LOG.info(
             "This is a PPS supported scene. Start the PPS lvl2 processing!")
-        LOG.info("Process the scene (sat, orbit) = " +
-                 str(platform_name) + ' ' + str(orbit_number))
-        
+        LOG.info("Process the file = %s" +
+                 os.basename(scene['file4pps']))
+
         LOG.debug("Ready to run...")
         return True
 

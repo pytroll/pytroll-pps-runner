@@ -29,7 +29,6 @@ import os
 import sys
 import threading
 from datetime import datetime, timedelta
-from glob import glob
 from subprocess import PIPE, Popen
 
 from six.moves.queue import Empty, Queue
@@ -39,13 +38,12 @@ from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 from nwcsafpps_runner.utils import (SENSOR_LIST, NwpPrepareError, PpsRunError,
                                     create_pps_call_command,
+                                    get_lvl1c_file_from_msg,
                                     create_xml_timestat_from_lvl1c,
                                     find_product_statistics_from_lvl1c,
-                                    get_sceneid, logreader,
+                                    logreader,
                                     publish_pps_files,
                                     ready2run, terminate_process)
-from nwcsafpps_runner.utils import create_xml_timestat_from_scene
-from nwcsafpps_runner.utils import get_product_statistics_files
 
 LOG = logging.getLogger(__name__)
 
@@ -117,7 +115,6 @@ def pps_worker(scene, publish_q, input_msg, options):
         pps_run_all_flags = pps_run_all.get('flags')
         if not pps_run_all_flags:
             pps_run_all_flags = []
-
 
         cmd_str = create_pps_call_command(py_exec, pps_script, scene)
         for flag in pps_run_all_flags:
@@ -267,7 +264,6 @@ def pps(options):
     nwp_handeling_module = options.get("nwp_handeling_module", None)
     prepare_nwp4pps(NWP_FLENS, nwp_handeling_module)
 
-    files4pps = {}
     LOG.info("Number of threads: %d", options['number_of_threads'])
     thread_pool = ThreadPool(options['number_of_threads'])
 
@@ -312,9 +308,9 @@ def pps(options):
 
         scene['file4pps'] = get_lvl1c_file_from_msg(msg)
         status = ready2run(msg, scene)
-        
+
         if status:
-  
+
             LOG.debug("Files for PPS: %s", str(scene['file4pps']))
             LOG.info('Start a thread preparing the nwp data and run pps...')
 
@@ -329,7 +325,6 @@ def pps(options):
                                                                      nwp_handeling_module))
 
             LOG.debug("Number of threads currently alive: %s", str(threading.active_count()))
-
 
     # FIXME! Should I clean up the thread_pool (open threads?) here at the end!?
 
