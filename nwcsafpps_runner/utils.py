@@ -77,46 +77,36 @@ GEOLOC_PREFIX = {'EOS-Aqua': 'MYD03', 'EOS-Terra': 'MOD03'}
 DATA1KM_PREFIX = {'EOS-Aqua': 'MYD021km', 'EOS-Terra': 'MOD021km'}
 
 PPS_SENSORS = ['amsu-a', 'amsu-b', 'mhs', 'avhrr/3', 'viirs', 'modis', 'seviri', 'metimage']
-REQUIRED_MW_SENSORS = {}
-REQUIRED_MW_SENSORS['NOAA-15'] = ['amsu-a', 'amsu-b']
-REQUIRED_MW_SENSORS['NOAA-18'] = []
-REQUIRED_MW_SENSORS['NOAA-19'] = ['amsu-a', 'mhs']
-REQUIRED_MW_SENSORS['Metop-A'] = ['amsu-a', 'mhs']
-REQUIRED_MW_SENSORS['Metop-B'] = ['amsu-a', 'mhs']
-REQUIRED_MW_SENSORS['Metop-C'] = ['amsu-a', 'mhs']
 NOAA_METOP_PPS_SENSORNAMES = ['avhrr/3', 'amsu-a', 'amsu-b', 'mhs']
 
 METOP_NAME_LETTER = {'metop01': 'metopb', 'metop02': 'metopa', 'metop03': 'metopc'}
 METOP_NAME = {'metop01': 'Metop-B', 'metop02': 'Metop-A', 'metop03': 'Metop-C'}
 METOP_NAME_INV = {'metopb': 'metop01', 'metopa': 'metop02', 'metopc': 'metop03'}
 
-SATELLITE_NAME = {'NOAA-19': 'noaa19', 'NOAA-18': 'noaa18',
-                  'NOAA-15': 'noaa15',
-                  'Metop-A': 'metop02', 'Metop-B': 'metop01',
-                  'Metop-C': 'metop03',
-                  'Metop-SG-A1': 'metopsga1',
-                  'Metop-SG-A2': 'metopsga2',
-                  'Metop-SG-A3': 'metopsga3',
-                  'Suomi-NPP': 'npp',
-                  'NOAA-20': 'noaa20', 'NOAA-21': 'noaa21', 'NOAA-23': 'noaa23',
-                  'EOS-Aqua': 'eos2', 'EOS-Terra': 'eos1',
-                  'Meteosat-09': 'meteosat09', 'Meteosat-10': 'meteosat10',
-                  'Meteosat-11': 'meteosat11'}
-SENSOR_LIST = {}
-for sat in SATELLITE_NAME:
-    if sat in ['NOAA-15']:
-        SENSOR_LIST[sat] = ['avhrr/3', 'amsu-b', 'amsu-a']
-    elif sat in ['EOS-Aqua', 'EOS-Terra']:
-        SENSOR_LIST[sat] = 'modis'
-    elif sat in ['Suomi-NPP', 'NOAA-20', 'NOAA-21']:
-        SENSOR_LIST[sat] = 'viirs'
-    elif 'Meteosat' in sat:
-        SENSOR_LIST[sat] = 'seviri'
-    elif 'Metop-SG' in sat:
-        SENSOR_LIST[sat] = 'metimage'
-    else:
-        SENSOR_LIST[sat] = ['avhrr/3', 'mhs', 'amsu-a']
+# SATELLITE_NAME = {}
+# for sat in SUPPORTED_PPS_SATELLITES:
+#     SATELLITE_NAME[sat] = sat.lower().replace('-', '')
+# historic exceptions
+# SATELLITE_NAME['Suomi-NPP'] = 'npp'
+# SATELLITE_NAME['EOS-Aqua'] = 'eos2'
+# SATELLITE_NAME['EOS-Terra'] = 'eos1'
+# SATELLITE_NAME['Metop-A']= 'metop02'
+# SATELLITE_NAME['Metop-B']= 'metop01'
+# SATELLITE_NAME['Metop-C']= 'metop03'
 
+SENSOR_LIST = {}
+for sat in SUPPORTED_PPS_SATELLITES:
+    if sat in SUPPORTED_AVHRR_SATELLITES:
+        SENSOR_LIST[sat] = ['avhrr/3']
+    elif sat in SUPPORTED_MODIS_SATELLITES:
+        SENSOR_LIST[sat] = ['modis']
+    elif sat in SUPPORTED_VIIRS_SATELLITES:
+        SENSOR_LIST[sat] = ['viirs']
+    elif sat in SUPPORTED_SEVIRI_SATELLITES:
+        SENSOR_LIST[sat] = ['seviri']
+    elif sat in SUPPORTED_METIMAGE_SATELLITES:
+        SENSOR_LIST[sat] = ['metimage']
+    
 
 METOP_SENSOR = {'amsu-a': 'amsua', 'avhrr/3': 'avhrr',
                 'amsu-b': 'amsub', 'hirs/4': 'hirs'}
@@ -175,48 +165,8 @@ class PpsRunError(Exception):
     pass
 
 
-class SceneId(object):
-
-    def __init__(self, platform_name, orbit_number, starttime, threshold=5):
-        self.platform_name = platform_name
-        self.orbit_number = orbit_number
-        self.starttime = starttime
-        self.threshold = threshold
-
-    def __str__(self):
-
-        return (str(self.platform_name) + '_' +
-                str(self.orbit_number) + '_' +
-                str(self.starttime.strftime('%Y%m%d%H%M')))
-
-    def __hash__(self):
-        return hash(str(self.platform_name) + '_' +
-                    str(self.orbit_number) + '_' +
-                    str(self.starttime.strftime('%Y%m%d%H%M')))
-
-    def __eq__(self, other):
-
-        return (self.platform_name == other.platform_name and
-                self.orbit_number == other.orbit_number and
-                abs(self.starttime - other.starttime) < timedelta(minutes=self.threshold))
-
-
-def message_uid(msg):
-    """Create a unique id/key-name for the scene."""
-
-    orbit_number = int(msg.data['orbit_number'])
-    platform_name = msg.data['platform_name']
-    starttime = msg.data['start_time']
-
-    return SceneId(platform_name, orbit_number, starttime)
-
-
-def ready2run(msg, files4pps, **kwargs):
-    """Check whether pps is ready to run or not."""
-
-    LOG.debug("Ready to run...")
-    LOG.info("Got message: " + str(msg))
-
+def get_lvl1c_file_from_msg(msg):
+    """Get level1c file from msg."""
     destination = msg.data.get('destination')
 
     uris = []
@@ -229,14 +179,28 @@ def ready2run(msg, files4pps, **kwargs):
     else:
         LOG.debug(
             "Ignoring this type of message data: type = " + str(msg.type))
-        return False
+        return []
 
     try:
-        level1_files = check_uri(uris)
+        level1c_files = check_uri(uris)
     except IOError:
         LOG.info('One or more files not present on this host!')
-        return False
+        return []
 
+    LOG.debug("files4pps: %s", str(level1c_files))
+    if len(level1c_files) < 1:
+        LOG.info("No level1c files!")
+        return []
+
+    return level1c_files[0]
+
+    
+def ready2run(msg, scene, **kwargs):
+    """Check whether pps is ready to run or not."""
+
+    LOG.info("Got message: " + str(msg))
+    if len(scene['file4pps']) !=1:
+        return False
     try:
         url_ip = socket.gethostbyname(msg.host)
         if url_ip not in get_local_ips():
@@ -246,73 +210,13 @@ def ready2run(msg, files4pps, **kwargs):
         LOG.error("Failed checking host! Hostname = %s", socket.gethostname())
         LOG.exception(err)
 
-    LOG.info("Sat and Sensor: " + str(msg.data['platform_name'])
-             + " " + str(msg.data['sensor']))
-    if msg.data['sensor'] not in PPS_SENSORS:
-        LOG.info("Data from sensor " + str(msg.data['sensor']) +
-                 " not needed by PPS " +
-                 "Continue...")
-        return False
-
-    if msg.data['platform_name'] in SUPPORTED_SEVIRI_SATELLITES:
-        if msg.data['sensor'] not in ['seviri', ]:
-            LOG.info(
-                'Sensor ' + str(msg.data['sensor']) +
-                ' not required for MODIS PPS processing...')
-            return False
-    elif msg.data['platform_name'] in SUPPORTED_MODIS_SATELLITES:
-        if msg.data['sensor'] not in ['modis', ]:
-            LOG.info(
-                'Sensor ' + str(msg.data['sensor']) +
-                ' not required for MODIS PPS processing...')
-            return False
-    elif msg.data['platform_name'] in SUPPORTED_VIIRS_SATELLITES:
-        if msg.data['sensor'] not in ['viirs', ]:
-            LOG.info(
-                'Sensor ' + str(msg.data['sensor']) +
-                ' not required for S-NPP/VIIRS PPS processing...')
-            return False
-    elif msg.data['platform_name'] in SUPPORTED_METIMAGE_SATELLITES:
-        if msg.data['sensor'] not in ['metimage', ]:
-            LOG.info(
-                'Sensor ' + str(msg.data['sensor']) +
-                ' not required for METIMAGE PPS processing...')
-            return False
-    else:
-        if msg.data['sensor'] not in NOAA_METOP_PPS_SENSORNAMES:
-            LOG.info(
-                'Sensor ' + str(msg.data['sensor']) + ' not required...')
-            return False
-      
-    # The orbit number is mandatory!
-    orbit_number = int(msg.data['orbit_number'])
-    LOG.debug("Orbit number: " + str(orbit_number))
-
-    # sensor = (msg.data['sensor'])
-    platform_name = msg.data['platform_name']
-
-    if platform_name not in SATELLITE_NAME:
-        LOG.warning("Satellite not supported: " + str(platform_name))
-        return False
-
-    starttime = msg.data.get('start_time')
-
-    LOG.debug("level1_files = %s", level1_files)
-    for item in level1_files:
-        files4pps[sceneid].append(item)
-
-    LOG.debug("files4pps: %s", str(files4pps[sceneid]))
-    if len(files4pps[sceneid]) < 1:
-        LOG.info("No level1c files!")
-        return False
-
-
     if msg.data['platform_name'] in SUPPORTED_PPS_SATELLITES:
         LOG.info(
             "This is a PPS supported scene. Start the PPS lvl2 processing!")
         LOG.info("Process the scene (sat, orbit) = " +
                  str(platform_name) + ' ' + str(orbit_number))
-
+        
+        LOG.debug("Ready to run...")
         return True
 
 
