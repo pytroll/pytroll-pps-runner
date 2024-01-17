@@ -25,9 +25,12 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 from nwcsafpps_runner.utils import (create_xml_timestat_from_lvl1c,
+                                    get_lvl1c_file_from_msg,
                                     find_product_statistics_from_lvl1c,
                                     publish_pps_files)
 from nwcsafpps_runner.utils import FindTimeControlFileError
+
+TEST_MSG = """pytroll://segment/EPSSGA/1B/ file safusr.u@lxserv1043.smhi.se 2023-02-17T08:18:15.748831 v1.01 application/json {"start_time": "2023-02-17T08:03:25", "end_time": "2023-02-17T08:15:25", "orbit_number": 99999, "platform_name": "Metop-SG-A1", "sensor": "metimage", "format": "X", "type": "NETCDF", "data_processing_level": "1b", "variant": "DR", "orig_orbit_number": 23218, "uri": "/san1/polar_in/direct_readout/metimage/W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc", "uid": "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc"}"""
 
 
 @pytest.fixture
@@ -136,6 +139,17 @@ class TestPublishPPSFiles(unittest.TestCase):
         msg_out = publish_q.put.call_args_list
         self.assertTrue(file2 in msg_out[1].args[0])
         self.assertTrue(file1 in msg_out[0].args[0])
+
+class TestGetLvl1cFromMsg(unittest.TestCase):
+    """Test publish pps files."""
+
+    def test_get_lvl1c_file_from_msg(self):
+        """Test get_lvl1c_file_from_message."""
+        from posttroll.message import Message
+        input_msg = Message.decode(rawstr=TEST_MSG)
+        file1 = get_lvl1c_file_from_msg(input_msg)        
+        file_exp = "/san1/polar_in/direct_readout/metimage/W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc"
+        self.assertEqual(file1, file_exp)
 
 
 if __name__ == "__main__":
