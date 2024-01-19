@@ -209,6 +209,7 @@ class TestL1cProcessing(unittest.TestCase):
         check_service_is_supported('viirs-l1c')
         check_service_is_supported('avhrr-l1c')
         check_service_is_supported('modis-l1c')
+        check_service_is_supported('metimage-l1c')
 
         self.assertRaises(ServiceNameNotSupported, check_service_is_supported, 'seviri')
 

@@ -31,21 +31,23 @@ from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
 from level1c4pps.viirs2pps_lib import process_one_scene as process_viirs
 from level1c4pps.modis2pps_lib import process_one_scene as process_modis
 from level1c4pps.avhrr2pps_lib import process_one_scene as process_avhrr
+from level1c4pps.metimage2pps_lib import process_one_scene as process_metimage
 
 from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
 
 LOG = logging.getLogger(__name__)
 
-SUPPORTED_SERVICE_NAMES = ['seviri-l1c', 'viirs-l1c', 'avhrr-l1c', 'modis-l1c']
+SUPPORTED_SERVICE_NAMES = ['seviri-l1c', 'viirs-l1c', 'avhrr-l1c', 'modis-l1c', 'metimage-l1c']
 
-SUPPORTED_SATELLITES = {'seviri-l1c':
-                        ['meteosat-8', 'meteosat-9', 'meteosat-10', 'meteosat-11'],
+SUPPORTED_SATELLITES = {'seviri-l1c': ['meteosat-8', 'meteosat-9', 'meteosat-10', 'meteosat-11'],
+                        'metimage-l1c': ['metop-sg-a1', 'metop-sg-a2', 'metop-sg-a3'],
                         'viirs-l1c': ['suomi-npp', 'noaa-20', 'noaa-21', 'noaa-22'],
                         'avhrr-l1c': ['noaa-19', 'noaa-18', 'metop-b', 'metop-a', 'metop-c'],
                         'modis-l1c': ['eos-terra', 'eos-aqua']
                         }
 
 LVL1C_PROCESSOR_MAPPING = {'seviri-l1c': process_seviri,
+                           'metimage-l1c': process_metimage,
                            'viirs-l1c': process_viirs,
                            'modis-l1c': process_modis,
                            'avhrr-l1c': process_avhrr}
