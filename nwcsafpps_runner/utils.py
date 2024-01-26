@@ -22,7 +22,6 @@
 
 """Utility functions for NWCSAF/pps runner(s).
 """
-
 import threading
 from trollsift.parser import parse  # @UnresolvedImport
 # from trollsift import Parser
@@ -196,8 +195,6 @@ def ready2run(msg, scene, **kwargs):
     """Check whether pps is ready to run or not."""
 
     LOG.info("Got message: " + str(msg))
-    if len(scene['file4pps']) != 1:
-        return False
     try:
         url_ip = socket.gethostbyname(msg.host)
         if url_ip not in get_local_ips():
@@ -211,7 +208,7 @@ def ready2run(msg, scene, **kwargs):
         LOG.info(
             "This is a PPS supported scene. Start the PPS lvl2 processing!")
         LOG.info("Process the file = %s" +
-                 os.basename(scene['file4pps']))
+                 os.path.basename(scene['file4pps']))
 
         LOG.debug("Ready to run...")
         return True
