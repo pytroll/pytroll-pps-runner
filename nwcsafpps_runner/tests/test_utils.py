@@ -27,10 +27,15 @@ from datetime import datetime
 from nwcsafpps_runner.utils import (create_xml_timestat_from_lvl1c,
                                     get_lvl1c_file_from_msg,
                                     find_product_statistics_from_lvl1c,
+                                    ready2run,
                                     publish_pps_files)
 from nwcsafpps_runner.utils import FindTimeControlFileError
 
 TEST_MSG = """pytroll://segment/EPSSGA/1B/ file safusr.u@lxserv1043.smhi.se 2023-02-17T08:18:15.748831 v1.01 application/json {"start_time": "2023-02-17T08:03:25", "end_time": "2023-02-17T08:15:25", "orbit_number": 99999, "platform_name": "Metop-SG-A1", "sensor": "metimage", "format": "X", "type": "NETCDF", "data_processing_level": "1b", "variant": "DR", "orig_orbit_number": 23218, "uri": "/san1/polar_in/direct_readout/metimage/W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc", "uid": "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc"}"""  # noqa: E501
+
+TEST_MSG_UID = """pytroll://segment/EPSSGA/1B/ file safusr.u@lxserv1043.smhi.se 2023-02-17T08:18:15.748831 v1.01 application/json {"start_time": "2023-02-17T08:03:25", "end_time": "2023-02-17T08:15:25", "orbit_number": 99999, "platform_name": "Metop-SG-A1", "sensor": "metimage", "format": "X", "type": "NETCDF", "data_processing_level": "1b", "variant": "DR", "orig_orbit_number": 23218, "uid": "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc", "uid": "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc", "destination": "/san1/polar_in/direct_readout/metimage"}"""  # noqa: E501
+
+TEST_MSG_BAD = """pytroll://segment/EPSSGA/1B/ dataset safusr.u@lxserv1043.smhi.se 2023-02-17T08:18:15.748831 v1.01 application/json {"start_time": "2023-02-17T08:03:25", "end_time": "2023-02-17T08:15:25", "orbit_number": 99999, "platform_name": "Metop-SG-A1", "sensor": "metimage", "format": "X", "type": "NETCDF", "data_processing_level": "1b", "variant": "DR", "orig_orbit_number": 23218, "uid": "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc", "uid": "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc", "destination": "/san1/polar_in/direct_readout/metimage"}"""  # noqa: E501
 
 
 @pytest.fixture
@@ -120,6 +125,21 @@ class TestCreateXmlFromLvl1c:
         assert res == []
 
 
+class TestReady2Run(unittest.TestCase):
+    """Test ready2run function."""
+
+    def test_ready2run(self):
+        from posttroll.message import Message
+        input_msg = Message.decode(rawstr=TEST_MSG)
+        mymodule = MagicMock()
+        import sys
+        sys.modules["check_host_ok"] = mymodule
+        ok2run = ready2run(input_msg, {"file4pps": "dummy"})
+        self.assertTrue(ok2run)
+        ok2run = ready2run(input_msg, {"file4pps": None})
+        self.assertFalse(ok2run)
+
+
 class TestPublishPPSFiles(unittest.TestCase):
     """Test publish pps files."""
 
@@ -154,6 +174,24 @@ class TestGetLvl1cFromMsg(unittest.TestCase):
             "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_" +
             "20210314224906_G_D_20070912101704_20070912101804_T_B____.nc")
         self.assertEqual(file1, file_exp)
+
+    def test_get_lvl1c_file_from_msg_uid(self):
+        """Test get_lvl1c_file_from_message."""
+        from posttroll.message import Message
+        input_msg = Message.decode(rawstr=TEST_MSG_UID)
+        file1 = get_lvl1c_file_from_msg(input_msg)
+        file_exp = (
+            "/san1/polar_in/direct_readout/metimage/" +
+            "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_" +
+            "20210314224906_G_D_20070912101704_20070912101804_T_B____.nc")
+        self.assertEqual(file1, file_exp)
+
+    def test_get_lvl1c_file_from_msg_bad(self):
+        """Test get_lvl1c_file_from_message."""
+        from posttroll.message import Message
+        input_msg = Message.decode(rawstr=TEST_MSG_BAD)
+        file1 = get_lvl1c_file_from_msg(input_msg)
+        self.assertEqual(file1, None)
 
 
 if __name__ == "__main__":

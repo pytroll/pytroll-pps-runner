@@ -175,26 +175,20 @@ def get_lvl1c_file_from_msg(msg):
     else:
         LOG.debug(
             "Ignoring this type of message data: type = " + str(msg.type))
-        return []
+        return None
 
     try:
         level1c_files = check_uri(uris)
     except IOError:
         LOG.info('One or more files not present on this host!')
-        return []
+        return None
 
     LOG.debug("files4pps: %s", str(level1c_files))
-    if len(level1c_files) < 1:
-        LOG.info("No level1c files!")
-        return []
-
     return level1c_files[0]
 
 
-def ready2run(msg, scene, **kwargs):
-    """Check whether pps is ready to run or not."""
-
-    LOG.info("Got message: " + str(msg))
+def check_host_ok(msg):
+    """Check that host is ok."""
     try:
         url_ip = socket.gethostbyname(msg.host)
         if url_ip not in get_local_ips():
@@ -203,6 +197,18 @@ def ready2run(msg, scene, **kwargs):
     except (AttributeError, socket.gaierror) as err:
         LOG.error("Failed checking host! Hostname = %s", socket.gethostname())
         LOG.exception(err)
+    return True
+
+
+def ready2run(msg, scene, **kwargs):
+    """Check whether pps is ready to run or not."""
+
+    LOG.info("Got message: " + str(msg))
+    if not check_host_ok(msg):
+        return False
+
+    if scene['file4pps'] is None:
+        return False
 
     if msg.data['platform_name'] in SUPPORTED_PPS_SATELLITES:
         LOG.info(
