@@ -29,7 +29,6 @@ import os
 import sys
 import threading
 from datetime import datetime, timedelta
-from glob import glob
 from subprocess import PIPE, Popen
 
 from six.moves.queue import Empty, Queue
@@ -37,17 +36,14 @@ from six.moves.queue import Empty, Queue
 from nwcsafpps_runner.config import CONFIG_FILE, CONFIG_PATH, get_config
 from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
-from nwcsafpps_runner.utils import (METOP_NAME_LETTER, SATELLITE_NAME,
-                                    SENSOR_LIST, NwpPrepareError, PpsRunError,
+from nwcsafpps_runner.utils import (SENSOR_LIST, NwpPrepareError, PpsRunError,
                                     create_pps_call_command,
-                                    get_outputfiles, get_pps_inputfile,
+                                    get_lvl1c_file_from_msg,
                                     create_xml_timestat_from_lvl1c,
                                     find_product_statistics_from_lvl1c,
-                                    get_sceneid, logreader, message_uid,
-                                    prepare_pps_arguments, publish_pps_files,
+                                    logreader,
+                                    publish_pps_files,
                                     ready2run, terminate_process)
-from nwcsafpps_runner.utils import create_xml_timestat_from_scene
-from nwcsafpps_runner.utils import get_product_statistics_files
 
 LOG = logging.getLogger(__name__)
 
@@ -63,7 +59,6 @@ _DEFAULT_LOG_FORMAT = '[%(levelname)s: %(asctime)s : %(name)s] %(message)s'
 
 
 LOG.debug("PYTHONPATH: " + str(sys.path))
-SATNAME = {'Aqua': 'EOS-Aqua'}
 
 
 class ThreadPool(object):
@@ -107,14 +102,9 @@ def pps_worker(scene, publish_q, input_msg, options):
         LOG.info("Starting pps runner for scene %s", str(scene))
         job_start_time = datetime.utcnow()
 
-        LOG.debug("Level-1 file: %s", scene['file4pps'])
+        LOG.debug("Level-1c file: %s", scene['file4pps'])
         LOG.debug("Platform name: %s", scene['platform_name'])
         LOG.debug("Orbit number: %s", str(scene['orbit_number']))
-
-        kwargs = prepare_pps_arguments(scene['platform_name'],
-                                       scene['file4pps'],
-                                       orbit_number=scene['orbit_number'])
-        LOG.debug("pps-arguments: %s", str(kwargs))
 
         min_thr = options['maximum_pps_processing_time_in_minutes']
         LOG.debug("Maximum allowed  PPS processing time in minutes: %d", min_thr)
@@ -126,8 +116,7 @@ def pps_worker(scene, publish_q, input_msg, options):
         if not pps_run_all_flags:
             pps_run_all_flags = []
 
-        use_l1c = (options.get('pps_version') == 'v2021')
-        cmd_str = create_pps_call_command(py_exec, pps_script, scene, use_l1c=use_l1c)
+        cmd_str = create_pps_call_command(py_exec, pps_script, scene)
         for flag in pps_run_all_flags:
             cmd_str = cmd_str + ' %s' % flag
 
@@ -161,7 +150,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         if options['run_cmask_prob']:
             pps_script = options.get('run_cmaprob_script')
-            cmdl = create_pps_call_command(py_exec, pps_script, scene,  use_l1c=use_l1c)
+            cmdl = create_pps_call_command(py_exec, pps_script, scene)
 
             LOG.debug("Run command: " + str(cmdl))
             try:
@@ -182,18 +171,8 @@ def pps_worker(scene, publish_q, input_msg, options):
             err_reader2.join()
 
         pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
-        if use_l1c:
-            # v2021
-            xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
-            xml_files += find_product_statistics_from_lvl1c(scene, pps_control_path)
-        else:
-            # v2018
-            xml_files = create_xml_timestat_from_scene(scene, pps_control_path)
-            xml_files = xml_files + get_product_statistics_files(pps_control_path,
-                                                                 scene,
-                                                                 options['product_statistics_filename'],
-                                                                 options['pps_filetime_search_minutes'])
-
+        xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
+        xml_files += find_product_statistics_from_lvl1c(scene, pps_control_path)
         LOG.info("PPS summary statistics files: %s", str(xml_files))
 
         # The PPS post-hooks takes care of publishing the PPS cloud products
@@ -279,17 +258,12 @@ def pps(options):
     """
 
     LOG.info("*** Start the PPS level-2 runner:")
-    use_l1c = (options.get('pps_version') == 'v2021')
-    if use_l1c:
-        LOG.info("Use level-1c file as input (v2021 and greater)")
-    else:
-        LOG.info("Use original level-1 file as input (v2018)")
+    LOG.info("Use level-1c file as input")
 
     LOG.info("First check if NWP data should be downloaded and prepared")
     nwp_handeling_module = options.get("nwp_handeling_module", None)
     prepare_nwp4pps(NWP_FLENS, nwp_handeling_module)
 
-    files4pps = {}
     LOG.info("Number of threads: %d", options['number_of_threads'])
     thread_pool = ThreadPool(options['number_of_threads'])
 
@@ -332,18 +306,10 @@ def pps(options):
                  'sensor': sensors
                  }
 
-        status = ready2run(msg, files4pps,
-                           use_l1c,
-                           stream_tag_name=options.get('stream_tag_name', 'variant'),
-                           stream_name=options.get('stream_name', 'EARS'),
-                           sdr_granule_processing=options.get('sdr_processing') == 'granules')
+        scene['file4pps'] = get_lvl1c_file_from_msg(msg)
+        status = ready2run(msg, scene)
+
         if status:
-            sceneid = get_sceneid(platform_name, orbit_number, starttime)
-            LOG.debug(files4pps[sceneid])
-            if use_l1c:
-                scene['file4pps'] = files4pps[sceneid][0]
-            else:
-                scene['file4pps'] = get_pps_inputfile(platform_name, files4pps[sceneid])
 
             LOG.debug("Files for PPS: %s", str(scene['file4pps']))
             LOG.info('Start a thread preparing the nwp data and run pps...')
@@ -352,23 +318,13 @@ def pps(options):
                 run_nwp_and_pps(scene, NWP_FLENS, publisher_q,
                                 msg, options, nwp_handeling_module)
             else:
-                thread_pool.new_thread(message_uid(msg),
+                thread_pool.new_thread(scene['file4pps'],
                                        target=run_nwp_and_pps, args=(scene, NWP_FLENS,
                                                                      publisher_q,
                                                                      msg, options,
                                                                      nwp_handeling_module))
 
             LOG.debug("Number of threads currently alive: %s", str(threading.active_count()))
-
-            # Clean the files4pps dict:
-            LOG.debug("files4pps: " + str(files4pps))
-            try:
-                files4pps.pop(sceneid)
-            except KeyError:
-                LOG.warning("Failed trying to remove key " + str(sceneid) +
-                            " from dictionary files4pps")
-
-            LOG.debug("After cleaning: files4pps = " + str(files4pps))
 
     # FIXME! Should I clean up the thread_pool (open threads?) here at the end!?
 
