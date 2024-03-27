@@ -11,12 +11,12 @@ nwp_outdir: /san1/pps/import/NWP_data/source
 pps_nwp_requirements: /san1/pps/import/NWP_data/pps_nwp_list_of_required_fields.txt
 
 
+nhsp_path: /satnhsp
+nhsf_path: /satnhsf
+
 #: Publish/subscribe
 publish_topic: PPS
 subscribe_topics: [/segment/SDR/1C] #[AAPP-HRPT,AAPP-PPS,EOS/1B,segment/SDR/1B,1c/nc/0deg]
-#: Has to do with messegatype
-sdr_processing: granules
-
 
 #: Python and PPS related
 pps_version: v2021
@@ -49,10 +49,6 @@ station: norrkoping
 #: Incase the PPS environmental variables are sat they will overide these outdir
 #: PPS environmental variable SM_PRODUCT_DIR
 pps_outdir: /data/24/saf/polar_out/direct_readout
-#: PPS environmental variable STATISTICS_DIR
-pps_statistics_dir: /data/24/saf/polar_out/monitoring/direct_readout
 
 
-nhsp_path: /satnhsp
-nhsf_path: /satnhsf
 
