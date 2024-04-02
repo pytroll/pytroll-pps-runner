@@ -32,36 +32,28 @@ from trollsift import Parser
 import pygrib  # @UnresolvedImport
 from six.moves.configparser import NoOptionError
 
-from nwcsafpps_runner.config import get_config
-from nwcsafpps_runner.config import CONFIG_FILE
-from nwcsafpps_runner.config import CONFIG_PATH  # @UnresolvedImport
+from nwcsafpps_runner.config import get_config_from_yamlfile
 from nwcsafpps_runner.utils import run_command
 from nwcsafpps_runner.utils import NwpPrepareError
 
 import logging
 LOG = logging.getLogger(__name__)
 
-LOG.debug("Path to prepare_nwp config file = %s", str(CONFIG_PATH))
-LOG.debug("Prepare_nwp config file = %s", str(CONFIG_FILE))
-OPTIONS = get_config(CONFIG_FILE)
+def prepare_config(config_file_name):
+    """Get config for NWP processing."""
+    LOG.debug("Prepare_nwp config file = %s", str(config_file_name))
 
-try:
-    nhsp_path = OPTIONS['nhsp_path']
-except KeyError:
-    LOG.exception('Parameter not set in config file: ' + 'nhsp_path')
-try:
-    nhsp_prefix = OPTIONS['nhsp_prefix']
-except KeyError:
-    LOG.exception('Parameter not set in config file: ' + 'nhsp_prefix')
+    OPTIONS = get_config_from_yamlfile(config_file_name, "dummy_service")
 
-nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
-
-nhsf_path = OPTIONS.get('nhsf_path', None)
-nhsf_prefix = OPTIONS.get('nhsf_prefix', None)
-nwp_outdir = OPTIONS.get('nwp_outdir', None)
-nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
-nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
-nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
+    try:
+        nhsp_path = OPTIONS['nhsp_path']
+    except KeyError:
+        LOG.exception('Parameter not set in config file: ' + 'nhsp_path')
+    try:
+        nhsp_prefix = OPTIONS['nhsp_prefix']
+    except KeyError:
+        LOG.exception('Parameter not set in config file: ' + 'nhsp_prefix')
+    return OPTIONS
 
 
 def logreader(stream, log_func):
@@ -89,19 +81,28 @@ def make_temp_filename(*args, **kwargs):
     return tmp_filename
 
 
-def update_nwp(starttime, nlengths):
+def update_nwp(starttime, nlengths, config_file_name):
     """Prepare NWP grib files for PPS. Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
     the list *nlengths* of integers
 
     """
+    OPTIONS = prepare_config(config_file_name)
+    nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
+    nhsf_path = OPTIONS.get('nhsf_path', None)
+    nhsf_prefix = OPTIONS.get('nhsf_prefix', None)
+    nhsp_path = OPTIONS.get('nhsp_path', None)
+    nhsp_prefix = OPTIONS.get('nhsp_prefix', None)
+    nwp_outdir = OPTIONS.get('nwp_outdir', None)
+    nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
+    nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
+    nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
 
-    LOG.info("Path to prepare_nwp config file = %s", str(CONFIG_PATH))
-    LOG.info("Prepare_nwp config file = %s", str(CONFIG_FILE))
-    LOG.info("Path to nhsf files: %s", str(nhsf_path))
-    LOG.info("Path to nhsp files: %s", str(nhsp_path))
+    LOG.info("Path to prepare_nwp config file = %s", config_file_name)
+    LOG.info("Path to nhsf files: %s", nhsf_path)
+    LOG.info("Path to nhsp files: %s", nhsp_path)
     LOG.info("nwp_output_prefix %s", OPTIONS["nwp_output_prefix"])
-
+    
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
         LOG.info("No input files! dir = %s", str(nhsf_path))
@@ -209,7 +210,9 @@ def update_nwp(starttime, nlengths):
                           "mask data to grib file")
         remove_file(tmp_filename)
 
-        nwp_file_ok = check_and_reduce_nwp_content(tmp_result_filename, tmp_result_filename_reduced)
+        nwp_file_ok = check_and_reduce_nwp_content(tmp_result_filename,
+                                                   tmp_result_filename_reduced,
+                                                   nwp_req_filename)
 
         if nwp_file_ok is None:
             LOG.info('NWP file content could not be checked, use anyway.')
@@ -250,7 +253,7 @@ def get_mandatory_and_all_fields(lines):
     return mandatory_fields, all_fields
 
 
-def get_nwp_requirement():
+def get_nwp_requirement(nwp_req_filename):
     """Read the new requirement file. Return list with mandatory and wanted fields.
 
     """
@@ -280,12 +283,12 @@ def check_nwp_requirement(grb_entries, mandatory_fields, result_file):
     return True
 
 
-def check_and_reduce_nwp_content(gribfile, result_file):
+def check_and_reduce_nwp_content(gribfile, result_file, nwp_req_filename):
     """Check the content of the NWP file. Create a reduced file.
 
     """
     LOG.info("Get nwp requirements.")
-    mandatory_fields, all_fields = get_nwp_requirement()
+    mandatory_fields, all_fields = get_nwp_requirement(nwp_req_filename)
     if mandatory_fields is None:
         return None
 

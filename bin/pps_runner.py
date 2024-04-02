@@ -34,9 +34,8 @@ from subprocess import PIPE, Popen
 from six.moves.queue import Empty, Queue
 
 from nwcsafpps_runner.config import CONFIG_FILE, CONFIG_PATH, get_config
-from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
-from nwcsafpps_runner.utils import (SENSOR_LIST, NwpPrepareError, PpsRunError,
+from nwcsafpps_runner.utils import (SENSOR_LIST, PpsRunError,
                                     create_pps_call_command,
                                     get_lvl1c_file_from_msg,
                                     create_xml_timestat_from_lvl1c,
@@ -48,7 +47,6 @@ from nwcsafpps_runner.utils import (SENSOR_LIST, NwpPrepareError, PpsRunError,
 LOG = logging.getLogger(__name__)
 
 
-NWP_FLENS = [3, 6, 9, 12, 15, 18, 21, 24]
 
 
 #: Default time format
@@ -207,62 +205,19 @@ def check_threads(threads):
             threads.remove(thread)
 
 
-def run_nwp_and_pps(scene, flens, publish_q, input_msg, options, nwp_handeling_module):
-    """Run first the nwp-preparation and then pps. No parallel running here."""
-
-    prepare_nwp4pps(flens, nwp_handeling_module)
+def run_pps(scene, flens, publish_q, input_msg, options):
+    """Run pps. No parallel running here."""
     pps_worker(scene, publish_q, input_msg, options)
-
-
-def prepare_nwp4pps(flens, nwp_handeling_module):
-    """Prepare NWP data for pps."""
-
-    starttime = datetime.utcnow() - timedelta(days=1)
-    if nwp_handeling_module:
-        LOG.debug("Use custom nwp_handeling_function provided in config file...")
-        LOG.debug("nwp_module_name = %s", str(nwp_handeling_module))
-        try:
-            name = "update_nwp"
-            name = name.replace("/", "")
-            module = __import__(nwp_handeling_module, globals(), locals(), [name])
-            LOG.info("function : {} loaded from module: {}".format([name], nwp_handeling_module))
-        except (ImportError, ModuleNotFoundError):
-            LOG.exception("Failed to import custom compositer for %s", str(name))
-            raise
-        try:
-            params = {}
-            params['starttime'] = starttime
-            params['nlengths'] = flens
-            params['options'] = OPTIONS
-            getattr(module, name)(params)
-        except AttributeError:
-            LOG.debug("Could not get attribute %s from %s", str(name), str(module))
-    else:
-        LOG.debug("No custom nwp_handeling_function provided in config file...")
-        LOG.debug("Use build in.")
-        try:
-            update_nwp(starttime, flens)
-        except (NwpPrepareError, IOError):
-            LOG.exception("Something went wrong in update_nwp...")
-            raise
-
-    LOG.info("Ready with nwp preparation")
-    LOG.debug("Leaving prepare_nwp4pps...")
 
 
 def pps(options):
     """The PPS runner.
 
-    Triggers processing of PPS main script once AAPP or CSPP
-    is ready with a level-1 file
+    Triggers processing of PPS main script for a level1c files.
     """
 
     LOG.info("*** Start the PPS level-2 runner:")
     LOG.info("Use level-1c file as input")
-
-    LOG.info("First check if NWP data should be downloaded and prepared")
-    nwp_handeling_module = options.get("nwp_handeling_module", None)
-    prepare_nwp4pps(NWP_FLENS, nwp_handeling_module)
 
     LOG.info("Number of threads: %d", options['number_of_threads'])
     thread_pool = ThreadPool(options['number_of_threads'])
@@ -270,7 +225,7 @@ def pps(options):
     listener_q = Queue()
     publisher_q = Queue()
 
-    pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps2018_runner',
+    pub_thread = FilePublisher(publisher_q, options['publish_topic'], runner_name='pps_runner',
                                nameservers=options.get('nameservers', None))
     pub_thread.start()
     listen_thread = FileListener(listener_q, options['subscribe_topics'])
@@ -312,17 +267,16 @@ def pps(options):
         if status:
 
             LOG.debug("Files for PPS: %s", str(scene['file4pps']))
-            LOG.info('Start a thread preparing the nwp data and run pps...')
+            LOG.info('Start a thread runing pps...')
 
             if options['number_of_threads'] == 1:
-                run_nwp_and_pps(scene, NWP_FLENS, publisher_q,
-                                msg, options, nwp_handeling_module)
+                run_pps(scene, NWP_FLENS, publisher_q,
+                        msg, options, nwp_handeling_module)
             else:
                 thread_pool.new_thread(scene['file4pps'],
-                                       target=run_nwp_and_pps, args=(scene, NWP_FLENS,
-                                                                     publisher_q,
-                                                                     msg, options,
-                                                                     nwp_handeling_module))
+                                       target=run_pps, args=(scene, NWP_FLENS,
+                                                             publisher_q,
+                                                             msg, options))
 
             LOG.debug("Number of threads currently alive: %s", str(threading.active_count()))
 

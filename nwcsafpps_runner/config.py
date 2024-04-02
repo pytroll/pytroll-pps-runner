@@ -39,7 +39,7 @@ def load_config_from_file(filepath):
     return config
 
 
-def get_config_from_yamlfile(configfile, service):
+def get_config_from_yamlfile(configfile, service=''):
     """Get the configuration from file."""
 
     config = load_config_from_file(configfile)
@@ -50,8 +50,9 @@ def get_config_from_yamlfile(configfile, service):
             options[item] = config[item]
         elif item not in [service]:
             continue
-        for key in config[service]:
-            options[key] = config[service][key]
+        if service in config:
+            for key in config[service]:
+                options[key] = config[service][key]
 
     return options
 
