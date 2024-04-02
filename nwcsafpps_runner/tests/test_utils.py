@@ -72,7 +72,7 @@ def fake_file_dir(tmp_path):
 class TestCreateXmlFromLvl1c:
     """Test finding xml files form level1c file."""
 
-    def setup(self):
+    def setup_method(self):
         """Define the level1c filename."""
         self.scene = {'file4pps': "S_NWC_viirs_npp_12345_19810305T0715000Z_19810305T0730000Z.nc",
                       'starttime': datetime.strptime('19810305T0715000', "%Y%m%dT%H%M%S%f"),
