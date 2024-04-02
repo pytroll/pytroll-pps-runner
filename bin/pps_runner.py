@@ -28,7 +28,7 @@ import logging
 import os
 import sys
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from subprocess import PIPE, Popen
 
 from six.moves.queue import Empty, Queue
@@ -45,8 +45,6 @@ from nwcsafpps_runner.utils import (SENSOR_LIST, PpsRunError,
                                     ready2run, terminate_process)
 
 LOG = logging.getLogger(__name__)
-
-
 
 
 #: Default time format
@@ -205,7 +203,7 @@ def check_threads(threads):
             threads.remove(thread)
 
 
-def run_pps(scene, flens, publish_q, input_msg, options):
+def run_pps(scene, publish_q, input_msg, options):
     """Run pps. No parallel running here."""
     pps_worker(scene, publish_q, input_msg, options)
 
@@ -270,11 +268,10 @@ def pps(options):
             LOG.info('Start a thread runing pps...')
 
             if options['number_of_threads'] == 1:
-                run_pps(scene, NWP_FLENS, publisher_q,
-                        msg, options, nwp_handeling_module)
+                run_pps(scene, publisher_q, msg, options)
             else:
                 thread_pool.new_thread(scene['file4pps'],
-                                       target=run_pps, args=(scene, NWP_FLENS,
+                                       target=run_pps, args=(scene,
                                                              publisher_q,
                                                              msg, options))
 

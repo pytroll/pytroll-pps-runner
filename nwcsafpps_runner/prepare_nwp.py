@@ -39,20 +39,17 @@ from nwcsafpps_runner.utils import NwpPrepareError
 import logging
 LOG = logging.getLogger(__name__)
 
+
 def prepare_config(config_file_name):
     """Get config for NWP processing."""
     LOG.debug("Prepare_nwp config file = %s", str(config_file_name))
 
     OPTIONS = get_config_from_yamlfile(config_file_name, "dummy_service")
 
-    try:
-        nhsp_path = OPTIONS['nhsp_path']
-    except KeyError:
-        LOG.exception('Parameter not set in config file: ' + 'nhsp_path')
-    try:
-        nhsp_prefix = OPTIONS['nhsp_prefix']
-    except KeyError:
-        LOG.exception('Parameter not set in config file: ' + 'nhsp_prefix')
+    for parameter in ['nhsp_path', 'nhsp_prefix',
+                      'nhsf_path', 'nhsf_prefix']:
+        if parameter not in OPTIONS:
+            LOG.exception('Parameter "{:s}" not set in config file: '.format(parameter))
     return OPTIONS
 
 
@@ -82,12 +79,17 @@ def make_temp_filename(*args, **kwargs):
 
 
 def update_nwp(starttime, nlengths, config_file_name):
+    """Get config options and then prepare nwp."""
+    LOG.info("Path to prepare_nwp config file = %s", config_file_name)
+    OPTIONS = prepare_config(config_file_name)
+    update_nwp_inner(starttime, nlengths, OPTIONS)
+
+def update_nwp_inner(starttime, nlengths, OPTIONS):
     """Prepare NWP grib files for PPS. Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
     the list *nlengths* of integers
 
     """
-    OPTIONS = prepare_config(config_file_name)
     nhsf_file_name_sift = OPTIONS.get('nhsf_file_name_sift')
     nhsf_path = OPTIONS.get('nhsf_path', None)
     nhsf_prefix = OPTIONS.get('nhsf_prefix', None)
@@ -98,11 +100,11 @@ def update_nwp(starttime, nlengths, config_file_name):
     nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
     nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
 
-    LOG.info("Path to prepare_nwp config file = %s", config_file_name)
+
     LOG.info("Path to nhsf files: %s", nhsf_path)
     LOG.info("Path to nhsp files: %s", nhsp_path)
     LOG.info("nwp_output_prefix %s", OPTIONS["nwp_output_prefix"])
-    
+
     filelist = glob(os.path.join(nhsf_path, nhsf_prefix + "*"))
     if len(filelist) == 0:
         LOG.info("No input files! dir = %s", str(nhsf_path))

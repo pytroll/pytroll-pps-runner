@@ -77,46 +77,35 @@ class NWPprepareRunner(unittest.TestCase):
         fhand = open(self.OPTIONS["nwp_static_surface"], 'a')
         fhand.close()
 
-    @patch('nwcsafpps_runner.config.get_config')
-    def test_update_nwp(self, mock_get_config):
+    def test_update_nwp_inner(self):
         """Create file."""
-        mock_get_config.return_value = self.OPTIONS
         import nwcsafpps_runner.prepare_nwp as nwc_prep
-        reload(nwc_prep)
         date = datetime(year=2022, month=5, day=10, hour=0)
-        nwc_prep.update_nwp(date - timedelta(days=2), [9])
+        nwc_prep.update_nwp_inner(date - timedelta(days=2), [9], self.OPTIONS)
         # Run again when file is already created
-        nwc_prep.update_nwp(date - timedelta(days=2), [9])
+        nwc_prep.update_nwp_inner(date - timedelta(days=2), [9], self.OPTIONS)
         self.assertTrue(os.path.exists(self.outfile))
 
-    @patch('nwcsafpps_runner.config.get_config')
-    def test_update_nwp_no_config_file(self, mock_get_config):
-        """Create file no config file."""
-        mock_get_config.return_value = self.OPTIONS
+    def test_update_nwp_inner_no_requirement_file(self):
+        """Create file no requirement file."""
         os.remove(self.requirement_name)
         import nwcsafpps_runner.prepare_nwp as nwc_prep
-        reload(nwc_prep)
         date = datetime(year=2022, month=5, day=10, hour=0)
-        nwc_prep.update_nwp(date - timedelta(days=2), [9])
+        nwc_prep.update_nwp_inner(date - timedelta(days=2), [9], self.OPTIONS)
         self.assertTrue(os.path.exists(self.outfile))
 
-    @patch('nwcsafpps_runner.config.get_config')
-    def test_update_nwp_missing_fields(self, mock_get_config):
+    def test_update_nwp_inner_missing_fields(self):
         """Test that no file without mandatory data is created."""
-        mock_get_config.return_value = self.OPTIONS_M
         import nwcsafpps_runner.prepare_nwp as nwc_prep
-        reload(nwc_prep)
         date = datetime(year=2022, month=5, day=10, hour=0)
-        nwc_prep.update_nwp(date - timedelta(days=2), [9])
+        nwc_prep.update_nwp_inner(date - timedelta(days=2), [9], self.OPTIONS)
         self.assertFalse(os.path.exists("temp_test_dir/PPS_ECMWF_MANDATORY_202205100000+009H00M"))
         os.remove(self.OPTIONS["nwp_static_surface"])
         os.remove(self.requirement_name_m)
 
-    @patch('nwcsafpps_runner.config.get_config')
-    def test_remove_filename(self, mock_get_config):
+    def test_remove_filename(self):
         """Test the function for removing files."""
         from nwcsafpps_runner.prepare_nwp import remove_file
-        mock_get_config.return_value = self.OPTIONS
         remove_file(self.OPTIONS["nwp_static_surface"])
         self.assertFalse(os.path.exists(self.OPTIONS["nwp_static_surface"]))
         # Should be able to run on already removed file without raising exception

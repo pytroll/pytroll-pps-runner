@@ -24,8 +24,6 @@
 
 import argparse
 import logging
-import sys
-import signal
 
 from datetime import datetime, timedelta
 from nwcsafpps_runner.logger import setup_logging
@@ -35,6 +33,7 @@ from nwcsafpps_runner.utils import (NwpPrepareError)
 NWP_FLENS = [6, 9, 12, 15, 18, 21, 24]
 
 LOG = logging.getLogger('nwp-preparation')
+
 
 def prepare_nwp4pps(config_file_name, flens):
     """Prepare NWP data for pps."""
@@ -46,7 +45,8 @@ def prepare_nwp4pps(config_file_name, flens):
     except (NwpPrepareError, IOError):
         LOG.exception("Something went wrong in update_nwp...")
         raise
-    LOG.info("Ready with nwp preparation")   
+    LOG.info("Ready with nwp preparation for pps")
+
 
 def get_arguments():
     """

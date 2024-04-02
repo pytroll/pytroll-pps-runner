@@ -127,13 +127,13 @@ class TestCreateXmlFromLvl1c:
 
 class TestReady2Run(unittest.TestCase):
     """Test ready2run function."""
+    
 
-    def test_ready2run(self):
+    @patch('nwcsafpps_runner.utils.check_host_ok')
+    def test_ready2run(self, mock_check_host_ok):
         from posttroll.message import Message
         input_msg = Message.decode(rawstr=TEST_MSG)
-        mymodule = MagicMock()
-        import sys
-        sys.modules["check_host_ok"] = mymodule
+        mock_check_host_ok.return_value = True
         ok2run = ready2run(input_msg, {"file4pps": "dummy"})
         self.assertTrue(ok2run)
         ok2run = ready2run(input_msg, {"file4pps": None})
