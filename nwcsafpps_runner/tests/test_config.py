@@ -27,8 +27,7 @@ from unittest.mock import patch
 import unittest
 import yaml
 
-from nwcsafpps_runner.config import get_config_from_yamlfile
-from nwcsafpps_runner.config import get_config_yaml
+from nwcsafpps_runner.config import get_config
 
 
 TEST_YAML_LVL1C_RUNNER_CONTENT_OK = """
@@ -106,9 +105,9 @@ class TestGetConfig(unittest.TestCase):
     def test_read_lvl1c_runner_config(self, config):
         """Test loading and initialising the yaml config"""
         config.return_value = self.config_lvl1c_complete
-        myconfig_filename = '/tmp/my/config/file'
+        myconfig_filename = '/tmp/my/config/file.yaml'
 
-        result = get_config_from_yamlfile(myconfig_filename, 'seviri-l1c')
+        result = get_config(myconfig_filename, service='seviri-l1c')
 
         expected = {'message_types': ['/1b/hrit/0deg'],
                     'publish_topic': ['/1c/nc/0deg'],
@@ -126,9 +125,9 @@ class TestGetConfig(unittest.TestCase):
         """Test loading and initialising the yaml config"""
         gethostname.return_value = "my.local.host"
         config.return_value = self.config_pps_complete
-        myconfig_filename = '/tmp/my/config/file'
+        myconfig_filename = '/tmp/my/config/file.yaml'
 
-        result = get_config_yaml(myconfig_filename)
+        result = get_config(myconfig_filename, add_defaults=True)
 
         expected = {'nhsp_prefix': 'LL02_NHSP_',
                     'nhsf_prefix': 'LL02_NHSF_',

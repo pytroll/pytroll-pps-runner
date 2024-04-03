@@ -32,7 +32,7 @@ from trollsift import Parser
 import pygrib  # @UnresolvedImport
 from six.moves.configparser import NoOptionError
 
-from nwcsafpps_runner.config import get_config_from_yamlfile
+from nwcsafpps_runner.config import load_config_from_file
 from nwcsafpps_runner.utils import run_command
 from nwcsafpps_runner.utils import NwpPrepareError
 
@@ -44,7 +44,7 @@ def prepare_config(config_file_name):
     """Get config for NWP processing."""
     LOG.debug("Prepare_nwp config file = %s", str(config_file_name))
 
-    OPTIONS = get_config_from_yamlfile(config_file_name, "dummy_service")
+    OPTIONS = load_config_from_file(config_file_name)
 
     for parameter in ['nhsp_path', 'nhsp_prefix',
                       'nhsf_path', 'nhsf_prefix']:
@@ -84,6 +84,7 @@ def update_nwp(starttime, nlengths, config_file_name):
     OPTIONS = prepare_config(config_file_name)
     update_nwp_inner(starttime, nlengths, OPTIONS)
 
+
 def update_nwp_inner(starttime, nlengths, OPTIONS):
     """Prepare NWP grib files for PPS. Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
@@ -99,7 +100,6 @@ def update_nwp_inner(starttime, nlengths, OPTIONS):
     nwp_lsmz_filename = OPTIONS.get('nwp_static_surface', None)
     nwp_output_prefix = OPTIONS.get('nwp_output_prefix', None)
     nwp_req_filename = OPTIONS.get('pps_nwp_requirements', None)
-
 
     LOG.info("Path to nhsf files: %s", nhsf_path)
     LOG.info("Path to nhsp files: %s", nhsp_path)

@@ -27,62 +27,38 @@ import os
 import socket
 import yaml
 
-CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
-
 
 def load_config_from_file(filepath):
     """Load the yaml config from file, given the file-path"""
     with open(filepath, 'r') as fp_:
         config = yaml.load(fp_, Loader=yaml.FullLoader)
-
     return config
 
 
-def get_config_from_yamlfile(configfile, service=''):
-    """Get the configuration from file."""
+def move_service_dict_attributes_to_top_level(options, service):
+    if service in options and isinstance(options[service], dict):
+        service_config = options.pop(service)
+        for key in service_config:
+            options[key] = service_config[key]
 
-    config = load_config_from_file(configfile)
 
-    options = {}
-    for item in config:
-        if not isinstance(config[item], dict):
-            options[item] = config[item]
-        elif item not in [service]:
-            continue
-        if service in config:
-            for key in config[service]:
-                options[key] = config[service][key]
-
+def get_config(configfile, add_defaults=False, service=None):
+    """Get configuration from the config file."""
+    filetype = os.path.splitext(configfile)[1]
+    if filetype != '.yaml':
+        raise ValueError("Configfile {:s} should be of type .yaml, not {:s}".format(configfile,
+                                                                                    filetype))
+    options = load_config_from_file(configfile)
+    modify_config_vars(options)
+    if add_defaults:
+        add_some_default_vars(options)
+    if service is not None:
+        move_service_dict_attributes_to_top_level(options, service)
     return options
 
 
-def get_config(conf, service=''):
-    """Get configuration from file using the env for the file-path."""
-    configfile = os.path.join(CONFIG_PATH, conf)
-    filetype = os.path.splitext(conf)[1]
-    if filetype == '.yaml':
-        options = get_config_yaml(configfile, service)
-    else:
-        print("%s is not a valid extension for the config file" % filetype)
-        print("Pleas use .yaml")
-        options = -1
-    return options
-
-
-def get_config_yaml(configfile, service=''):
-    """Get the configuration from file."""
-    config = load_config_from_file(configfile)
-
-    options = {}
-    for item in config:
-        if not isinstance(config[item], dict) or item not in service:
-            options[item] = config[item]
-        elif item in [service]:
-            for key in config[service]:
-                if not isinstance(config[service][key], dict):
-                    options[key] = config[service][key]
-
+def modify_config_vars(options):
+    """Modify some config options."""
     if isinstance(options.get('subscribe_topics'), str):
         subscribe_topics = options.get('subscribe_topics').split(',')
         for item in subscribe_topics:
@@ -90,11 +66,12 @@ def get_config_yaml(configfile, service=''):
                 subscribe_topics.remove(item)
         options['subscribe_topics'] = subscribe_topics
 
+
+def add_some_default_vars(options):
+    """Add some default vars."""
+    # service = '', probably no items are '' so this is the same as:
     options['number_of_threads'] = int(options.get('number_of_threads', 5))
     options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
     options['servername'] = options.get('servername', socket.gethostname())
     options['station'] = options.get('station', 'unknown')
     options['run_cmask_prob'] = options.get('run_cmask_prob', True)
-    options['run_pps_cpp'] = options.get('run_pps_cpp', True)
-
-    return options

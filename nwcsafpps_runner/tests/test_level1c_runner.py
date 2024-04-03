@@ -263,7 +263,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_complete
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')
@@ -284,7 +284,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_minimum
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')
@@ -304,7 +304,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_viirs_ok
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'viirs-l1c')
 
         level1_dataset = TEST_VIIRS_MSG_DATA.get('dataset')
 
@@ -325,7 +325,7 @@ class TestL1cProcessing(unittest.TestCase):
         input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_MSG)
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'viirs-l1c')
             l1c_proc.run(input_msg)
 
         expected_orbit_number = TEST_VIIRS_MSG_DATA.get('orbit_number')
@@ -339,7 +339,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_viirs_orbit_number_from_msg_ok
         input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_MSG)
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'viirs-l1c')
             l1c_proc.run(input_msg)
         self.assertTrue(time.time() - start_time < 5)
 
@@ -353,7 +353,7 @@ class TestL1cProcessing(unittest.TestCase):
 
         with self.assertLogs('nwcsafpps_runner.l1c_processing', level='INFO') as cm:
             with tempfile.NamedTemporaryFile() as myconfig_file:
-                l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+                l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'viirs-l1c')
                 l1c_proc.run(input_msg)
             expected_orbit_number = 99999
             self.assertEqual(l1c_proc.orbit_number, expected_orbit_number)
@@ -369,7 +369,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_complete_nameservers
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')

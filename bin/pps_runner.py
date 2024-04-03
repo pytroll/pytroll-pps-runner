@@ -33,7 +33,7 @@ from subprocess import PIPE, Popen
 
 from six.moves.queue import Empty, Queue
 
-from nwcsafpps_runner.config import CONFIG_FILE, CONFIG_PATH, get_config
+from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 from nwcsafpps_runner.utils import (SENSOR_LIST, PpsRunError,
                                     create_pps_call_command,
@@ -286,7 +286,11 @@ def pps(options):
 if __name__ == "__main__":
 
     from logging import handlers
-    OPTIONS = get_config(os.path.join(CONFIG_PATH, CONFIG_FILE))
+    
+    CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
+    CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
+
+    OPTIONS = get_config(os.path.join(CONFIG_PATH, CONFIG_FILE), add_defaults=True)
 
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file',
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))

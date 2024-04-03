@@ -33,7 +33,7 @@ from level1c4pps.modis2pps_lib import process_one_scene as process_modis
 from level1c4pps.avhrr2pps_lib import process_one_scene as process_avhrr
 from level1c4pps.metimage2pps_lib import process_one_scene as process_metimage
 
-from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
+from nwcsafpps_runner.config import get_config
 
 LOG = logging.getLogger(__name__)
 
@@ -77,8 +77,7 @@ class L1cProcessor(object):
     """Container for the NWCSAF/PPS Level-c processing."""
 
     def __init__(self, config_filename, service_name):
-
-        options = get_config(config_filename, service_name)
+        options = get_config(config_filename, service=service_name)
 
         self.initialize(service_name)
         self._l1c_processor_call_kwargs = options.get('l1cprocess_call_arguments', {'engine': 'h5netcdf'})
