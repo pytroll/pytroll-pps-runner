@@ -23,12 +23,10 @@
 
 """Unit testing the nwp_prepare runner code."""
 
-from unittest.mock import patch
 import unittest
 from datetime import datetime
 import os
 import logging
-from importlib import reload
 from datetime import timedelta
 LOG = logging.getLogger(__name__)
 logging.basicConfig(
