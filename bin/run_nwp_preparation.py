@@ -24,36 +24,48 @@
 
 import argparse
 import logging
+import time
 
 from datetime import datetime, timedelta
 from nwcsafpps_runner.logger import setup_logging
 from nwcsafpps_runner.prepare_nwp import update_nwp
-from nwcsafpps_runner.utils import (NwpPrepareError)
+from nwcsafpps_runner.utils import NwpPrepareError
 
 NWP_FLENS = [6, 9, 12, 15, 18, 21, 24]
 
 LOG = logging.getLogger('nwp-preparation')
 
+# datetime.datetime.utcnow => datetime.datetime.now(datetime.UTC) ~python 3.12
 
-def prepare_nwp4pps(config_file_name, flens):
+def prepare_nwp4pps(options, flens):
     """Prepare NWP data for pps."""
 
-    starttime = datetime.datetime.now(datetime.UTC) - timedelta(days=1)
+    config_file_name = options.config_file
+    every_hour_minute = options.run_every_hour_at_minute
+    starttime = datetime.utcnow() - timedelta(days=1)
     LOG.info("Preparing nwp for PPS")
-    try:
-        update_nwp(starttime, flens, config_file_name)
-    except (NwpPrepareError, IOError):
-        LOG.exception("Something went wrong in update_nwp...")
-        raise
-    LOG.info("Ready with nwp preparation for pps")
+    update_nwp(starttime, flens, config_file_name)
+    if every_hour_minute > 60:
+        return
+    while True:
+        minute = datetime.utcnow().minute
+        if minute < every_hour_minute or minute > every_hour_minute + 7:
+            LOG.info("Not time for nwp preparation for pps yet, waiting 5 minutes")
+            time.sleep(60 * 5)
+        else:
+            starttime = datetime.utcnow() - timedelta(days=1)
+            LOG.info("Preparing nwp for PPS")
+            try:
+                update_nwp(starttime, flens, config_file_name)
+            except (NwpPrepareError, IOError):
+                LOG.exception("Something went wrong in update_nwp...")
+                raise
+            LOG.info("Ready with nwp preparation for pps, waiting 45 minutes")
+            time.sleep(45 * 60)
 
 
 def get_arguments():
-    """
-    Get command line arguments.
-    Return the config filepath
-    """
-
+    """Get command line arguments."""
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-l", "--log-config",
@@ -66,21 +78,25 @@ def get_arguments():
                         "configuration parameters e.g. pps_nwp_config.yaml, \n" +
                         "default = ./pps_nwp_config.yaml",
                         required=True)
+    parser.add_argument('--run_every_hour_at_minute',
+                        type=int,
+                        default='99',
+                        help="Rerun preparation every hour approximately at this minute.",
+                        required=False)
     parser.add_argument("-v", "--verbose", dest="verbosity", action="count", default=0,
                         help="Verbosity (between 1 and 2 occurrences with more leading to more "
                         "verbose logging). WARN=0, INFO=1, "
                         "DEBUG=2. This is overridden by the log config file if specified.")
 
     args = parser.parse_args()
-    setup_logging(args)
 
     if 'template' in args.config_file:
         raise IOError("Template file given as master config, aborting!")
-
-    return args.config_file
+    return args
 
 
 if __name__ == '__main__':
 
-    CONFIG_FILENAME = get_arguments()
-    prepare_nwp4pps(CONFIG_FILENAME, NWP_FLENS)
+    options = get_arguments()
+    setup_logging(options)
+    prepare_nwp4pps(options, NWP_FLENS)
