@@ -30,6 +30,8 @@ from datetime import datetime, timedelta
 from nwcsafpps_runner.logger import setup_logging
 from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.utils import NwpPrepareError
+from posttroll.publisher import Publish
+from nwcsafpps_runner.message_utils import publish_l1c, prepare_nwp_message
 
 NWP_FLENS = [6, 9, 12, 15, 18, 21, 24]
 
@@ -37,14 +39,23 @@ LOG = logging.getLogger('nwp-preparation')
 
 # datetime.datetime.utcnow => datetime.datetime.now(datetime.UTC) ~python 3.12
 
-def prepare_nwp4pps(options, flens):
-    """Prepare NWP data for pps."""
-
+def prepare_and_publish(pub, options, flens):
     config_file_name = options.config_file
-    every_hour_minute = options.run_every_hour_at_minute
     starttime = datetime.utcnow() - timedelta(days=1)
+    ok_files, publish_topic = update_nwp(starttime, flens, config_file_name)
+    print(ok_files)
+    if "publish_topic" is not None:
+        for filename in ok_files:
+            publish_msg = prepare_nwp_message(filename, publish_topic)
+            LOG.debug("Will publish")
+            LOG.debug("publish_msg")
+            publish_l1c(pub, publish_msg, publish_topic)
+    
+def _run_subscribe_publisher(pub, options, flens):
+    """Prepare NWP data for pps."""
+    every_hour_minute = options.run_every_hour_at_minute
     LOG.info("Preparing nwp for PPS")
-    update_nwp(starttime, flens, config_file_name)
+    prepare_and_publish(pub, options, flens)
     if every_hour_minute > 60:
         return
     while True:
@@ -53,16 +64,19 @@ def prepare_nwp4pps(options, flens):
             LOG.info("Not time for nwp preparation for pps yet, waiting 5 minutes")
             time.sleep(60 * 5)
         else:
-            starttime = datetime.utcnow() - timedelta(days=1)
             LOG.info("Preparing nwp for PPS")
             try:
-                update_nwp(starttime, flens, config_file_name)
+                prepare_and_publish(pub, options, flens)
             except (NwpPrepareError, IOError):
                 LOG.exception("Something went wrong in update_nwp...")
                 raise
             LOG.info("Ready with nwp preparation for pps, waiting 45 minutes")
             time.sleep(45 * 60)
-
+            
+def prepare_nwp4pps_runner(options, flens):
+    """Start runner for nwp data preparations."""
+    with Publish("pps-nwp-preparation-runner", 0) as pub:
+        _run_subscribe_publisher(pub, options, flens)
 
 def get_arguments():
     """Get command line arguments."""
@@ -99,4 +113,4 @@ if __name__ == '__main__':
 
     options = get_arguments()
     setup_logging(options)
-    prepare_nwp4pps(options, NWP_FLENS)
+    prepare_nwp4pps_runner(options, NWP_FLENS)
