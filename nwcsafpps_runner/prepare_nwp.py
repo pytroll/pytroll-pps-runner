@@ -215,7 +215,7 @@ def create_nwp_file(file_obj):
             file_obj.result_file))
     else:
         LOG.warning("Missing important fields. No nwp file ({:s}) created".format(
-                    result_file.result_file))
+                    file_obj.result_file))
         return None
     return file_obj.result_file
                     

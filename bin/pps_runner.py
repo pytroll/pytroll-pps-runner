@@ -288,7 +288,7 @@ if __name__ == "__main__":
     from logging import handlers
     
     CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-    CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps2018_config.yaml')
+    CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps_config.yaml')
 
     OPTIONS = get_config(os.path.join(CONFIG_PATH, CONFIG_FILE), add_defaults=True)
 
