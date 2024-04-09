@@ -39,17 +39,19 @@ LOG = logging.getLogger('nwp-preparation')
 
 # datetime.datetime.utcnow => datetime.datetime.now(datetime.UTC) ~python 3.12
 
+
 def prepare_and_publish(pub, options, flens):
     config_file_name = options.config_file
     starttime = datetime.utcnow() - timedelta(days=8)
     ok_files, publish_topic = update_nwp(starttime, flens, config_file_name)
-    if "publish_topic" is not None:
+    if publish_topic is not None:
         for filename in ok_files:
             publish_msg = prepare_nwp_message(filename, publish_topic)
             LOG.debug("Will publish")
             LOG.debug("publish_msg")
             publish_l1c(pub, publish_msg, publish_topic)
-    
+
+
 def _run_subscribe_publisher(pub, options, flens):
     """Prepare NWP data for pps."""
     every_hour_minute = options.run_every_hour_at_minute
@@ -71,11 +73,13 @@ def _run_subscribe_publisher(pub, options, flens):
                 raise
             LOG.info("Ready with nwp preparation for pps, waiting 45 minutes")
             time.sleep(45 * 60)
-            
+
+
 def prepare_nwp4pps_runner(options, flens):
     """Start runner for nwp data preparations."""
     with Publish("pps-nwp-preparation-runner", 0) as pub:
         _run_subscribe_publisher(pub, options, flens)
+
 
 def get_arguments():
     """Get command line arguments."""

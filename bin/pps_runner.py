@@ -24,6 +24,7 @@
 """Posttroll runner for the NWCSAF/PPS version >= v2018.
 """
 
+import argparse
 import logging
 import os
 import sys
@@ -283,14 +284,34 @@ def pps(options):
     listen_thread.stop()
 
 
+def get_arguments():
+    """Get command line arguments."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--test_with_l1c_file',
+                        type=str,
+                        help="To test for l1c file with patched subscriber",
+                        required=False)
+    parser.add_argument('-c', '--config_file',
+                        type=str,
+                        dest='config_file',
+                        default='l1c_config.yaml',
+                        help="The file containing " +
+                        "configuration parameters e.g. product_filter_config.yaml, \n" +
+                        "default = ./l1c_config.yaml",
+                        required=True)
+
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
 
     from logging import handlers
-    
-    CONFIG_PATH = os.environ.get('PPSRUNNER_CONFIG_DIR', './')
-    CONFIG_FILE = os.environ.get('PPSRUNNER_CONFIG_FILE', 'pps_config.yaml')
 
-    OPTIONS = get_config(os.path.join(CONFIG_PATH, CONFIG_FILE), add_defaults=True)
+    args = get_arguments()
+    config_file = args.config_file
+
+    OPTIONS = get_config(config_file, add_defaults=True)
 
     _PPS_LOG_FILE = OPTIONS.get('pps_log_file',
                                 os.environ.get('PPSRUNNER_LOG_FILE', False))
@@ -318,7 +339,17 @@ if __name__ == "__main__":
     logging.getLogger('posttroll').setLevel(logging.INFO)
 
     LOG = logging.getLogger('pps_runner')
-    LOG.debug("Path to PPS-runner config file = " + CONFIG_PATH)
-    LOG.debug("PPS-runner config file = " + CONFIG_FILE)
+    LOG.debug("Path to PPS-runner config file = {:s}".format(args.config_file))
 
+    if args.test_with_l1c_file:
+        from posttroll.message import Message
+        from posttroll.testing import patched_subscriber_recv
+        some_files = [args.test_with_l1c_file]
+        messages = [Message("some_topic", "file", data={"uri": f, "orbit_number": 00000, "sensor": "avhrr",
+                                                        'platform_name': "EOS-Aqua",
+                                                        "start_time": datetime(2024, 4, 9, 8, 3)})
+                    for f in some_files]
+        subscriber_settings = dict(nameserver=False, addresses=["ipc://bla"])
+        with patched_subscriber_recv(messages):
+            pps(OPTIONS)
     pps(OPTIONS)
