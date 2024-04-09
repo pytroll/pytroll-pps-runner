@@ -30,7 +30,7 @@ import logging
 from datetime import timedelta
 from nwcsafpps_runner.message_utils import prepare_nwp_message
 import nwcsafpps_runner.prepare_nwp as nwc_prep
- 
+
 LOG = logging.getLogger(__name__)
 logging.basicConfig(
     format='%(levelname)s |%(asctime)s|: %(message)s',
@@ -62,30 +62,32 @@ def fake_file_dir(tmp_path):
 
     cfg_file = my_temp_dir / 'pps_config.yaml'
     req_file = open(cfg_file, 'w')
-    req_file.write("pps_nwp_requirements: " + str(requirement_name) + "\n"
-                   "nwp_outdir: " + str(my_temp_dir) + "\n"
-                   "nhsp_path: " + "nwcsafpps_runner/tests/files/" + "\n"
-                   "nhsf_path: " + "nwcsafpps_runner/tests/files/" + "\n"
-                   "nhsp_prefix: " + "LL02_NHSP_" + "\n"
-                   "nhsf_prefix: " + "LL02_NHSF_" + "\n"
-                   "nwp_static_surface: " + str(my_temp_dir) + "/static_surface"+ "\n"
-                   "ecmwf_prefix: " + "LL02_NHSF" + "\n"
-                   "nwp_output_prefix: " + "PPS_ECMWF_" + "\n"
-                   "nhsf_file_name_sift: " + "'" + '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M' + "'" + "\n")
-    
+    req_file.write(
+        "pps_nwp_requirements: " + str(requirement_name) + "\n"
+        "nwp_outdir: " + str(my_temp_dir) + "\n"
+        "nhsp_path: " + "nwcsafpps_runner/tests/files/" + "\n"
+        "nhsf_path: " + "nwcsafpps_runner/tests/files/" + "\n"
+        "nhsp_prefix: " + "LL02_NHSP_" + "\n"
+        "nhsf_prefix: " + "LL02_NHSF_" + "\n"
+        "nwp_static_surface: " + str(my_temp_dir) + "/static_surface" + "\n"
+        "ecmwf_prefix: " + "LL02_NHSF" + "\n"
+        "nwp_output_prefix: " + "PPS_ECMWF_" + "\n"
+        "nhsf_file_name_sift: '" + '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M' + "'" + "\n")
+
     cfg_file = my_temp_dir / 'pps_config_missing_fields.yaml'
     req_file = open(cfg_file, 'w')
-    req_file.write("pps_nwp_requirements: " + str(requirement_name_m) + "\n"
-                   "nwp_outdir: " + str(my_temp_dir) + "\n"
-                   "nhsp_path: " + "nwcsafpps_runner/tests/files/" + "\n"
-                   "nhsf_path: " + "nwcsafpps_runner/tests/files/" + "\n"
-                   "nhsp_prefix: " + "LL02_NHSP_" + "\n"
-                   "nhsf_prefix: " + "LL02_NHSF_" + "\n"
-                   "nwp_static_surface: " + str(my_temp_dir) + "/static_surface"+ "\n"
-                   "ecmwf_prefix: " + "LL02_NHSF" + "\n"
-                   "nwp_output_prefix: " + "PPS_ECMWF_MANDATORY" + "\n"
-                   "nhsf_file_name_sift: " + "'" + '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M' + "'" + "\n")
-              
+    req_file.write(
+        "pps_nwp_requirements: " + str(requirement_name_m) + "\n"
+        "nwp_outdir: " + str(my_temp_dir) + "\n"
+        "nhsp_path: " + "nwcsafpps_runner/tests/files/" + "\n"
+        "nhsf_path: " + "nwcsafpps_runner/tests/files/" + "\n"
+        "nhsp_prefix: " + "LL02_NHSP_" + "\n"
+        "nhsf_prefix: " + "LL02_NHSF_" + "\n"
+        "nwp_static_surface: " + str(my_temp_dir) + "/static_surface" + "\n"
+        "ecmwf_prefix: " + "LL02_NHSF" + "\n"
+        "nwp_output_prefix: " + "PPS_ECMWF_MANDATORY" + "\n"
+        "nhsf_file_name_sift: '" + '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M' + "'" + "\n")
+
     return str(my_temp_dir)
 
 
@@ -97,7 +99,7 @@ class TestNwpMessage:
         filename = "dummy_dir/PPS_ECMWF_202205100000+009H00M"
         publish_msg = prepare_nwp_message(filename, "dummy_topic")
         expected_uri = '"uri": "dummy_dir/PPS_ECMWF_202205100000+009H00M"'
-        assert  expected_uri in publish_msg
+        assert expected_uri in publish_msg
 
 
 class TestNWPprepareRunner:
@@ -145,5 +147,3 @@ class TestNWPprepareRunner:
         assert not os.path.exists(nwp_surface_file)
         # Should be able to run on already removed file without raising exception
         remove_file(nwp_surface_file)
-
-

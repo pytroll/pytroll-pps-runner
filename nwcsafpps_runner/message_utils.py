@@ -33,17 +33,16 @@ LOG = logging.getLogger(__name__)
 
 
 def prepare_nwp_message(result_file, publish_topic):
-    msg = Message(atype='file', subject=publish_topic)
     to_send = {}
     to_send["uri"] = result_file
     filename = os.path.basename(result_file)
     to_send["uid"] = filename
     to_send['format'] = 'NWP grib'
     to_send['type'] = 'grib'
-    
     return Message('/' + publish_topic + '/',
                    "file", to_send).encode()
-    
+
+
 def prepare_l1c_message(result_file, mda, **kwargs):
     """Prepare the output message for the level-1c file creation."""
 

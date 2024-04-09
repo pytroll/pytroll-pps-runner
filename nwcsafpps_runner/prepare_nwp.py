@@ -39,6 +39,7 @@ from nwcsafpps_runner.utils import NwpPrepareError
 import logging
 LOG = logging.getLogger(__name__)
 
+
 class NWPFileFamily(object):
     """Container for a nwp file family."""
 
@@ -48,7 +49,7 @@ class NWPFileFamily(object):
             cfg["nhsf_prefix"], cfg["nhsp_prefix"])
         self.file_end = os.path.basename(filename).replace(cfg["nhsf_prefix"], "")
         self.tmp_filename = make_temp_filename(suffix="_" + self.file_end, dir=cfg["nwp_outdir"])
-        self.tmp_result_filename= self.tmp_filename + "_tmp_result"
+        self.tmp_result_filename = self.tmp_filename + "_tmp_result"
         self.tmp_result_filename_reduced = self.tmp_filename + "_tmp_result_reduced"
         out_name = cfg["nwp_output_prefix"] + self.file_end
         self.result_file = os.path.join(cfg["nwp_outdir"], out_name)
@@ -59,8 +60,7 @@ class NWPFileFamily(object):
         self.nwp_req_filename = cfg["pps_nwp_requirements"]
         self.cfg = cfg
         self.set_time_info(filename, cfg)
-        
-        
+
     def set_time_info(self, filename, cfg):
         try:
             parser = Parser(cfg["nhsf_file_name_sift"])
@@ -83,7 +83,6 @@ class NWPFileFamily(object):
                 'Failed parsing forecast_step in file name. Check config and filename timestamp.')
 
 
-
 def prepare_config(config_file_name):
     """Get config for NWP processing."""
     LOG.debug("Prepare_nwp config file = %s", str(config_file_name))
@@ -97,12 +96,11 @@ def prepare_config(config_file_name):
                       'nhsf_path', 'nhsf_prefix']:
         if parameter not in cfg:
             LOG.exception('Parameter "{:s}" not set in config file: '.format(parameter))
-            
+
     if not os.path.exists(cfg['nwp_static_surface']):
         LOG.error("Config parameter nwp_static_surface: {:s} does not exist."
                   "Can't prepare NWP data".format(cfg['nwp_static_surface']))
         raise IOError('Failed getting static land-sea mask and topography')
-            
     return cfg
 
 
@@ -140,7 +138,7 @@ def should_be_skipped(file_obj, starttime, nlengths):
     """Skip some files. Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
     the list *nlengths* of integers. Never reprocess.
-    
+
     """
     if file_obj.analysis_time < starttime:
         return True
@@ -156,6 +154,7 @@ def should_be_skipped(file_obj, starttime, nlengths):
         return True
     return False
 
+
 def get_files_to_process(cfg):
     """Get all nhsf files in nhsf directory."""
     filelist = glob(os.path.join(cfg["nhsf_path"], cfg["nhsf_prefix"] + "*"))
@@ -165,15 +164,16 @@ def get_files_to_process(cfg):
     LOG.debug('NHSF NWP files found = {:s}'.format(str(filelist)))
     return filelist
 
+
 def create_nwp_file(file_obj):
     """Create a new nwp file."""
- 
+
     LOG.info("Result and tmp files:\n\t {:s}\n\t {:s}\n\t {:s}\n\t {:s}".format(
         file_obj.result_file,
         file_obj.tmp_filename,
         file_obj.tmp_result_filename,
         file_obj.tmp_result_filename_reduced))
- 
+
     # probably to make sure files are not written at the moment!
     cmd = "grib_copy -w gridType=regular_ll {:s} {:s}".format(file_obj.nhsp_file,
                                                               file_obj.tmp_filename)
@@ -196,7 +196,7 @@ def create_nwp_file(file_obj):
     LOG.debug("os.system call took: %f seconds", _end - _start)
     LOG.debug("Returncode = " + str(retv))
     if retv != 0:
-        LOG.warning("Failed generating nwp file {:} ...".format( file_obj.result_file))
+        LOG.warning("Failed generating nwp file {:} ...".format(file_obj.result_file))
         raise IOError("Failed merging grib data")
     nwp_file_ok = check_and_reduce_nwp_content(file_obj.tmp_result_filename,
                                                file_obj.tmp_result_filename_reduced,
@@ -218,15 +218,14 @@ def create_nwp_file(file_obj):
                     file_obj.result_file))
         return None
     return file_obj.result_file
-                    
 
-    
+
 def update_nwp_inner(starttime, nlengths, cfg):
     """Prepare NWP grib files for PPS. Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
     the list *nlengths* of integers
     """
-  
+
     LOG.info("Path to nhsf files: {:s}".format(cfg["nhsf_path"]))
     LOG.info("Path to nhsp files: {:s}".format(cfg["nhsp_path"]))
     LOG.info("nwp_output_prefix {:s}".format(cfg["nwp_output_prefix"]))
@@ -241,7 +240,7 @@ def update_nwp_inner(starttime, nlengths, cfg):
                                                      str(file_obj.forecast_step)))
         out_file = create_nwp_file(file_obj)
         remove_file(file_obj.tmp_result_filename_reduced)
-        remove_file(file_obj.tmp_result_filename)                
+        remove_file(file_obj.tmp_result_filename)
         remove_file(file_obj.tmp_filename)
         if out_file is not None:
             ok_files.append(out_file)
