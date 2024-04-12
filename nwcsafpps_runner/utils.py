@@ -32,8 +32,7 @@ import shlex
 from glob import glob
 import socket
 
-#: Python 2/3 differences
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 
 from posttroll.address_receiver import get_local_ips
 
