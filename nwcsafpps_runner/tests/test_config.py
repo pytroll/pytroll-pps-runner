@@ -26,7 +26,6 @@
 import pytest
 from unittest.mock import patch
 import unittest
-import yaml
 
 from nwcsafpps_runner.config import get_config
 
@@ -78,30 +77,25 @@ nhsp_path: /path/to/nwp/data/atm_level_fiels/
 nhsf_path: /path/to/nwp/data/surface_fields/
 """
 
+
 @pytest.fixture
 def fake_files(tmp_path):
     """Create directory with test files."""
-    my_temp_dir = tmp_path
 
     file_l1c = tmp_path / 'lvl1c_file.yaml'
     file_h = open(file_l1c, 'w')
     file_h.write(TEST_YAML_LVL1C_RUNNER_CONTENT_OK)
     file_h.close()
-    
+
     file_pps = tmp_path / 'pps_file.yaml'
     file_h = open(file_pps, 'w')
     file_h.write(TEST_YAML_PPS_RUNNER_CONFIG_OK)
-    file_h.close()  
+    file_h.close()
     return str(file_l1c), str(file_pps)
-
-def create_config_from_yaml(yaml_content_str):
-    """Create aapp-runner config dict from a yaml file."""
-    return yaml.load(yaml_content_str, Loader=yaml.FullLoader)
 
 
 class TestGetConfig:
     """Test getting the yaml config from file"""
-
 
     def test_read_lvl1c_runner_config(self, fake_files):
         """Test loading and initialising the yaml config"""
