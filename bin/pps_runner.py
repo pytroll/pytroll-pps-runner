@@ -127,7 +127,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
         LOG.debug("Run command: " + str(cmd_str))
         try:
-            pps_all_proc = Popen(cmd_str, shell=True, stderr=PIPE, stdout=PIPE)
+            pps_all_proc = Popen(cmd_str.split(" "), shell=False, stderr=PIPE, stdout=PIPE)
         except PpsRunError:
             LOG.exception("Failed in PPS...")
 
@@ -151,7 +151,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
             LOG.debug("Run command: " + str(cmdl))
             try:
-                pps_cmaprob_proc = Popen(cmdl, shell=True, stderr=PIPE, stdout=PIPE)
+                pps_cmaprob_proc = Popen(cmdl.split(" "), shell=False, stderr=PIPE, stdout=PIPE)
             except PpsRunError:
                 LOG.exception("Failed when trying to run the PPS Cma-prob")
             timer_cmaprob = threading.Timer(min_thr * 60.0, terminate_process,
@@ -287,10 +287,10 @@ def pps(options):
 def get_arguments():
     """Get command line arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test_with_l1c_file',
-                        type=str,
-                        help="To test for l1c file with patched subscriber",
-                        required=False)
+    parser.add_argument('test_with_l1c_files',
+                        metavar='fileN', type=str, nargs='+',
+                        default=[],
+                        help="To test for l1c file with patched subscriber")
     parser.add_argument('-c', '--config_file',
                         type=str,
                         dest='config_file',
@@ -341,10 +341,10 @@ if __name__ == "__main__":
     LOG = logging.getLogger('pps_runner')
     LOG.debug("Path to PPS-runner config file = {:s}".format(args.config_file))
 
-    if args.test_with_l1c_file:
+    if args.test_with_l1c_files != []:
         from posttroll.message import Message
         from posttroll.testing import patched_subscriber_recv
-        some_files = [args.test_with_l1c_file]
+        some_files = args.test_with_l1c_files
         messages = [Message("some_topic", "file", data={"uri": f, "orbit_number": 00000, "sensor": "avhrr",
                                                         'platform_name': "EOS-Aqua",
                                                         "start_time": datetime(2024, 4, 9, 8, 3)})
