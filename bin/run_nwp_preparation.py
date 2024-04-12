@@ -42,7 +42,7 @@ LOG = logging.getLogger('nwp-preparation')
 
 def prepare_and_publish(pub, options, flens):
     config_file_name = options.config_file
-    starttime = datetime.utcnow() - timedelta(days=8)
+    starttime = datetime.utcnow() - timedelta(days=1)
     ok_files, publish_topic = update_nwp(starttime, flens, config_file_name)
     if publish_topic is not None:
         for filename in ok_files:
