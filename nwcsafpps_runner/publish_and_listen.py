@@ -51,7 +51,7 @@ class FileListener(threading.Thread):
         LOG.debug("Subscribe topics = %s", str(self.subscribe_topics))
         with posttroll.subscriber.Subscribe("", self.subscribe_topics, True) as subscr:
 
-            for msg in subscr.recv():
+            for msg in subscr.recv(timeout=90):
                 if not self.loop:
                     break
 
