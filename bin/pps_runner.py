@@ -32,7 +32,7 @@ import threading
 from datetime import datetime
 from subprocess import PIPE, Popen
 
-from six.moves.queue import Empty, Queue
+from queue import Empty, Queue
 
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher

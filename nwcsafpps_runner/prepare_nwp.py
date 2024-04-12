@@ -30,7 +30,7 @@ import time
 import tempfile
 from trollsift import Parser
 import pygrib  # @UnresolvedImport
-from six.moves.configparser import NoOptionError
+from configparser import NoOptionError
 
 from nwcsafpps_runner.config import load_config_from_file
 from nwcsafpps_runner.utils import run_command

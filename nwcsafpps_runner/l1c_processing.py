@@ -24,7 +24,7 @@
 """
 
 import logging
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from multiprocessing import cpu_count
 from multiprocessing import Process, Manager
 from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
