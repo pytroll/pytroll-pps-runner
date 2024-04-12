@@ -167,7 +167,7 @@ def pps_worker(scene, publish_q, input_msg, options):
             out_reader2.join()
             err_reader2.join()
 
-        pps_control_path = my_env.get('STATISTICS_DIR', options.get('pps_statistics_dir', './'))
+        pps_control_path = my_env.get('SM_STATISTICS_DIR', options.get('pps_statistics_dir', './'))
         xml_files = create_xml_timestat_from_lvl1c(scene, pps_control_path)
         xml_files += find_product_statistics_from_lvl1c(scene, pps_control_path)
         LOG.info("PPS summary statistics files: %s", str(xml_files))
