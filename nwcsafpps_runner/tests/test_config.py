@@ -23,12 +23,12 @@
 """Unit testing the config handling.
 """
 
-import pytest
-from unittest.mock import patch
 import unittest
+from unittest.mock import patch
+
+import pytest
 
 from nwcsafpps_runner.config import get_config
-
 
 TEST_YAML_LVL1C_RUNNER_CONTENT_OK = """
 seviri-l1c:

@@ -45,15 +45,16 @@ The hook is initialized when the yaml config file is read, so it needs a `__sets
 
 """
 
+import logging
 import os
 import socket
-import logging
-from posttroll.publisher import Publish
-from posttroll.message import Message
-from multiprocessing import Manager
 import threading
-from datetime import timedelta
 import time
+from datetime import timedelta
+from multiprocessing import Manager
+
+from posttroll.message import Message
+from posttroll.publisher import Publish
 
 LOG = logging.getLogger(__name__)
 

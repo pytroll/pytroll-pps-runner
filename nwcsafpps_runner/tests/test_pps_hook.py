@@ -25,18 +25,18 @@
 The message is created from metadata partly read from a yaml config file.
 """
 
-from datetime import datetime, timedelta
 import unittest
-from unittest.mock import patch, Mock, MagicMock
+from datetime import datetime, timedelta
+from multiprocessing import Manager
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import yaml
-from multiprocessing import Manager
 
 import nwcsafpps_runner
-from nwcsafpps_runner.pps_posttroll_hook import MANDATORY_FIELDS_FROM_YAML
-from nwcsafpps_runner.pps_posttroll_hook import SEC_DURATION_ONE_GRANULE
-from nwcsafpps_runner.pps_posttroll_hook import PPSPublisher
-
+from nwcsafpps_runner.pps_posttroll_hook import (MANDATORY_FIELDS_FROM_YAML,
+                                                 SEC_DURATION_ONE_GRANULE,
+                                                 PPSPublisher)
 
 START_TIME1 = datetime.fromisoformat("2020-12-17T14:08:25.800000")
 END_TIME1 = datetime.fromisoformat("2020-12-17T14:09:50")

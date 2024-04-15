@@ -25,13 +25,14 @@
 import argparse
 import logging
 import time
-
 from datetime import datetime, timedelta, timezone
+
+from posttroll.publisher import Publish
+
 from nwcsafpps_runner.logger import setup_logging
+from nwcsafpps_runner.message_utils import prepare_nwp_message, publish_l1c
 from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.utils import NwpPrepareError
-from posttroll.publisher import Publish
-from nwcsafpps_runner.message_utils import publish_l1c, prepare_nwp_message
 
 NWP_FLENS = [6, 9, 12, 15, 18, 21, 24]
 

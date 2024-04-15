@@ -23,23 +23,23 @@
 """Unit testing the level-1c runner code
 """
 
-import pytest
-from unittest.mock import patch
-import unittest
-from posttroll.message import Message
-from datetime import datetime
-import yaml
 import tempfile
 import time
+import unittest
+from datetime import datetime
+from unittest.mock import patch
 
-from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
-from nwcsafpps_runner.l1c_processing import check_message_okay
-from nwcsafpps_runner.l1c_processing import check_service_is_supported
-from nwcsafpps_runner.l1c_processing import L1cProcessor
-from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
-from nwcsafpps_runner.l1c_processing import MessageTypeNotSupported
-from nwcsafpps_runner.l1c_processing import MessageContentMissing
+import pytest
+import yaml
+from posttroll.message import Message
 
+from nwcsafpps_runner.l1c_processing import (L1cProcessor,
+                                             MessageContentMissing,
+                                             MessageTypeNotSupported,
+                                             ServiceNameNotSupported,
+                                             check_message_okay,
+                                             check_service_is_supported)
+from nwcsafpps_runner.message_utils import prepare_l1c_message, publish_l1c
 
 TEST_YAML_CONTENT_OK = """
 seviri-l1c:

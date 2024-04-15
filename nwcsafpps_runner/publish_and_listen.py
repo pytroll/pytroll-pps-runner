@@ -23,13 +23,15 @@
 """Publisher and Listener classes for the PPS runners.
 """
 
+import logging
+import threading
+
 import posttroll.subscriber
 from posttroll.publisher import Publish
-import threading
+
 from nwcsafpps_runner.utils import (SUPPORTED_PPS_SATELLITES,
                                     SUPPORTED_SEVIRI_SATELLITES)
 
-import logging
 LOG = logging.getLogger(__name__)
 
 

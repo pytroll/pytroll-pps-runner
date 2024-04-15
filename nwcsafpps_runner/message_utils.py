@@ -23,10 +23,11 @@
 """Message utilities.
 """
 
-import os
 import logging
+import os
 import socket
 from urllib.parse import urlunsplit
+
 from posttroll.message import Message
 
 LOG = logging.getLogger(__name__)

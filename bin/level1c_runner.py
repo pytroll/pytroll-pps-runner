@@ -26,12 +26,13 @@ import argparse
 import logging
 import signal
 
-from posttroll.subscriber import Subscribe
 from posttroll.publisher import Publish
+from posttroll.subscriber import Subscribe
+
+from nwcsafpps_runner.l1c_processing import (L1cProcessor,
+                                             MessageTypeNotSupported)
 from nwcsafpps_runner.logger import setup_logging
-from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
-from nwcsafpps_runner.l1c_processing import L1cProcessor
-from nwcsafpps_runner.l1c_processing import MessageTypeNotSupported
+from nwcsafpps_runner.message_utils import prepare_l1c_message, publish_l1c
 
 LOOP = True
 

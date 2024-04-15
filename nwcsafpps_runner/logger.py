@@ -26,6 +26,7 @@
 import logging
 import logging.config
 import logging.handlers
+
 import yaml
 
 LOG_FORMAT = "[%(asctime)s %(levelname)-8s] %(message)s"

@@ -22,14 +22,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Test the nwp_prepare runner code."""
-import pytest
-import unittest
-from datetime import datetime, timezone
-import os
 import logging
-from datetime import timedelta
-from nwcsafpps_runner.message_utils import prepare_nwp_message
+import os
+import unittest
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
 import nwcsafpps_runner.prepare_nwp as nwc_prep
+from nwcsafpps_runner.message_utils import prepare_nwp_message
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(

@@ -20,14 +20,15 @@
 """Test utility functions."""
 import os
 import unittest
-import pytest
-from unittest.mock import patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from nwcsafpps_runner.utils import (create_xml_timestat_from_lvl1c,
-                                    get_lvl1c_file_from_msg,
                                     find_product_statistics_from_lvl1c,
-                                    ready2run,
-                                    publish_pps_files)
+                                    get_lvl1c_file_from_msg, publish_pps_files,
+                                    ready2run)
 
 TEST_MSG = """pytroll://segment/EPSSGA/1B/ file safusr.u@lxserv1043.smhi.se 2023-02-17T08:18:15.748831 v1.01 application/json {"start_time": "2023-02-17T08:03:25", "end_time": "2023-02-17T08:15:25", "orbit_number": 99999, "platform_name": "Metop-SG-A1", "sensor": "metimage", "format": "X", "type": "NETCDF", "data_processing_level": "1b", "variant": "DR", "orig_orbit_number": 23218, "uri": "/san1/polar_in/direct_readout/metimage/W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc", "uid": "W_XX-EUMETSAT-Darmstadt,SAT,SGA1-VII-1B-RAD_C_EUMT_20210314224906_G_D_20070912101704_20070912101804_T_B____.nc"}"""  # noqa: E501
 
@@ -142,8 +143,9 @@ class TestPublishPPSFiles(unittest.TestCase):
 
     def test_publish_pps_files(self):
         """Test publish pps files."""
-        from posttroll.message import Message
         from multiprocessing import Manager
+
+        from posttroll.message import Message
         file1 = "S_NWC_CTTH_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml"
         file2 = "S_NWC_CMA_metopb_46878_20210930T0947019Z_20210930T1001458Z_statistics.xml"
         scene = {'instrument': 'avhrr', 'platform_name': 'EOS-Terra', 'orbit_number': "46878"}

@@ -30,20 +30,18 @@ import os
 import sys
 import threading
 from datetime import datetime, timezone
-from subprocess import PIPE, Popen
-
 from queue import Empty, Queue
+from subprocess import PIPE, Popen
 
 from nwcsafpps_runner.config import get_config
 from nwcsafpps_runner.publish_and_listen import FileListener, FilePublisher
 from nwcsafpps_runner.utils import (SENSOR_LIST, PpsRunError,
                                     create_pps_call_command,
-                                    get_lvl1c_file_from_msg,
                                     create_xml_timestat_from_lvl1c,
                                     find_product_statistics_from_lvl1c,
-                                    logreader,
-                                    publish_pps_files,
-                                    ready2run, terminate_process)
+                                    get_lvl1c_file_from_msg, logreader,
+                                    publish_pps_files, ready2run,
+                                    terminate_process)
 
 LOG = logging.getLogger(__name__)
 

@@ -22,21 +22,20 @@
 
 """Utility functions for NWCSAF/pps runner(s).
 """
-import threading
-from trollsift.parser import parse  # @UnresolvedImport
-# from trollsift import Parser
-from posttroll.message import Message  # @UnresolvedImport
-from subprocess import Popen, PIPE
+import logging
 import os
 import shlex
-from glob import glob
 import socket
-
+import threading
+from glob import glob
+from subprocess import PIPE, Popen
 from urllib.parse import urlparse
 
 from posttroll.address_receiver import get_local_ips
+# from trollsift import Parser
+from posttroll.message import Message  # @UnresolvedImport
+from trollsift.parser import parse  # @UnresolvedImport
 
-import logging
 LOG = logging.getLogger(__name__)
 
 
@@ -265,7 +264,7 @@ def find_product_statistics_from_lvl1c(scene, pps_control_path):
 
 def create_pps_file_from_lvl1c(l1c_file_name, pps_control_path, name_tag, file_type):
     """From lvl1c file create name_tag-file of type file_type."""
-    from trollsift import parse, compose
+    from trollsift import compose, parse
     f_pattern = 'S_NWC_{name_tag}_{platform_id}_{orbit_number}_{start_time}Z_{end_time}Z{file_type}'
     l1c_path, l1c_file = os.path.split(l1c_file_name)
     data = parse(f_pattern, l1c_file)

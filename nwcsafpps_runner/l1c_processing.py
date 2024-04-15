@@ -24,14 +24,14 @@
 """
 
 import logging
+from multiprocessing import Manager, Process, cpu_count
 from urllib.parse import urlparse
-from multiprocessing import cpu_count
-from multiprocessing import Process, Manager
-from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
-from level1c4pps.viirs2pps_lib import process_one_scene as process_viirs
-from level1c4pps.modis2pps_lib import process_one_scene as process_modis
+
 from level1c4pps.avhrr2pps_lib import process_one_scene as process_avhrr
 from level1c4pps.metimage2pps_lib import process_one_scene as process_metimage
+from level1c4pps.modis2pps_lib import process_one_scene as process_modis
+from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
+from level1c4pps.viirs2pps_lib import process_one_scene as process_viirs
 
 from nwcsafpps_runner.config import get_config
 

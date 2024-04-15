@@ -23,20 +23,20 @@
 """Prepare NWP data for PPS
 """
 
-from glob import glob
+import logging
 import os
-from datetime import datetime, timezone
-import time
 import tempfile
-from trollsift import Parser
-import pygrib  # @UnresolvedImport
+import time
 from configparser import NoOptionError
+from datetime import datetime, timezone
+from glob import glob
+
+import pygrib  # @UnresolvedImport
+from trollsift import Parser
 
 from nwcsafpps_runner.config import load_config_from_file
-from nwcsafpps_runner.utils import run_command
-from nwcsafpps_runner.utils import NwpPrepareError
+from nwcsafpps_runner.utils import NwpPrepareError, run_command
 
-import logging
 LOG = logging.getLogger(__name__)
 
 
