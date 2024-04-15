@@ -20,8 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Unit testing the level-1c runner code
-"""
+"""Testing the level-1c runner code."""
 
 import tempfile
 import time
@@ -118,6 +117,7 @@ TEST_INPUT_MESSAGE_VIIRS_NO_ORBIT_MSG = """pytroll://1b/viirs dataset safusr.u@l
 
 
 class MyFakePublisher(object):
+    """Fake publisher for testing."""
 
     def __init__(self):
         pass
@@ -137,11 +137,11 @@ def create_config_from_yaml(yaml_content_str):
 
 
 class TestPublishMessage(unittest.TestCase):
+    """Test publication of messages."""
 
     @patch('nwcsafpps_runner.message_utils.socket.gethostname')
     def test_create_publish_message(self, gethostname):
         """Test the creation of the publish message."""
-
         gethostname.return_value = "my_local_server"
         my_fake_level1c_file = '/my/level1c/file/path/level1c.nc'
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
@@ -167,7 +167,6 @@ class TestPublishMessage(unittest.TestCase):
     @patch('nwcsafpps_runner.message_utils.Message.encode')
     def test_publish_messages(self, mock_message):
         """Test the sending the messages."""
-
         my_fake_publisher = MyFakePublisher()
         mock_message.return_value = "some pytroll message"
 
@@ -196,6 +195,7 @@ class TestL1cProcessing(unittest.TestCase):
     """Test the L1c processing module."""
 
     def setUp(self):
+        """Set up method."""
         self.config_complete = create_config_from_yaml(TEST_YAML_CONTENT_OK)
         self.config_minimum = create_config_from_yaml(TEST_YAML_CONTENT_OK_MINIMAL)
         self.config_viirs_ok = create_config_from_yaml(TEST_YAML_CONTENT_VIIRS_OK)

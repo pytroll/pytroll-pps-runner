@@ -20,6 +20,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""Runner for filtering NWP data for PPS."""
 
 
 import argparse
@@ -42,6 +43,7 @@ LOG = logging.getLogger('nwp-preparation')
 
 
 def prepare_and_publish(pub, options, flens):
+    """Prepare NWP files and publish."""
     config_file_name = options.config_file
     starttime = datetime.now(tz=timezone.utc) - timedelta(days=1)
     ok_files, publish_topic = update_nwp(starttime, flens, config_file_name)

@@ -21,8 +21,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Posttroll runner for the NWCSAF/PPS version >= v2018.
-"""
+"""Posttroll runner for the NWCSAF/PPS version >= v2018."""
 
 import argparse
 import logging

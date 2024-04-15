@@ -20,8 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Prepare NWP data for PPS
-"""
+"""Prepare NWP data for PPS."""
 
 import logging
 import os
@@ -44,6 +43,7 @@ class NWPFileFamily(object):
     """Container for a nwp file family."""
 
     def __init__(self, cfg, filename):
+        """Container for nwp-file object."""
         self.nhsf_file = filename
         self.nhsp_file = filename.replace(cfg["nhsf_path"], cfg["nhsp_path"]).replace(
             cfg["nhsf_prefix"], cfg["nhsp_prefix"])
@@ -62,6 +62,7 @@ class NWPFileFamily(object):
         self.set_time_info(filename, cfg)
 
     def set_time_info(self, filename, cfg):
+        """Parse time info from a file."""
         try:
             parser = Parser(cfg["nhsf_file_name_sift"])
         except NoOptionError as noe:
@@ -135,7 +136,9 @@ def update_nwp(starttime, nlengths, config_file_name):
 
 
 def should_be_skipped(file_obj, starttime, nlengths):
-    """Skip some files. Consider only analysis times newer than
+    """Skip some files.
+
+    Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
     the list *nlengths* of integers. Never reprocess.
 
@@ -167,7 +170,6 @@ def get_files_to_process(cfg):
 
 def create_nwp_file(file_obj):
     """Create a new nwp file."""
-
     LOG.info("Result and tmp files:\n\t {:s}\n\t {:s}\n\t {:s}\n\t {:s}".format(
         file_obj.result_file,
         file_obj.tmp_filename,
@@ -221,11 +223,12 @@ def create_nwp_file(file_obj):
 
 
 def update_nwp_inner(starttime, nlengths, cfg):
-    """Prepare NWP grib files for PPS. Consider only analysis times newer than
+    """Prepare NWP grib files for PPS.
+
+    Consider only analysis times newer than
     *starttime*. And consider only the forecast lead times in hours given by
     the list *nlengths* of integers
     """
-
     LOG.info("Path to nhsf files: {:s}".format(cfg["nhsf_path"]))
     LOG.info("Path to nhsp files: {:s}".format(cfg["nhsp_path"]))
     LOG.info("nwp_output_prefix {:s}".format(cfg["nwp_output_prefix"]))
@@ -264,9 +267,7 @@ def get_mandatory_and_all_fields(lines):
 
 
 def get_nwp_requirement(nwp_req_filename):
-    """Read the new requirement file. Return list with mandatory and wanted fields.
-
-    """
+    """Read the new requirement file. Return list with mandatory and wanted fields."""
     try:
         with open(nwp_req_filename, 'r') as fpt:
             lines = fpt.readlines()
@@ -279,9 +280,7 @@ def get_nwp_requirement(nwp_req_filename):
 
 
 def check_nwp_requirement(grb_entries, mandatory_fields, result_file):
-    """Check nwp file all mandatory enteries should be present.
-
-    """
+    """Check nwp file all mandatory enteries should be present."""
     grb_entries.sort()
     for item in mandatory_fields:
         if item not in grb_entries:
@@ -292,9 +291,7 @@ def check_nwp_requirement(grb_entries, mandatory_fields, result_file):
 
 
 def check_and_reduce_nwp_content(gribfile, result_file, nwp_req_filename):
-    """Check the content of the NWP file. Create a reduced file.
-
-    """
+    """Check the content of the NWP file. Create a reduced file."""
     LOG.info("Get nwp requirements.")
     mandatory_fields, all_fields = get_nwp_requirement(nwp_req_filename)
     if mandatory_fields is None:

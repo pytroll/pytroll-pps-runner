@@ -20,8 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Unit testing the config handling.
-"""
+"""Testing the config handling."""
 
 import unittest
 from unittest.mock import patch
@@ -81,7 +80,6 @@ nhsf_path: /path/to/nwp/data/surface_fields/
 @pytest.fixture
 def fake_files(tmp_path):
     """Create directory with test files."""
-
     file_l1c = tmp_path / 'lvl1c_file.yaml'
     file_h = open(file_l1c, 'w')
     file_h.write(TEST_YAML_LVL1C_RUNNER_CONTENT_OK)
@@ -95,10 +93,10 @@ def fake_files(tmp_path):
 
 
 class TestGetConfig:
-    """Test getting the yaml config from file"""
+    """Test getting the yaml config from file."""
 
     def test_read_lvl1c_runner_config(self, fake_files):
-        """Test loading and initialising the yaml config"""
+        """Test loading and initialising the yaml config."""
         myconfig_filename, _ = fake_files
 
         result = get_config(myconfig_filename, service='seviri-l1c')
@@ -115,7 +113,7 @@ class TestGetConfig:
 
     @patch('nwcsafpps_runner.config.socket.gethostname')
     def test_read_pps_runner_config(self, gethostname, fake_files):
-        """Test loading and initialising the yaml config"""
+        """Test loading and initialising the yaml config."""
         _, myconfig_filename = fake_files
         gethostname.return_value = "my.local.host"
         result = get_config(myconfig_filename, add_defaults=True)

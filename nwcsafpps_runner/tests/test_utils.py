@@ -129,6 +129,7 @@ class TestReady2Run(unittest.TestCase):
 
     @patch('nwcsafpps_runner.utils.check_host_ok')
     def test_ready2run(self, mock_check_host_ok):
+        """Test the ready to run function."""
         from posttroll.message import Message
         input_msg = Message.decode(rawstr=TEST_MSG)
         mock_check_host_ok.return_value = True
