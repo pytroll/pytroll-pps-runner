@@ -20,8 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Reading configuration settings for NWCSAF/pps runner(s).
-"""
+"""Reading configuration settings for NWCSAF/PPS runner(s)."""
 
 import os
 import socket
@@ -30,13 +29,14 @@ import yaml
 
 
 def load_config_from_file(filepath):
-    """Load the yaml config from file, given the file-path"""
+    """Load the yaml config from file, given the file-path."""
     with open(filepath, 'r') as fp_:
         config = yaml.load(fp_, Loader=yaml.FullLoader)
     return config
 
 
 def move_service_dict_attributes_to_top_level(options, service):
+    """Mover attributes in dict service to top level."""
     if service in options and isinstance(options[service], dict):
         service_config = options.pop(service)
         for key in service_config:

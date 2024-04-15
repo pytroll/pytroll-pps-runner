@@ -21,8 +21,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Setup for pps-runner.
-"""
+"""Setup for pps-runner."""
 from setuptools import find_packages, setup
 
 try:

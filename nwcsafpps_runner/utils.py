@@ -20,8 +20,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Utility functions for NWCSAF/pps runner(s).
-"""
+"""Utility functions for NWCSAF/pps runner(s)."""
+
 import logging
 import os
 import shlex
@@ -44,6 +44,10 @@ class NwpPrepareError(Exception):
 
 
 class FindTimeControlFileError(Exception):
+    pass
+
+
+class PpsRunError(Exception):
     pass
 
 
@@ -131,9 +135,7 @@ def run_command(cmdstr):
 
 
 def check_uri(uri):
-    """Check that the provided *uri* is on the local host and return the
-    file path.
-    """
+    """Check that the provided *uri* is on the local host and return the file path."""
     if isinstance(uri, (list, set, tuple)):
         paths = [check_uri(ressource) for ressource in uri]
         return paths
@@ -153,10 +155,6 @@ def check_uri(uri):
         LOG.warning("Couldn't check file location, running anyway")
 
     return url.path
-
-
-class PpsRunError(Exception):
-    pass
 
 
 def get_lvl1c_file_from_msg(msg):
@@ -200,7 +198,6 @@ def check_host_ok(msg):
 
 def ready2run(msg, scene, **kwargs):
     """Check whether pps is ready to run or not."""
-
     LOG.info("Got message: " + str(msg))
     if not check_host_ok(msg):
         return False
@@ -230,10 +227,7 @@ def terminate_process(popen_obj, scene):
 
 
 def create_pps_call_command(python_exec, pps_script_name, scene):
-    """Create the pps call command.
-
-    Supports PPSv2021.
-    """
+    """Create the pps call command."""
     cmdstr = ("%s" % python_exec + " %s " % pps_script_name +
               "-af %s" % scene['file4pps'])
     LOG.debug("PPS call command: %s", str(cmdstr))
@@ -295,10 +289,7 @@ def create_xml_timestat_from_ascii(infile, pps_control_path):
 
 
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
-    """
-    Publish messages for the files provided.
-    """
-
+    """Publish messages for the files provided."""
     servername = kwargs.get('servername')
     station = kwargs.get('station', 'unknown')
 

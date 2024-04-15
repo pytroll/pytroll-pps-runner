@@ -20,8 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Publisher and Listener classes for the PPS runners.
-"""
+"""Publisher and Listener classes for the PPS runner."""
 
 import logging
 import threading
@@ -38,18 +37,19 @@ LOG = logging.getLogger(__name__)
 class FileListener(threading.Thread):
 
     def __init__(self, queue, subscribe_topics):
+        """Init the file listener."""
         threading.Thread.__init__(self)
         self.loop = True
         self.queue = queue
         self.subscribe_topics = subscribe_topics
 
     def stop(self):
-        """Stops the file listener."""
+        """Stop the file listener."""
         self.loop = False
         self.queue.put(None)
 
     def run(self):
-
+        """Run the file listener."""
         LOG.debug("Subscribe topics = %s", str(self.subscribe_topics))
         with posttroll.subscriber.Subscribe("", self.subscribe_topics, True) as subscr:
 
@@ -64,7 +64,7 @@ class FileListener(threading.Thread):
                     self.queue.put(msg)
 
     def check_message(self, msg):
-
+        """Check the message."""
         if not msg:
             return False
 
@@ -93,6 +93,7 @@ class FilePublisher(threading.Thread):
     """
 
     def __init__(self, queue, publish_topic, **kwargs):
+        """Init the file publisher."""
         threading.Thread.__init__(self)
         self.loop = True
         self.queue = queue
@@ -107,12 +108,12 @@ class FilePublisher(threading.Thread):
                 self.nameservers = [self.nameservers]
 
     def stop(self):
-        """Stops the file publisher."""
+        """Stop the file publisher."""
         self.loop = False
         self.queue.put(None)
 
     def run(self):
-
+        """Run the file publisher."""
         with Publish(self.runner_name, 0, self.publish_topic, nameservers=self.nameservers) as publisher:
 
             while self.loop:
