@@ -105,15 +105,6 @@ def prepare_config(config_file_name):
     return cfg
 
 
-def logreader(stream, log_func):
-    while True:
-        s = stream.readline()
-        if not s:
-            break
-        log_func(s.strip())
-    stream.close()
-
-
 def remove_file(filename):
     """Remove a temporary file."""
     if os.path.exists(filename):
