@@ -20,16 +20,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Unit testing the config handling.
-"""
+"""Testing the config handling."""
 
-from unittest.mock import patch
 import unittest
-import yaml
+from unittest.mock import patch
 
-from nwcsafpps_runner.config import get_config_from_yamlfile
-from nwcsafpps_runner.config import get_config_yaml
+import pytest
 
+from nwcsafpps_runner.config import get_config
 
 TEST_YAML_LVL1C_RUNNER_CONTENT_OK = """
 seviri-l1c:
@@ -46,17 +44,6 @@ seviri-l1c:
 """
 
 TEST_YAML_PPS_RUNNER_CONFIG_OK = """
-nhsp_prefix: LL02_NHSP_
-nhsf_prefix: LL02_NHSF_
-ecmwf_prefix: LL02_NHSF
-
-nhsf_file_name_sift: '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M'
-
-nwp_static_surface: /san1/pps/import/NWP_data/lsm_z.grib1
-nwp_output_prefix: LL02_NHSPSF_
-nwp_outdir: /san1/pps/import/NWP_data/source
-pps_nwp_requirements: /san1/pps/import/NWP_data/pps_nwp_list_of_required_fields.txt
-
 publish_topic: PPS
 subscribe_topics: [/segment/SDR/1C] #[AAPP-HRPT,AAPP-PPS,EOS/1B,segment/SDR/1B,1c/nc/0deg]
 sdr_processing: granules
@@ -90,25 +77,29 @@ nhsf_path: /path/to/nwp/data/surface_fields/
 """
 
 
-def create_config_from_yaml(yaml_content_str):
-    """Create aapp-runner config dict from a yaml file."""
-    return yaml.load(yaml_content_str, Loader=yaml.FullLoader)
+@pytest.fixture
+def fake_files(tmp_path):
+    """Create directory with test files."""
+    file_l1c = tmp_path / 'lvl1c_file.yaml'
+    file_h = open(file_l1c, 'w')
+    file_h.write(TEST_YAML_LVL1C_RUNNER_CONTENT_OK)
+    file_h.close()
+
+    file_pps = tmp_path / 'pps_file.yaml'
+    file_h = open(file_pps, 'w')
+    file_h.write(TEST_YAML_PPS_RUNNER_CONFIG_OK)
+    file_h.close()
+    return str(file_l1c), str(file_pps)
 
 
-class TestGetConfig(unittest.TestCase):
-    """Test getting the yaml config from file"""
+class TestGetConfig:
+    """Test getting the yaml config from file."""
 
-    def setUp(self):
-        self.config_lvl1c_complete = create_config_from_yaml(TEST_YAML_LVL1C_RUNNER_CONTENT_OK)
-        self.config_pps_complete = create_config_from_yaml(TEST_YAML_PPS_RUNNER_CONFIG_OK)
+    def test_read_lvl1c_runner_config(self, fake_files):
+        """Test loading and initialising the yaml config."""
+        myconfig_filename, _ = fake_files
 
-    @patch('nwcsafpps_runner.config.load_config_from_file')
-    def test_read_lvl1c_runner_config(self, config):
-        """Test loading and initialising the yaml config"""
-        config.return_value = self.config_lvl1c_complete
-        myconfig_filename = '/tmp/my/config/file'
-
-        result = get_config_from_yamlfile(myconfig_filename, 'seviri-l1c')
+        result = get_config(myconfig_filename, service='seviri-l1c')
 
         expected = {'message_types': ['/1b/hrit/0deg'],
                     'publish_topic': ['/1c/nc/0deg'],
@@ -118,28 +109,16 @@ class TestGetConfig(unittest.TestCase):
                     'l1cprocess_call_arguments': {'engine': 'netcdf4',
                                                   'rotate': True}}
 
-        self.assertDictEqual(result, expected)
+        assert result == expected
 
-    @patch('nwcsafpps_runner.config.load_config_from_file')
     @patch('nwcsafpps_runner.config.socket.gethostname')
-    def test_read_pps_runner_config(self, gethostname, config):
-        """Test loading and initialising the yaml config"""
+    def test_read_pps_runner_config(self, gethostname, fake_files):
+        """Test loading and initialising the yaml config."""
+        _, myconfig_filename = fake_files
         gethostname.return_value = "my.local.host"
-        config.return_value = self.config_pps_complete
-        myconfig_filename = '/tmp/my/config/file'
+        result = get_config(myconfig_filename, add_defaults=True)
 
-        result = get_config_yaml(myconfig_filename)
-
-        expected = {'nhsp_prefix': 'LL02_NHSP_',
-                    'nhsf_prefix': 'LL02_NHSF_',
-                    'ecmwf_prefix': 'LL02_NHSF',
-                    'nhsf_file_name_sift': ('{ecmwf_prefix:9s}_' +
-                                            '{analysis_time:%Y%m%d%H%M}+' +
-                                            '{forecast_step:d}H00M'),
-                    'nwp_static_surface': '/san1/pps/import/NWP_data/lsm_z.grib1',
-                    'nwp_output_prefix': 'LL02_NHSPSF_',
-                    'nwp_outdir': '/san1/pps/import/NWP_data/source',
-                    'pps_nwp_requirements': '/san1/pps/import/NWP_data/pps_nwp_list_of_required_fields.txt',
+        expected = {
                     'publish_topic': 'PPS',
                     'subscribe_topics': ['/segment/SDR/1C'],
                     'sdr_processing': 'granules',
@@ -163,4 +142,4 @@ class TestGetConfig(unittest.TestCase):
                     'nhsf_path': '/path/to/nwp/data/surface_fields/',
                     'servername': 'my.local.host'}
 
-        self.assertDictEqual(result, expected)
+        assert result == expected

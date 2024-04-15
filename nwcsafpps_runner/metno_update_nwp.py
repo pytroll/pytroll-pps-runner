@@ -24,12 +24,13 @@
 """
 
 import logging
-import tempfile
-from glob import glob
 import os
+import tempfile
 from datetime import datetime
-import numpy as np
+from glob import glob
+
 import eccodes as ecc
+import numpy as np
 
 LOG = logging.getLogger(__name__)
 
@@ -198,8 +199,8 @@ def update_nwp(params):
             LOG.info("File: " + str(result_file) + " already there...")
             continue
 
-        import fcntl
         import errno
+        import fcntl
         import time
         rfl = open(_result_file_lock, 'w+')
         # do some locking

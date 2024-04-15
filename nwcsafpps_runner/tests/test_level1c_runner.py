@@ -20,26 +20,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Unit testing the level-1c runner code
-"""
+"""Testing the level-1c runner code."""
 
-import pytest
-from unittest.mock import patch
-import unittest
-from posttroll.message import Message
-from datetime import datetime
-import yaml
 import tempfile
 import time
+import unittest
+from datetime import datetime
+from unittest.mock import patch
 
-from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
-from nwcsafpps_runner.l1c_processing import check_message_okay
-from nwcsafpps_runner.l1c_processing import check_service_is_supported
-from nwcsafpps_runner.l1c_processing import L1cProcessor
-from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
-from nwcsafpps_runner.l1c_processing import MessageTypeNotSupported
-from nwcsafpps_runner.l1c_processing import MessageContentMissing
+import pytest
+import yaml
+from posttroll.message import Message
 
+from nwcsafpps_runner.l1c_processing import (L1cProcessor,
+                                             MessageContentMissing,
+                                             MessageTypeNotSupported,
+                                             ServiceNameNotSupported,
+                                             check_message_okay,
+                                             check_service_is_supported)
+from nwcsafpps_runner.message_utils import prepare_l1c_message, publish_l1c
 
 TEST_YAML_CONTENT_OK = """
 seviri-l1c:
@@ -118,6 +117,7 @@ TEST_INPUT_MESSAGE_VIIRS_NO_ORBIT_MSG = """pytroll://1b/viirs dataset safusr.u@l
 
 
 class MyFakePublisher(object):
+    """Fake publisher for testing."""
 
     def __init__(self):
         pass
@@ -137,12 +137,10 @@ def create_config_from_yaml(yaml_content_str):
 
 
 class TestPublishMessage(unittest.TestCase):
+    """Test publication of messages."""
 
-    @patch('nwcsafpps_runner.message_utils.socket.gethostname')
-    def test_create_publish_message(self, gethostname):
+    def test_create_publish_message(self):
         """Test the creation of the publish message."""
-
-        gethostname.return_value = "my_local_server"
         my_fake_level1c_file = '/my/level1c/file/path/level1c.nc'
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
 
@@ -167,7 +165,6 @@ class TestPublishMessage(unittest.TestCase):
     @patch('nwcsafpps_runner.message_utils.Message.encode')
     def test_publish_messages(self, mock_message):
         """Test the sending the messages."""
-
         my_fake_publisher = MyFakePublisher()
         mock_message.return_value = "some pytroll message"
 
@@ -196,6 +193,7 @@ class TestL1cProcessing(unittest.TestCase):
     """Test the L1c processing module."""
 
     def setUp(self):
+        """Set up method."""
         self.config_complete = create_config_from_yaml(TEST_YAML_CONTENT_OK)
         self.config_minimum = create_config_from_yaml(TEST_YAML_CONTENT_OK_MINIMAL)
         self.config_viirs_ok = create_config_from_yaml(TEST_YAML_CONTENT_VIIRS_OK)
@@ -263,7 +261,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_complete
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')
@@ -284,7 +282,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_minimum
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')
@@ -304,7 +302,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_viirs_ok
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'viirs-l1c')
 
         level1_dataset = TEST_VIIRS_MSG_DATA.get('dataset')
 
@@ -325,7 +323,7 @@ class TestL1cProcessing(unittest.TestCase):
         input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_MSG)
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'viirs-l1c')
             l1c_proc.run(input_msg)
 
         expected_orbit_number = TEST_VIIRS_MSG_DATA.get('orbit_number')
@@ -339,7 +337,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_viirs_orbit_number_from_msg_ok
         input_msg = Message.decode(rawstr=TEST_INPUT_MESSAGE_VIIRS_MSG)
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'viirs-l1c')
             l1c_proc.run(input_msg)
         self.assertTrue(time.time() - start_time < 5)
 
@@ -353,7 +351,7 @@ class TestL1cProcessing(unittest.TestCase):
 
         with self.assertLogs('nwcsafpps_runner.l1c_processing', level='INFO') as cm:
             with tempfile.NamedTemporaryFile() as myconfig_file:
-                l1c_proc = L1cProcessor(myconfig_file.name, 'viirs-l1c')
+                l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'viirs-l1c')
                 l1c_proc.run(input_msg)
             expected_orbit_number = 99999
             self.assertEqual(l1c_proc.orbit_number, expected_orbit_number)
@@ -369,7 +367,7 @@ class TestL1cProcessing(unittest.TestCase):
         config.return_value = self.config_complete_nameservers
 
         with tempfile.NamedTemporaryFile() as myconfig_file:
-            l1c_proc = L1cProcessor(myconfig_file.name, 'seviri-l1c')
+            l1c_proc = L1cProcessor(myconfig_file.name + ".yaml", 'seviri-l1c')
 
         self.assertEqual(l1c_proc.platform_name, 'unknown')
         self.assertEqual(l1c_proc.sensor, 'unknown')

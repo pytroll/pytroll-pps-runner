@@ -20,20 +20,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""The level-1c processing tools
-"""
+"""The level-1c processing tools."""
 
 import logging
-from six.moves.urllib.parse import urlparse
-from multiprocessing import cpu_count
-from multiprocessing import Process, Manager
-from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
-from level1c4pps.viirs2pps_lib import process_one_scene as process_viirs
-from level1c4pps.modis2pps_lib import process_one_scene as process_modis
+from multiprocessing import Manager, Process, cpu_count
+from urllib.parse import urlparse
+
 from level1c4pps.avhrr2pps_lib import process_one_scene as process_avhrr
 from level1c4pps.metimage2pps_lib import process_one_scene as process_metimage
+from level1c4pps.modis2pps_lib import process_one_scene as process_modis
+from level1c4pps.seviri2pps_lib import process_one_scan as process_seviri
+from level1c4pps.viirs2pps_lib import process_one_scene as process_viirs
 
-from nwcsafpps_runner.config import get_config_from_yamlfile as get_config
+from nwcsafpps_runner.config import get_config
 
 LOG = logging.getLogger(__name__)
 
@@ -77,8 +76,7 @@ class L1cProcessor(object):
     """Container for the NWCSAF/PPS Level-c processing."""
 
     def __init__(self, config_filename, service_name):
-
-        options = get_config(config_filename, service_name)
+        options = get_config(config_filename, service=service_name)
 
         self.initialize(service_name)
         self._l1c_processor_call_kwargs = options.get('l1cprocess_call_arguments', {'engine': 'h5netcdf'})
@@ -171,7 +169,6 @@ class L1cProcessor(object):
 
     def get_level1_files_from_dataset(self, level1_dataset):
         """Get the level-1 files from the dataset."""
-
         if self.service in ['seviri-l1c']:
             self.level1_files = get_seviri_level1_files_from_dataset(level1_dataset)
         else:
@@ -180,7 +177,6 @@ class L1cProcessor(object):
 
     def check_platform_name_consistent_with_service(self):
         """Check that the platform name is consistent with the service name."""
-
         if self.platform_name.lower() not in SUPPORTED_SATELLITES.get(self.service, []):
             errmsg = ("%s: Platform name not supported for this service: %s",
                       str(self.platform_name), self.service)
@@ -189,7 +185,6 @@ class L1cProcessor(object):
 
 def get_seviri_level1_files_from_dataset(level1_dataset):
     """Get the seviri level-1 filenames from the dataset and return as list."""
-
     pro_files = False
     epi_files = False
     level1_files = []

@@ -20,12 +20,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""nwcsafpps_runner package.
-"""
+"""The nwcsafpps_runner package."""
 
-from pkg_resources import get_distribution, DistributionNotFound
-try:
-    __version__ = get_distribution(__name__).version
-except DistributionNotFound:
-    # package is not installed
-    pass
+from importlib.metadata import version
+
+__version__ = version(__name__)

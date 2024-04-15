@@ -21,9 +21,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Setup for pps-runner.
-"""
-from setuptools import setup, find_packages
+"""Setup for pps-runner."""
+from setuptools import find_packages, setup
 
 try:
     # HACK: https://github.com/pypa/setuptools_scm/issues/190#issuecomment-351181286
@@ -59,10 +58,10 @@ setup(name=NAME,
       license='GPLv3',
       packages=find_packages(),
       scripts=['bin/pps_runner.py',
-               'bin/pps2018_runner.py',
+               'bin/run_nwp_preparation.py',
                'bin/level1c_runner.py', ],
       data_files=[],
-      install_requires=['posttroll', 'trollsift', 'pygrib', ],
+      install_requires=['posttroll', 'trollsift', 'pygrib', 'level1c4pps'],
       python_requires='>=3.6',
       zip_safe=False,
       setup_requires=['setuptools_scm', 'setuptools_scm_git_archive'],

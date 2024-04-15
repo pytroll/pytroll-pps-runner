@@ -20,21 +20,30 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Message utilities.
-"""
+"""Message utilities."""
 
-import os
 import logging
-import socket
-from urllib.parse import urlunsplit
+import os
+
 from posttroll.message import Message
 
 LOG = logging.getLogger(__name__)
 
 
+def prepare_nwp_message(result_file, publish_topic):
+    """Prepare message for NWP files."""
+    to_send = {}
+    to_send["uri"] = result_file
+    filename = os.path.basename(result_file)
+    to_send["uid"] = filename
+    to_send['format'] = 'NWP grib'
+    to_send['type'] = 'grib'
+    return Message('/' + publish_topic + '/',
+                   "file", to_send).encode()
+
+
 def prepare_l1c_message(result_file, mda, **kwargs):
     """Prepare the output message for the level-1c file creation."""
-
     if not result_file:
         return
 
@@ -67,7 +76,6 @@ def prepare_l1c_message(result_file, mda, **kwargs):
 
 def publish_l1c(publisher, publish_msg, publish_topic):
     """Publish the messages that l1c files are ready."""
-
     LOG.debug('Publish topic = %s', publish_topic)
     for topic in publish_topic:
         msg = Message(topic, "file", publish_msg).encode()

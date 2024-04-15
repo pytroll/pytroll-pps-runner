@@ -21,15 +21,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Unit testing the nwp_prepare runner code."""
-
-from unittest.mock import patch
-import unittest
-from datetime import datetime
-import os
+"""Test the nwp_prepare runner code."""
 import logging
-from importlib import reload
-from datetime import timedelta
+import os
+import unittest
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+import nwcsafpps_runner.prepare_nwp as nwc_prep
+from nwcsafpps_runner.message_utils import prepare_nwp_message
+
 LOG = logging.getLogger(__name__)
 logging.basicConfig(
     format='%(levelname)s |%(asctime)s|: %(message)s',
@@ -38,102 +40,109 @@ logging.basicConfig(
     datefmt='%H:%M:%S')
 
 
-class NWPprepareRunner(unittest.TestCase):
+@pytest.fixture
+def fake_file_dir(tmp_path):
+    """Create directory with test files."""
+    my_temp_dir = tmp_path / "temp_test_dir"
+    my_temp_dir.mkdir()
+    my_temp_dir = my_temp_dir
+
+    requirement_name = my_temp_dir / 'pps_nwp_req.txt'
+    req_file = open(requirement_name, 'w')
+    req_file.write("M 235 Skin temperature 0 surface\n" +
+                   "O 129 Geopotential 350 isobaricInhPa\n")
+    req_file.close()
+    requirement_name_m = my_temp_dir / 'pps_nwp_req_mandatory.txt'
+    req_file = open(requirement_name_m, 'w')
+    req_file.write("M 235 Skin temperature 0 surface\n" +
+                   "M 129 Geopotential 350 isobaricInhPa\n")
+    req_file.close()
+    static_surface = my_temp_dir / 'static_surface'
+    req_file = open(static_surface, 'a')
+    req_file.close()
+
+    cfg_file = my_temp_dir / 'pps_config.yaml'
+    req_file = open(cfg_file, 'w')
+    req_file.write(
+        "pps_nwp_requirements: " + str(requirement_name) + "\n"
+        "nwp_outdir: " + str(my_temp_dir) + "\n"
+        "nhsp_path: " + "nwcsafpps_runner/tests/files/" + "\n"
+        "nhsf_path: " + "nwcsafpps_runner/tests/files/" + "\n"
+        "nhsp_prefix: " + "LL02_NHSP_" + "\n"
+        "nhsf_prefix: " + "LL02_NHSF_" + "\n"
+        "nwp_static_surface: " + str(my_temp_dir) + "/static_surface" + "\n"
+        "ecmwf_prefix: " + "LL02_NHSF" + "\n"
+        "nwp_output_prefix: " + "PPS_ECMWF_" + "\n"
+        "nhsf_file_name_sift: '" + '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M' + "'" + "\n")
+
+    cfg_file = my_temp_dir / 'pps_config_missing_fields.yaml'
+    req_file = open(cfg_file, 'w')
+    req_file.write(
+        "pps_nwp_requirements: " + str(requirement_name_m) + "\n"
+        "nwp_outdir: " + str(my_temp_dir) + "\n"
+        "nhsp_path: " + "nwcsafpps_runner/tests/files/" + "\n"
+        "nhsf_path: " + "nwcsafpps_runner/tests/files/" + "\n"
+        "nhsp_prefix: " + "LL02_NHSP_" + "\n"
+        "nhsf_prefix: " + "LL02_NHSF_" + "\n"
+        "nwp_static_surface: " + str(my_temp_dir) + "/static_surface" + "\n"
+        "ecmwf_prefix: " + "LL02_NHSF" + "\n"
+        "nwp_output_prefix: " + "PPS_ECMWF_MANDATORY" + "\n"
+        "nhsf_file_name_sift: '" + '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M' + "'" + "\n")
+
+    return str(my_temp_dir)
+
+
+class TestNwpMessage:
+    """Test the nwp message."""
+
+    def test_nwp_message(self):
+        """Test the nwp message."""
+        filename = "dummy_dir/PPS_ECMWF_202205100000+009H00M"
+        publish_msg = prepare_nwp_message(filename, "dummy_topic")
+        expected_uri = '"uri": "dummy_dir/PPS_ECMWF_202205100000+009H00M"'
+        assert expected_uri in publish_msg
+
+
+class TestNWPprepareRunner:
     """Test the nwp prepare runer."""
 
-    def setUp(self):
-        """Create config options and file."""
-        my_tmp_dir = "temp_test_dir"
-        if os.path.exists(my_tmp_dir):
-            pass
-        else:
-            os.mkdir(my_tmp_dir)
-        self.requirement_name = my_tmp_dir + '/pps_nwp_req.txt'
-        req_file = open(self.requirement_name, 'w')
-        req_file.write("M 235 Skin temperature 0 surface\n" +
-                       "O 129 Geopotential 350 isobaricInhPa\n")
-        req_file.close()
-        self.requirement_name_m = my_tmp_dir + '/pps_nwp_req_mandatory.txt'
-        req_file = open(self.requirement_name_m, 'w')
-        req_file.write("M 235 Skin temperature 0 surface\n" +
-                       "M 129 Geopotential 350 isobaricInhPa\n")
-        req_file.close()
-        self.OPTIONS = {
-            "pps_nwp_requirements": self.requirement_name,
-            "nwp_outdir": my_tmp_dir,
-            "nhsp_path": "nwcsafpps_runner/tests/files/",
-            "nhsf_path": "nwcsafpps_runner/tests/files/",
-            "nhsp_prefix": "LL02_NHSP_",
-            "nhsf_prefix": "LL02_NHSF_",
-            "nwp_static_surface": my_tmp_dir + '/empty_file',
-            "ecmwf_prefix": "LL02_NHSF",
-            "nwp_output_prefix": "PPS_ECMWF_",
-            "nhsf_file_name_sift": '{ecmwf_prefix:9s}_{analysis_time:%Y%m%d%H%M}+{forecast_step:d}H00M'
-        }
-        self.OPTIONS_M = dict(self.OPTIONS)
-        self.OPTIONS_M["pps_nwp_requirements"] = self.requirement_name_m
-        self.OPTIONS_M["nwp_output_prefix"] = "PPS_ECMWF_MANDATORY_"
-        self.outfile = my_tmp_dir + "/PPS_ECMWF_202205100000+009H00M"
-        fhand = open(self.OPTIONS["nwp_static_surface"], 'a')
-        fhand.close()
-
-    @patch('nwcsafpps_runner.config.get_config')
-    def test_update_nwp(self, mock_get_config):
-        """Create file."""
-        mock_get_config.return_value = self.OPTIONS
-        import nwcsafpps_runner.prepare_nwp as nwc_prep
-        reload(nwc_prep)
-        date = datetime(year=2022, month=5, day=10, hour=0)
-        nwc_prep.update_nwp(date - timedelta(days=2), [9])
+    def test_update_nwp(self, fake_file_dir):
+        """Test create file."""
+        my_temp_dir = fake_file_dir
+        outfile = os.path.join(str(my_temp_dir), "PPS_ECMWF_202205100000+009H00M")
+        cfg_file = my_temp_dir + '/pps_config.yaml'
+        date = datetime(year=2022, month=5, day=10, hour=0, tzinfo=timezone.utc)
+        nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
         # Run again when file is already created
-        nwc_prep.update_nwp(date - timedelta(days=2), [9])
-        self.assertTrue(os.path.exists(self.outfile))
+        nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
+        assert os.path.exists(outfile)
 
-    @patch('nwcsafpps_runner.config.get_config')
-    def test_update_nwp_no_config_file(self, mock_get_config):
-        """Create file no config file."""
-        mock_get_config.return_value = self.OPTIONS
-        os.remove(self.requirement_name)
-        import nwcsafpps_runner.prepare_nwp as nwc_prep
-        reload(nwc_prep)
-        date = datetime(year=2022, month=5, day=10, hour=0)
-        nwc_prep.update_nwp(date - timedelta(days=2), [9])
-        self.assertTrue(os.path.exists(self.outfile))
+    def test_update_nwp_no_requirement_file(self, fake_file_dir):
+        """Create file no requirement file."""
+        my_temp_dir = fake_file_dir
+        cfg_file = my_temp_dir + '/pps_config.yaml'
+        requirement_name = str(my_temp_dir) + '/pps_nwp_req.txt'
+        outfile = os.path.join(str(my_temp_dir), "PPS_ECMWF_202205100000+009H00M")
+        os.remove(requirement_name)
+        date = datetime(year=2022, month=5, day=10, hour=0, tzinfo=timezone.utc)
+        nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
+        assert os.path.exists(outfile)
 
-    @patch('nwcsafpps_runner.config.get_config')
-    def test_update_nwp_missing_fields(self, mock_get_config):
+    def test_update_nwp_missing_fields(self, fake_file_dir):
         """Test that no file without mandatory data is created."""
-        mock_get_config.return_value = self.OPTIONS_M
-        import nwcsafpps_runner.prepare_nwp as nwc_prep
-        reload(nwc_prep)
-        date = datetime(year=2022, month=5, day=10, hour=0)
-        nwc_prep.update_nwp(date - timedelta(days=2), [9])
-        self.assertFalse(os.path.exists("temp_test_dir/PPS_ECMWF_MANDATORY_202205100000+009H00M"))
-        os.remove(self.OPTIONS["nwp_static_surface"])
-        os.remove(self.requirement_name_m)
+        my_temp_dir = fake_file_dir
+        outfile = os.path.join(str(my_temp_dir), "PPS_ECMWF_MANDATORY_202205100000+009H00M")
+        cfg_file = my_temp_dir + '/pps_config_missing_fields.yaml'
+        date = datetime(year=2022, month=5, day=10, hour=0, tzinfo=timezone.utc)
+        nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
+        assert not (os.path.exists(outfile))
 
-    @patch('nwcsafpps_runner.config.get_config')
-    def test_remove_filename(self, mock_get_config):
+    def test_remove_filename(self, fake_file_dir):
         """Test the function for removing files."""
         from nwcsafpps_runner.prepare_nwp import remove_file
-        mock_get_config.return_value = self.OPTIONS
-        remove_file(self.OPTIONS["nwp_static_surface"])
-        self.assertFalse(os.path.exists(self.OPTIONS["nwp_static_surface"]))
+        my_temp_dir = fake_file_dir
+        nwp_surface_file = str(my_temp_dir) + '/static_surface'
+        remove_file(nwp_surface_file)
+        assert not os.path.exists(nwp_surface_file)
         # Should be able to run on already removed file without raising exception
-        remove_file(self.OPTIONS["nwp_static_surface"])
-
-    def tearDown(self):
-        """Remove files after testing."""
-        for temp_file in [self.OPTIONS["nwp_static_surface"], self.requirement_name_m,
-                          self.requirement_name, self.outfile]:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-
-
-def suite():
-    """Create the test suite for test_nwp_prepare."""
-    loader = unittest.TestLoader()
-    mysuite = unittest.TestSuite()
-    mysuite.addTest(loader.loadTestsFromTestCase(NWPprepareRunner))
-
-    return mysuite
+        remove_file(nwp_surface_file)
