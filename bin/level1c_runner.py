@@ -31,7 +31,6 @@ from posttroll.publisher import Publish
 from nwcsafpps_runner.logger import setup_logging
 from nwcsafpps_runner.message_utils import publish_l1c, prepare_l1c_message
 from nwcsafpps_runner.l1c_processing import L1cProcessor
-# from nwcsafpps_runner.l1c_processing import ServiceNameNotSupported
 from nwcsafpps_runner.l1c_processing import MessageTypeNotSupported
 
 LOOP = True
