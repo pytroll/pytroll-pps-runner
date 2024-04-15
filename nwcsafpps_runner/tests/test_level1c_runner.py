@@ -139,10 +139,8 @@ def create_config_from_yaml(yaml_content_str):
 class TestPublishMessage(unittest.TestCase):
     """Test publication of messages."""
 
-    @patch('nwcsafpps_runner.message_utils.socket.gethostname')
-    def test_create_publish_message(self, gethostname):
+    def test_create_publish_message(self):
         """Test the creation of the publish message."""
-        gethostname.return_value = "my_local_server"
         my_fake_level1c_file = '/my/level1c/file/path/level1c.nc'
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
 
