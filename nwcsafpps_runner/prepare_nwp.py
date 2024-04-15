@@ -25,7 +25,7 @@
 
 from glob import glob
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import tempfile
 from trollsift import Parser
@@ -71,8 +71,8 @@ class NWPFileFamily(object):
         res = parser.parse("{}".format(os.path.basename(self.nhsf_file)))
         if 'analysis_time' in res:
             if res['analysis_time'].year == 1900:
-                res['analysis_time'] = res['analysis_time'].replace(year=datetime.utcnow().year)
-            self.analysis_time = res['analysis_time']
+                res['analysis_time'] = res['analysis_time'].replace(year=datetime.now(timezone.utc).year)
+            self.analysis_time = res['analysis_time'].replace(tzinfo=timezone.utc)
             self.timestamp = self.analysis_time.strftime("%Y%m%d%H%M")
         else:
             raise NwpPrepareError("Can not parse analysis_time in file name. Check config and filename timestamp")
@@ -338,5 +338,5 @@ if __name__ == "__main__":
     LOG = logging.getLogger('test_update_nwp')
 
     from datetime import timedelta
-    now = datetime.utcnow()
+    now = datetime.now(tz=timezone.utc)
     update_nwp(now - timedelta(days=2), [9])

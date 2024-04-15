@@ -29,7 +29,7 @@ import logging
 import os
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from subprocess import PIPE, Popen
 
 from queue import Empty, Queue
@@ -97,7 +97,7 @@ def pps_worker(scene, publish_q, input_msg, options):
 
     try:
         LOG.info("Starting pps runner for scene %s", str(scene))
-        job_start_time = datetime.utcnow()
+        job_start_time = datetime.now(tz=timezone.utc)
 
         LOG.debug("Level-1c file: %s", scene['file4pps'])
         LOG.debug("Platform name: %s", scene['platform_name'])
@@ -178,7 +178,7 @@ def pps_worker(scene, publish_q, input_msg, options):
                           servername=options['servername'],
                           station=options['station'])
 
-        dt_ = datetime.utcnow() - job_start_time
+        dt_ = datetime.now(tz=timezone.utc) - job_start_time
         LOG.info("PPS on scene " + str(scene) + " finished. It took: " + str(dt_))
 
         t__.cancel()

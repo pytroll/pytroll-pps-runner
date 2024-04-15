@@ -26,7 +26,7 @@ import argparse
 import logging
 import time
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from nwcsafpps_runner.logger import setup_logging
 from nwcsafpps_runner.prepare_nwp import update_nwp
 from nwcsafpps_runner.utils import NwpPrepareError
@@ -37,12 +37,12 @@ NWP_FLENS = [6, 9, 12, 15, 18, 21, 24]
 
 LOG = logging.getLogger('nwp-preparation')
 
-# datetime.datetime.utcnow => datetime.datetime.now(datetime.UTC) ~python 3.12
+# Eventually timezone.utz => UTC. UTC in python 3.12 not in python 3.9
 
 
 def prepare_and_publish(pub, options, flens):
     config_file_name = options.config_file
-    starttime = datetime.utcnow() - timedelta(days=1)
+    starttime = datetime.now(tz=timezone.utc) - timedelta(days=1)
     ok_files, publish_topic = update_nwp(starttime, flens, config_file_name)
     if publish_topic is not None:
         for filename in ok_files:
@@ -60,7 +60,7 @@ def _run_subscribe_publisher(pub, options, flens):
     if every_hour_minute > 60:
         return
     while True:
-        minute = datetime.utcnow().minute
+        minute = datetime.now(tz=timezone.utc).minute
         if minute < every_hour_minute or minute > every_hour_minute + 7:
             LOG.info("Not time for nwp preparation for pps yet, waiting 5 minutes")
             time.sleep(60 * 5)

@@ -24,7 +24,7 @@
 """Test the nwp_prepare runner code."""
 import pytest
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import logging
 from datetime import timedelta
@@ -110,7 +110,7 @@ class TestNWPprepareRunner:
         my_temp_dir = fake_file_dir
         outfile = os.path.join(str(my_temp_dir), "PPS_ECMWF_202205100000+009H00M")
         cfg_file = my_temp_dir + '/pps_config.yaml'
-        date = datetime(year=2022, month=5, day=10, hour=0)
+        date = datetime(year=2022, month=5, day=10, hour=0, tzinfo=timezone.utc)
         nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
         # Run again when file is already created
         nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
@@ -123,7 +123,7 @@ class TestNWPprepareRunner:
         requirement_name = str(my_temp_dir) + '/pps_nwp_req.txt'
         outfile = os.path.join(str(my_temp_dir), "PPS_ECMWF_202205100000+009H00M")
         os.remove(requirement_name)
-        date = datetime(year=2022, month=5, day=10, hour=0)
+        date = datetime(year=2022, month=5, day=10, hour=0, tzinfo=timezone.utc)
         nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
         assert os.path.exists(outfile)
 
@@ -132,9 +132,7 @@ class TestNWPprepareRunner:
         my_temp_dir = fake_file_dir
         outfile = os.path.join(str(my_temp_dir), "PPS_ECMWF_MANDATORY_202205100000+009H00M")
         cfg_file = my_temp_dir + '/pps_config_missing_fields.yaml'
-        date = datetime(year=2022, month=5, day=10, hour=0)
-        nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
-        date = datetime(year=2022, month=5, day=10, hour=0)
+        date = datetime(year=2022, month=5, day=10, hour=0, tzinfo=timezone.utc)
         nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
         assert not (os.path.exists(outfile))
 
