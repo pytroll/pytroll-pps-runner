@@ -236,6 +236,7 @@ def update_nwp_inner(starttime, nlengths, cfg):
         out_file = create_nwp_file(file_obj)
         remove_file(file_obj.tmp_result_filename_reduced)
         remove_file(file_obj.tmp_result_filename)
+        remove_file(file_obj.tmp_filename)
         if out_file is not None:
             ok_files.append(out_file)
     return ok_files, cfg.get("publish_topic", None)
