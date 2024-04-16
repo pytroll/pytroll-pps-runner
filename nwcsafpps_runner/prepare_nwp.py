@@ -227,6 +227,7 @@ def update_nwp_inner(starttime, nlengths, cfg):
     for fname in get_files_to_process(cfg):
         file_obj = NWPFileFamily(cfg, fname)
         if should_be_skipped(file_obj, starttime, nlengths):
+            remove_file(file_obj.tmp_filename)
             continue
         LOG.debug("Analysis time and start time: {:s} {:s}".format(str(file_obj.analysis_time),
                                                                    str(starttime)))
@@ -235,7 +236,6 @@ def update_nwp_inner(starttime, nlengths, cfg):
         out_file = create_nwp_file(file_obj)
         remove_file(file_obj.tmp_result_filename_reduced)
         remove_file(file_obj.tmp_result_filename)
-        remove_file(file_obj.tmp_filename)
         if out_file is not None:
             ok_files.append(out_file)
     return ok_files, cfg.get("publish_topic", None)
