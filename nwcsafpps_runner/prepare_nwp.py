@@ -108,7 +108,7 @@ def prepare_config(config_file_name):
 def remove_file(filename):
     """Remove a temporary file."""
     if os.path.exists(filename):
-        LOG.warning("Removing tmp file: %s.", filename)
+        LOG.info("Removing tmp file: %s.", filename)
         os.remove(filename)
 
 
