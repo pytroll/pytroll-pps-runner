@@ -99,8 +99,8 @@ class TestNwpMessage:
         """Test the nwp message."""
         filename = "dummy_dir/PPS_ECMWF_202205100000+009H00M"
         publish_msg = prepare_nwp_message(filename, "dummy_topic")
-        expected_uri = '"uri": "dummy_dir/PPS_ECMWF_202205100000+009H00M"'
-        assert expected_uri in publish_msg
+        expected_uri = "dummy_dir/PPS_ECMWF_202205100000+009H00M"
+        assert publish_msg["uri"] == expected_uri
 
 
 class TestNWPprepareRunner:
