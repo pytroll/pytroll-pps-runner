@@ -22,21 +22,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Test the nwp_prepare runner code."""
-import logging
-import os
 import unittest
-from datetime import datetime, timedelta, timezone
 
 import pytest
 from posttroll.message import Message
-from posttroll.testing import patched_subscriber_recv
-from nwcsafpps_runner.pps_collector_lib import pps_collector_runner
+# from posttroll.testing import patched_subscriber_recv
+# from nwcsafpps_runner.pps_collector_lib import pps_collector_runner
 from nwcsafpps_runner.message_utils import prepare_pps_collector_message
 from nwcsafpps_runner.config import get_config
 
 TEST_INPUT_MSG = (
     """pytroll://collection/SDR+CF/1+2/CloudProducts/ collection auser@some.server.se """ +
-    """2023-05-15T04:30:21.034050 v1.01 application/json """ + 
+    """2023-05-15T04:30:21.034050 v1.01 application/json """ +
     """{"start_time": "2023-05-15T04:02:52.300000",""" +
     """ "end_time": "2023-05-15T04:15:38.900000",""" +
     """ "orbit_number": 2637,""" +
@@ -49,7 +46,8 @@ TEST_INPUT_MSG = (
     """ "sensor": ["viirs"],""" +
     """ "collection_area_id": "euron1",""" +
     """ "collection": [ """ +
-    """{"dataset": [{"uri": "/my_dir/GMODO_j02_d20230515_t0402523_e0404152_b02637_c20230515040842931901_cspp_dev.h5",""" +
+    """{"dataset": [""" +
+    """ {"uri": "/my_dir/GMODO_j02_d20230515_t0402523_e0404152_b02637_c20230515040842931901_cspp_dev.h5",""" +
     """ "uid": "GMODO_j02_d20230515_t0402523_e0404152_b02637_c20230515040842931901_cspp_dev.h5"},""" +
     """ {"uri": "/my_dir/GMTCO_j02_d20230515_t0402523_e0404152_b02637_c20230515040842847426_cspp_dev.h5",""" +
     """ "uid": "GMTCO_j02_d20230515_t0402523_e0404152_b02637_c20230515040842847426_cspp_dev.h5"},""" +
@@ -117,7 +115,8 @@ TEST_INPUT_MSG = (
     """ "uid": "S_NWC_CMAPROB_noaa21_00000_20230515T0402523Z_20230515T0404152Z.nc"}],""" +
     """ "start_time": "2023-05-15T04:02:52.300000",""" +
     """ "end_time": "2023-05-15T04:04:15.200000"},""" +
-    """ {"dataset": [{"uri": "/my_dir/GMODO_j02_d20230515_t0404164_e0405411_b02637_c20230515041053656421_cspp_dev.h5",""" +
+    """ {"dataset": [""" +
+    """ {"uri": "/my_dir/GMODO_j02_d20230515_t0404164_e0405411_b02637_c20230515041053656421_cspp_dev.h5",""" +
     """ "uid": "GMODO_j02_d20230515_t0404164_e0405411_b02637_c20230515041053656421_cspp_dev.h5"},""" +
     """ {"uri": "/my_dir/GMTCO_j02_d20230515_t0404164_e0405411_b02637_c20230515041053605930_cspp_dev.h5",""" +
     """ "uid": "GMTCO_j02_d20230515_t0404164_e0405411_b02637_c20230515041053605930_cspp_dev.h5"},""" +
@@ -193,7 +192,8 @@ publish_topic: NWCSAFPPS/2+1C/collection
 pps_lvl1c_dir: my_test_dir
 
 """
-        
+
+
 @pytest.fixture
 def fake_file(tmp_path):
     """Create directory with test files."""
@@ -203,9 +203,10 @@ def fake_file(tmp_path):
     file_h.close()
     return str(file_cfg)
 
+
 class TestPpsCollector:
-    """Test the pps collector"""
-    
+    """Test the pps collector."""
+
     # def test_pps_collector_runner(self, fake_file):
     #    myconfig_filename = fake_file
     #    input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
@@ -215,6 +216,7 @@ class TestPpsCollector:
     #        pps_collector_runner(myconfig_filename)
 
     def test_prepare_pps_collector_message(self, fake_file):
+        """Test that meesage is prepared correctly."""
         myconfig_filename = fake_file
         options = get_config(myconfig_filename)
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
