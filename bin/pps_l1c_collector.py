@@ -59,7 +59,7 @@ def get_arguments():
     if 'template' in args.config_file:
         raise IOError("Template file given as master config, aborting!")
 
-    return args
+    return args.config_file
 
 
 if __name__ == '__main__':
