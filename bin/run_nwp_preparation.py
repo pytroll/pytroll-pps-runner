@@ -52,7 +52,7 @@ def prepare_and_publish(pub, options, flens):
             publish_msg = prepare_nwp_message(filename, publish_topic)
             LOG.debug("Will publish")
             LOG.debug("publish_msg")
-            publish_l1c(pub, publish_msg, publish_topic)
+            publish_l1c(pub, publish_msg, [publish_topic])
 
 
 def _run_subscribe_publisher(pub, options, flens):

@@ -22,6 +22,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Test the nwp_prepare runner code."""
+import glob
 import logging
 import os
 import unittest
@@ -99,8 +100,8 @@ class TestNwpMessage:
         """Test the nwp message."""
         filename = "dummy_dir/PPS_ECMWF_202205100000+009H00M"
         publish_msg = prepare_nwp_message(filename, "dummy_topic")
-        expected_uri = '"uri": "dummy_dir/PPS_ECMWF_202205100000+009H00M"'
-        assert expected_uri in publish_msg
+        expected_uri = "dummy_dir/PPS_ECMWF_202205100000+009H00M"
+        assert publish_msg["uri"] == expected_uri
 
 
 class TestNWPprepareRunner:
@@ -116,6 +117,8 @@ class TestNWPprepareRunner:
         # Run again when file is already created
         nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
         assert os.path.exists(outfile)
+        out_files = glob.glob(os.path.join(str(my_temp_dir), "*_202205100000+009H00M*"))
+        assert len(out_files) == 1
 
     def test_update_nwp_no_requirement_file(self, fake_file_dir):
         """Create file no requirement file."""
@@ -127,6 +130,8 @@ class TestNWPprepareRunner:
         date = datetime(year=2022, month=5, day=10, hour=0, tzinfo=timezone.utc)
         nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
         assert os.path.exists(outfile)
+        out_files = glob.glob(os.path.join(str(my_temp_dir), "*_202205100000+009H00M*"))
+        assert len(out_files) == 1
 
     def test_update_nwp_missing_fields(self, fake_file_dir):
         """Test that no file without mandatory data is created."""
@@ -136,6 +141,8 @@ class TestNWPprepareRunner:
         date = datetime(year=2022, month=5, day=10, hour=0, tzinfo=timezone.utc)
         nwc_prep.update_nwp(date - timedelta(days=2), [9], cfg_file)
         assert not (os.path.exists(outfile))
+        out_files = glob.glob(os.path.join(str(my_temp_dir), "*_202205100000+009H00M*"))
+        assert len(out_files) == 0
 
     def test_remove_filename(self, fake_file_dir):
         """Test the function for removing files."""

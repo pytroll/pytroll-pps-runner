@@ -38,8 +38,7 @@ def prepare_nwp_message(result_file, publish_topic):
     to_send["uid"] = filename
     to_send['format'] = 'NWP grib'
     to_send['type'] = 'grib'
-    return Message('/' + publish_topic + '/',
-                   "file", to_send).encode()
+    return to_send
 
 
 def prepare_l1c_message(result_file, mda, **kwargs):

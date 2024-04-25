@@ -108,7 +108,7 @@ def prepare_config(config_file_name):
 def remove_file(filename):
     """Remove a temporary file."""
     if os.path.exists(filename):
-        LOG.warning("Removing tmp file: %s.", filename)
+        LOG.info("Removing tmp file: %s.", filename)
         os.remove(filename)
 
 
@@ -227,6 +227,7 @@ def update_nwp_inner(starttime, nlengths, cfg):
     for fname in get_files_to_process(cfg):
         file_obj = NWPFileFamily(cfg, fname)
         if should_be_skipped(file_obj, starttime, nlengths):
+            remove_file(file_obj.tmp_filename)
             continue
         LOG.debug("Analysis time and start time: {:s} {:s}".format(str(file_obj.analysis_time),
                                                                    str(starttime)))
