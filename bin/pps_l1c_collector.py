@@ -26,7 +26,7 @@ import argparse
 import logging
 
 from nwcsafpps_runner.logger import setup_logging
-from nwcsatppsrunner.pps_collector_lib import pps_collector_runner
+from nwcsafpps_runner.pps_collector_lib import pps_collector_runner
 
 
 LOOP = True
@@ -43,10 +43,10 @@ def get_arguments():
     parser.add_argument('-c', '--config_file',
                         type=str,
                         dest='config_file',
-                        default='l1c_config.yaml',
+                        default='config.yaml',
                         help="The file containing " +
-                        "configuration parameters e.g. product_filter_config.yaml, \n" +
-                        "default = ./l1c_config.yaml",
+                        "configuration parameters, \n" +
+                        "default = ./config.yaml",
                         required=True)
     parser.add_argument("-v", "--verbose", dest="verbosity", action="count", default=0,
                         help="Verbosity (between 1 and 2 occurrences with more leading to more "
