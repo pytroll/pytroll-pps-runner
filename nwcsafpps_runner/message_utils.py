@@ -26,10 +26,56 @@ import logging
 import os
 
 from posttroll.message import Message
+from nwcsafpps_runner.utils import create_pps_file_from_lvl1c
+
 
 LOG = logging.getLogger(__name__)
 
+ 
+def remove_non_pps_products(msg_data):
+    for ind in range(len(msg_data["collection"])):
+        list_of_files_as_dicts = msg_data["collection"][ind]['dataset']
+        list_of_files_to_keep = []
+        for item in list_of_files_as_dicts:
+            if "S_NWC" in item["uid"]:
+                list_of_files_to_keep.append(item)
+            msg_data["collection"][ind]['dataset'] = list_of_files_to_keep
 
+
+def get_pps_sensor_from_msg(sensor_msg):
+    """ Get pps sensor from msg sensor."""
+    sensor = None
+    if type(sensor_msg) is list and len(sensor_msg) == 1:
+        sensor = sensor_msg[0]
+    if sensor is None:  
+        for pps_sensor in ['viirs', 'avhrr', 'modis', 'mersi2', 'metimage', 'slstr']:
+            if pps_sensor in sensor_msg:
+                sensor = pps_sensor
+    if "avhrr/3" in sensor_msg:
+        sensor = "avhrr"
+    return sensor
+
+
+def add_lvl1c_to_msg(msg_data, options):
+    """Add PPS lvl1c file to a collection of PPS products."""
+    level1c_path = os.environ.get('SM_IMAGER_DIR', options.get('pps_lvl1c_dir', './'))
+    sensor = options.get('sensor', get_pps_sensor_from_msg(msg_data["sensor"]))   
+    for ind in range(len(msg_data["collection"])):
+        msg_data["collection"][ind]['dataset']
+        pps_file = msg_data["collection"][ind]['dataset'][0]["uri"]
+        lvl1c_file = create_pps_file_from_lvl1c(pps_file, level1c_path,
+                                                name_tag=sensor, file_type='nc')
+        msg_data["collection"][ind]['dataset'].append({
+            "uri": lvl1c_file,
+            "uid": os.path.basename(lvl1c_file)})
+
+
+def prepare_pps_collector_message(msg, options):
+    to_send = msg.data.copy()
+    remove_non_pps_products(to_send)
+    add_lvl1c_to_msg(to_send, options)
+    return to_send
+    
 def prepare_nwp_message(result_file, publish_topic):
     """Prepare message for NWP files."""
     to_send = {}
