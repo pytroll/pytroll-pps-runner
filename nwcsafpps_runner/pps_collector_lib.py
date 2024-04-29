@@ -49,7 +49,7 @@ def _run_subscribe_publisher(subscriber, publisher, options):
             LOG.debug(
                 "Received message data = %s", msg)
             pub_msg = prepare_pps_collector_message(msg, options)
-            publish_l1c(publisher, pub_msg, publish_topic=[options["publish_topic"]])
+            publish_l1c(publisher, pub_msg, publish_topic=[options["publish_topic"]], msg_type="dataset")
             LOG.info("L1c and PPS products collected.")
 
 def pps_collector_runner(config_file):
