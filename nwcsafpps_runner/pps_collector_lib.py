@@ -24,7 +24,7 @@
 import signal
 import logging
 
-from posttroll.publisher import Publish
+from posttroll.publisher import create_publisher_from_dict_config
 from posttroll.subscriber import Subscribe
 from nwcsafpps_runner.config import get_config
 
@@ -57,7 +57,9 @@ def pps_collector_runner(config_file):
     LOG.info("Start the NWCSAF/PPS products and level-1c collector runner")
     
     options = get_config(config_file)
-    publish_name = 'pps-collector-runner'
+    settings = {"name": 'pps-collector-runner',
+                "nameservers": False,
+                "port": options.get("publish_port", 0)}
     with Subscribe('', options["subscribe_topics"], True) as sub:
-        with Publish(publish_name, 0) as pub:
-            _run_subscribe_publisher(sub, pub, options)
+        pub = create_publisher_from_dict_config(settings):
+        _run_subscribe_publisher(sub, pub, options)
