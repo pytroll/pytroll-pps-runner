@@ -61,5 +61,5 @@ def pps_collector_runner(config_file):
                 "nameservers": False,
                 "port": options.get("publish_port", 0)}
     with Subscribe('', options["subscribe_topics"], True) as sub:
-        pub = create_publisher_from_dict_config(settings):
+        pub = create_publisher_from_dict_config(settings)
         _run_subscribe_publisher(sub, pub, options)
