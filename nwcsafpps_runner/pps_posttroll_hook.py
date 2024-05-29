@@ -73,6 +73,7 @@ PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
                        'ppsCtype': 'CT',
                        'ppsCpp': 'CPP',
                        'ppsCmic': 'CMIC',
+                       'ppsHrw': 'HRW',
                        'ppsPrecip': 'PC',
                        'ppsPrecipPrepare': 'PC-PRE'}
 
@@ -287,8 +288,10 @@ class PostTrollMessage(object):
         self.clean_unused_keys_in_message()
 
         publish_topic = self._create_message_topic()
-
-        return {'header': publish_topic, 'type': 'file', 'content': self._to_send}
+        msg_type = 'file'
+        if "dataset" in self._to_send:
+            msg_type = 'dataset'
+        return {'header': publish_topic, 'type': msg_type, 'content': self._to_send}
 
     def _create_message_topic(self):
         """Create the publish topic from yaml file items and PPS metadata."""
