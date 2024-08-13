@@ -234,11 +234,14 @@ def create_pps_call_command(python_exec, pps_script_name, scene):
     return cmdstr
 
 
-def create_xml_timestat_from_lvl1c(pps_file, pps_control_path):
+def create_xml_timestat_from_lvl1c(scene, pps_control_path):
     """From lvl1c file create XML file and return a file list."""
-    txt_time_control = create_pps_file_from_lvl1c(pps_file, pps_control_path, "timectrl", ".txt")
+    try:
+        txt_time_control = create_pps_file_from_lvl1c(scene['file4pps'], pps_control_path, "timectrl", ".txt")
+    except KeyError:
+        return []
     if os.path.exists(txt_time_control):
-        return create_xml_timestat_from_ascii(txt_time_control)
+        return create_xml_timestat_from_ascii(txt_time_control, pps_control_path)
     else:
         LOG.warning('No XML Time statistics file created!')
         return []
@@ -253,17 +256,6 @@ def find_product_statistics_from_lvl1c(scene, pps_control_path):
         return []
 
 
-def process_timectrl_xml_from_pps_result_file_with_extension(filename, export_path, extension):
-    if export_path is None:
-        export_path = os.path.dirname(filename)
-        print(export_path)
-    timectrl_file = create_pps_file_from_lvl1c(filename, export_path, "timectrl", ".txt")
-    timectrl_xmlfile =  timectrl_file.replace(".txt", extension + ".xml")
-    print(timectrl_file)
-    result_file = create_xml_timestat_from_ascii(timectrl_file, outfile=timectrl_xmlfile)
-    return result_file
-
-
 def create_pps_file_from_lvl1c(l1c_file_name, pps_control_path, name_tag, file_type):
     """From lvl1c file create name_tag-file of type file_type."""
     from trollsift import compose, parse
@@ -275,10 +267,8 @@ def create_pps_file_from_lvl1c(l1c_file_name, pps_control_path, name_tag, file_t
     return os.path.join(pps_control_path, compose(f_pattern, data))
 
 
-def create_xml_timestat_from_ascii(infile, outfile=None):
+def create_xml_timestat_from_ascii(infile, pps_control_path):
     """From ascii file(s) with PPS time statistics create XML file(s) and return a file list."""
-    if outfile is None:
-        outfile = infile.replace('.txt', '.xml')
     try:
         from pps_time_control import PPSTimeControl
     except ImportError:
@@ -289,12 +279,13 @@ def create_xml_timestat_from_ascii(infile, outfile=None):
     ppstime_con = PPSTimeControl(infile)
     ppstime_con.sum_up_processing_times()
     try:
-        ppstime_con.write_xml(filename=outfile)
+        ppstime_con.write_xml()
     except Exception as e:  # TypeError as e:
         LOG.warning('Not able to write time control xml file')
         LOG.warning(e)
+
     # There should always be only one xml file for each ascii file found above!
-    return [outfile]
+    return [infile.replace('.txt', '.xml')]
 
 
 def publish_pps_files(input_msg, publish_q, scene, result_files, **kwargs):
