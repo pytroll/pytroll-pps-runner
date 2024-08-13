@@ -248,6 +248,8 @@ class PostTrollMessage(object):
             # Error
             # pubmsg = self.create_message("FAILED", self.metadata)
             LOG.warning("Module %s failed, so no message sent", self.metadata.get('module', 'unknown'))
+        elif self.metadata["filename"] == "" or self.metadata["filename"] == []:
+            LOG.info("Module %s did not create any files, so no message sent", self.metadata.get('module', 'unknown'))
         else:
             # Ok
             pubmsg = self.create_message("OK")
@@ -352,7 +354,10 @@ class PostTrollMessage(object):
         LOG.debug("Servername = %s", str(servername))
 
         msg = {}
-        if isinstance(self.metadata['filename'], list):
+
+        if self.metadata['filename'] == '':
+            return {}
+        elif isinstance(self.metadata['filename'], list):
             dataset = []
             for filename in self.metadata['filename']:
                 uri = os.path.abspath(filename)
