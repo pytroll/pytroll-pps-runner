@@ -23,13 +23,14 @@
 
 """Test the nwp_prepare runner code."""
 import unittest
-
 import pytest
-from posttroll.message import Message
+#
 # from posttroll.testing import patched_subscriber_recv
 # from nwcsafpps_runner.pps_collector_lib import pps_collector_runner
-from nwcsafpps_runner.message_utils import prepare_pps_collector_message
-from nwcsafpps_runner.config import get_config
+from unittest.mock import MagicMock, patch
+from contextlib import contextmanager
+import sys
+
 TEST_INPUT_MSG_DATASET = (
     """pytroll://collection/SDR+CF/1+2/CloudProducts/ collection auser@some.server.se """ +
     """2023-05-15T04:30:21.034050 v1.01 application/json """ +
@@ -274,6 +275,22 @@ pps_lvl1c_dir: my_test_dir
 """
 
 
+@contextmanager
+def mocked():
+    """Mock the pytroll module."""
+    with patch.dict(sys.modules,
+                    {"posttroll": MagicMock(),
+                     "posttroll.subscriber": MagicMock(),
+                     "posttroll.publisher": MagicMock()}
+                    ) as _module:
+        posttroll = _module["posttroll"]
+        posttroll.subscriber = _module["posttroll.subscriber"]
+        posttroll.publisher = _module["posttroll.publisher"]
+        posttroll.subscriber.Subscribe = MagicMock()
+        posttroll.publisher.create_publisher_from_dict_config = MagicMock()
+        yield posttroll
+
+
 @pytest.fixture
 def fake_file(tmp_path):
     """Create directory with test files."""
@@ -287,16 +304,22 @@ def fake_file(tmp_path):
 class TestPpsCollector:
     """Test the pps collector."""
 
-    # def test_pps_collector_runner(self, fake_file):
-    #    myconfig_filename = fake_file
-    #    input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
-    #    messages = [input_msg]
-    #    subscriber_settings = dict(nameserver=False, addresses=["ipc://bla"])
-    #    with patched_subscriber_recv(messages):
-    #        pps_collector_runner(myconfig_filename)
+    def test_pps_collector_runner(self, fake_file):
+        """Test the pps_collector_runner."""
+        # from posttroll.testing import patched_subscriber_recv, patched_publisher
+        with mocked() as posttroll:
+            myconfig_filename = fake_file
+            # input_msg = TEST_INPUT_MSG  # Message.decode(rawstr=TEST_INPUT_MSG)
+            # messages = [input_msg]
+            with unittest.mock.patch('nwcsafpps_runner.pps_collector_lib.LOOP', False):
+                from nwcsafpps_runner.pps_collector_lib import pps_collector_runner
+                pps_collector_runner(myconfig_filename)
 
     def test_prepare_pps_collector_message(self, fake_file):
         """Test that meesage is prepared correctly."""
+        from posttroll.message import Message
+        from nwcsafpps_runner.message_utils import prepare_pps_collector_message
+        from nwcsafpps_runner.config import get_config
         myconfig_filename = fake_file
         options = get_config(myconfig_filename)
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG)
@@ -307,7 +330,6 @@ class TestPpsCollector:
             if "S_NWC_viirs" in item["uid"]:
                 n_level1c_file_included += 1
         assert n_level1c_file_included == 2
-
         input_msg = Message.decode(rawstr=TEST_INPUT_MSG_DATASET)
         output_msg = prepare_pps_collector_message(input_msg, options)
         n_level1c_file_included = 0
@@ -316,3 +338,4 @@ class TestPpsCollector:
             if "S_NWC_viirs" in item["uid"]:
                 n_level1c_file_included += 1
         assert n_level1c_file_included == 1
+
