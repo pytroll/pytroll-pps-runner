@@ -73,6 +73,7 @@ PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
                        'ppsCtype': 'CT',
                        'ppsCpp': 'CPP',
                        'ppsCmic': 'CMIC',
+                       'ppsHrw': 'HRW',
                        'ppsPrecip': 'PC',
                        'ppsPrecipPrepare': 'PC-PRE'}
 
@@ -247,6 +248,8 @@ class PostTrollMessage(object):
             # Error
             # pubmsg = self.create_message("FAILED", self.metadata)
             LOG.warning("Module %s failed, so no message sent", self.metadata.get('module', 'unknown'))
+        elif self.metadata["filename"] == "" or self.metadata["filename"] == []:
+            LOG.info("Module %s did not create any files, so no message sent", self.metadata.get('module', 'unknown'))
         else:
             # Ok
             pubmsg = self.create_message("OK")
@@ -287,8 +290,10 @@ class PostTrollMessage(object):
         self.clean_unused_keys_in_message()
 
         publish_topic = self._create_message_topic()
-
-        return {'header': publish_topic, 'type': 'file', 'content': self._to_send}
+        msg_type = 'file'
+        if "dataset" in self._to_send:
+            msg_type = 'dataset'
+        return {'header': publish_topic, 'type': msg_type, 'content': self._to_send}
 
     def _create_message_topic(self):
         """Create the publish topic from yaml file items and PPS metadata."""
@@ -349,7 +354,10 @@ class PostTrollMessage(object):
         LOG.debug("Servername = %s", str(servername))
 
         msg = {}
-        if isinstance(self.metadata['filename'], list):
+
+        if self.metadata['filename'] == '':
+            return {}
+        elif isinstance(self.metadata['filename'], list):
             dataset = []
             for filename in self.metadata['filename']:
                 uri = os.path.abspath(filename)

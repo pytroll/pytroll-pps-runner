@@ -222,17 +222,19 @@ class TestPostTrollMessage(unittest.TestCase):
 
         mandatory_param.return_value = True
         filename.return_value = True
+        my_metadata = self.metadata.copy()
+        my_metadata["filename"] = "dummy"
 
         with patch.object(PostTrollMessage, 'publish_message', return_value=None) as mock_method_publish:
             with patch.object(PostTrollMessage, 'create_message', return_value=None) as mock_method_create:
-                posttroll_message = PostTrollMessage(0, self.metadata)
+                posttroll_message = PostTrollMessage(0, my_metadata)
                 posttroll_message.send()
                 self.assertEqual(mock_method_publish.call_count, 1)
                 self.assertEqual(mock_method_create.call_count, 1)
 
         with patch.object(PostTrollMessage, 'publish_message', return_value=None) as mock_method_publish:
             with patch.object(PostTrollMessage, 'create_message', return_value=None) as mock_method_create:
-                posttroll_message = PostTrollMessage(1, self.metadata)
+                posttroll_message = PostTrollMessage(1, my_metadata)
                 posttroll_message.send()
                 self.assertEqual(mock_method_publish.call_count, 0)
                 self.assertEqual(mock_method_create.call_count, 0)
@@ -344,6 +346,30 @@ class TestPostTrollMessage(unittest.TestCase):
         expected_message_header = "/my/pps/publish/topic/UNKNOWN/"
         self.assertEqual(expected_message_header, result_message['header'])
 
+    @patch('socket.gethostname')
+    def test_create_message_without_filename(self, socket_gethostname):
+        """Test creating a message with header/topic, type and content."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        socket_gethostname.return_value = 'TEST_SERVERNAME'
+
+        metadata = {'publish_topic': '/my/pps/publish/topic/{pps_product}/',
+                    'output_format': 'CF',
+                    'level': '2',
+                    'variant': 'DR',
+                    'geo_or_polar': 'polar',
+                    'software': 'NWCSAF-PPSv2018',
+                    'start_time': START_TIME1, 'end_time': END_TIME1,
+                    'sensor': 'viirs',
+                    'filename': '',
+                    'platform_name': 'npp'}
+
+        posttroll_message = PostTrollMessage(0, metadata)
+        with patch.object(PostTrollMessage, 'is_segment', return_value=False):
+            result_message = posttroll_message.create_message('OK')
+        self.assertFalse("uri" in result_message["content"])
+
+        
     @patch('socket.gethostname')
     def test_create_message_with_topic_pattern(self, socket_gethostname):
         """Test creating a message with header/topic that is a pattern, type and content."""
