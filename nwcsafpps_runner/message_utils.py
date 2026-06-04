@@ -55,7 +55,7 @@ def add_lvl1c_to_msg(msg_data, options):
     """Add PPS lvl1c file to a collection of PPS products."""
     level1c_path = os.environ.get('SM_IMAGER_DIR', options.get('pps_lvl1c_dir', './'))
     sensor = options.get('sensor', get_pps_sensor_from_msg(msg_data["sensor"]))
-    num_files = len(msg_data['dataset'])
+    # num_files = len(msg_data['dataset'])
     to_add = {}
     for item in msg_data['dataset']:
         lvl1c_file = create_pps_file_from_lvl1c(item["uri"], level1c_path,
@@ -73,7 +73,7 @@ def flatten_collection(msg_data):
         msg_data["dataset"] = []
         for ind in range(0, len(collection)):
             for item in collection[ind]["dataset"]:
-                if type(item) == dict:
+                if isinstance(item, dict):
                     msg_data["dataset"].append(item)
 
 
@@ -93,38 +93,6 @@ def prepare_nwp_message(result_file, publish_topic):
     to_send["uid"] = filename
     to_send['format'] = 'NWP grib'
     to_send['type'] = 'grib'
-    return to_send
-
-
-def prepare_l1c_message(result_file, mda, **kwargs):
-    """Prepare the output message for the level-1c file creation."""
-    if not result_file:
-        return
-
-    # Now publish:
-    to_send = mda.copy()
-    # Delete the input level-1 dataset from the message:
-    try:
-        del to_send['dataset']
-    except KeyError:
-        LOG.warning("Couldn't remove dataset from message")
-    try:
-        del to_send['filename']
-    except KeyError:
-        LOG.warning("Couldn't remove filename from message")
-
-    if ('orbit' in kwargs) and ('orbit_number' in to_send.keys()):
-        to_send["orig_orbit_number"] = to_send["orbit_number"]
-        to_send["orbit_number"] = kwargs['orbit']
-
-    to_send["uri"] = result_file
-    filename = os.path.basename(result_file)
-    to_send["uid"] = filename
-
-    to_send['format'] = 'PPS-L1C'
-    to_send['type'] = 'NETCDF'
-    to_send['data_processing_level'] = '1c'
-
     return to_send
 
 

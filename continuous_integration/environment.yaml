@@ -6,7 +6,6 @@ dependencies:
   - dask
   - distributed
   - toolz
-  - Cython
   - sphinx
   - pyyaml
   - coveralls
@@ -24,7 +23,5 @@ dependencies:
   - appdirs
   - pip
   - pip:
-    - git+https://github.com/foua-pps/level1c4pps
     - trollsift
     - posttroll
-    - pygac

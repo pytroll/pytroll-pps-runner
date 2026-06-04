@@ -23,8 +23,6 @@
 """Reading configuration settings for NWCSAF/PPS runner(s)."""
 
 import os
-import socket
-
 import yaml
 
 
@@ -35,15 +33,7 @@ def load_config_from_file(filepath):
     return config
 
 
-def move_service_dict_attributes_to_top_level(options, service):
-    """Mover attributes in dict service to top level."""
-    if service in options and isinstance(options[service], dict):
-        service_config = options.pop(service)
-        for key in service_config:
-            options[key] = service_config[key]
-
-
-def get_config(configfile, add_defaults=False, service=None):
+def get_config(configfile):
     """Get configuration from the config file."""
     filetype = os.path.splitext(configfile)[1]
     if filetype != '.yaml':
@@ -51,10 +41,6 @@ def get_config(configfile, add_defaults=False, service=None):
                                                                                     filetype))
     options = load_config_from_file(configfile)
     modify_config_vars(options)
-    if add_defaults:
-        add_some_default_vars(options)
-    if service is not None:
-        move_service_dict_attributes_to_top_level(options, service)
     return options
 
 
@@ -66,13 +52,3 @@ def modify_config_vars(options):
             if len(item) == 0:
                 subscribe_topics.remove(item)
         options['subscribe_topics'] = subscribe_topics
-
-
-def add_some_default_vars(options):
-    """Add some default vars."""
-    # service = '', probably no items are '' so this is the same as:
-    options['number_of_threads'] = int(options.get('number_of_threads', 5))
-    options['maximum_pps_processing_time_in_minutes'] = int(options.get('maximum_pps_processing_time_in_minutes', 20))
-    options['servername'] = options.get('servername', socket.gethostname())
-    options['station'] = options.get('station', 'unknown')
-    options['run_cmask_prob'] = options.get('run_cmask_prob', True)

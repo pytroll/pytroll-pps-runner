@@ -1,0 +1,17 @@
+script:
+  command: "/my/path/to/ppsRunAllWrapper.py"
+  workers: 4
+publisher_config:
+  expected_files: "/my_out_directory/S_NWC_*nc"
+  publisher_settings:
+    name: pps2021_runner
+  static_metadata:
+    data_processing_level: 2
+    type: XML
+    format: PPS-XML
+  topic: /PPS-XML/2/
+subscriber_config:
+  topics: [/segment/NWCSAFPPS/1C]
+  nameserver: localhost
+  addr_listener: true
+

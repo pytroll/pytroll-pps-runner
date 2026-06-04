@@ -121,7 +121,7 @@ pps_hook:
 
 def create_instance_from_yaml(yaml_content_str):
     """Create a PPSMessage instance from a yaml file."""
-    from nwcsafpps_runner.pps_posttroll_hook import PPSMessage
+    # from nwcsafpps_runner.pps_posttroll_hook import PPSMessage
     return yaml.load(yaml_content_str, Loader=yaml.UnsafeLoader)
 
 
@@ -369,7 +369,6 @@ class TestPostTrollMessage(unittest.TestCase):
             result_message = posttroll_message.create_message('OK')
         self.assertFalse("uri" in result_message["content"])
 
-        
     @patch('socket.gethostname')
     def test_create_message_with_topic_pattern(self, socket_gethostname):
         """Test creating a message with header/topic that is a pattern, type and content."""

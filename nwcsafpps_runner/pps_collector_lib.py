@@ -24,7 +24,7 @@
 import signal
 import logging
 
-from contextlib import closing, suppress
+from contextlib import closing
 from posttroll.publisher import create_publisher_from_dict_config
 from posttroll.subscriber import Subscribe
 from nwcsafpps_runner.config import get_config
@@ -53,10 +53,11 @@ def _run_subscribe_publisher(subscriber, publisher, options):
             publish_l1c(publisher, pub_msg, publish_topic=[options["publish_topic"]], msg_type="dataset")
             LOG.info("L1c and PPS products collected.")
 
+
 def pps_collector_runner(config_file):
     """The live runner for collecting the NWCSAF/PPS l1c and lvl2 products."""
     LOG.info("Start the NWCSAF/PPS products and level-1c collector runner")
-    
+
     options = get_config(config_file)
     settings = {"name": 'pps-collector-runner',
                 "nameservers": False,

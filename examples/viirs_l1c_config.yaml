@@ -1,0 +1,15 @@
+script:  "/path/to/my/bin/viirs2pps_wrapper.sh"
+publisher_config:
+  expected_files: "/san1/polar_in/lvl1c/S_NWC_viirs*.nc"
+  publisher_settings:
+    nameserver: localhost
+    name: pps-viirs-level1c-runner
+  static_metadata:
+    data_processing_level: 1C
+    type: NETCDF
+    format: PPS-L1C
+  topic: /segment/NWCSAFPPS/1C
+subscriber_config:
+  topics: [/segment/SDR/1B]
+  nameserver: localhost
+  addr_listener: true

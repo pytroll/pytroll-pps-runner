@@ -25,7 +25,6 @@
 import glob
 import logging
 import os
-import unittest
 from datetime import datetime, timedelta, timezone
 
 import pytest
