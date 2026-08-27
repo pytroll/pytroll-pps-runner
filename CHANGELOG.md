@@ -1,4 +1,26 @@
-## Version <v0.2.5> (2022/10/05)
+## Version v0.3.0 (2026/08/27)
+
+### Issues Closed
+
+* [Issue 56](https://github.com/pytroll/pytroll-pps-runner/issues/56) - Refactor utils module
+* [Issue 38](https://github.com/pytroll/pytroll-pps-runner/issues/38) - metop as platform_name is not add in the level 1c runner
+
+In this release 2 issues were closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 61](https://github.com/pytroll/pytroll-pps-runner/pull/61) - Nwp runner fix
+
+#### Features added
+
+* [PR 62](https://github.com/pytroll/pytroll-pps-runner/pull/62) - PPS product and level1c collector
+
+In this release 2 pull requests were closed.
+
+
+## Version v0.2.5 (2022/10/05)
 
 ### Issues Closed
 
@@ -19,7 +41,7 @@ In this release 1 issue was closed.
 In this release 2 pull requests were closed.
 
 
-## Version <v0.2.4> (2022/02/11)
+## Version v0.2.4 (2022/02/11)
 
 ### Issues Closed
 
@@ -47,7 +69,7 @@ In this release 3 issues were closed.
 In this release 7 pull requests were closed.
 
 
-## Version <v0.2.1> (2021/05/07)
+## Version v0.2.1 (2021/05/07)
 
 ### Pull Requests Merged
 
@@ -64,7 +86,7 @@ In this release 7 pull requests were closed.
 
 In this release 4 pull requests were closed.
 
-## Version <v0.2.0> (2020/12/08)
+## Version v0.2.0 (2020/12/08)
 
 ### Issues Closed
 
