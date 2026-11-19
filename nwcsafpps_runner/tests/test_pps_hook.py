@@ -32,9 +32,11 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import yaml
+import mock
 
-
-from nwcsafpps_runner.pps_posttroll_hook import PPSPublisher
+from nwcsafpps_runner.pps_posttroll_hook import (PPSPublisher,
+                                                 PPSMessage,
+                                                 PostTrollMessage)
 
 START_TIME1 = datetime.fromisoformat("2020-12-17T14:08:25.800000")
 END_TIME1 = datetime.fromisoformat("2020-12-17T14:09:50")
@@ -129,7 +131,8 @@ class TestPPSPublisher(unittest.TestCase):
     def setUp(self):
         self.test_nameservers = ['test1', 'test2']
 
-    def test_called_with_nameservers(self):
+    @mock.patch("nwcsafpps_runner.pps_posttroll_hook.time.sleep")
+    def test_called_with_nameservers(self, mock_sleeep):
         """Test calling the PPSPublisher with a list of specified nameservers."""
         mymock = MagicMock()
 
@@ -143,18 +146,21 @@ class TestPPSPublisher(unittest.TestCase):
         mypatch.assert_called_with('PPS', 0, nameservers=self.test_nameservers)
         pub_thread.stop()
 
-    def test_called_without_nameservers(self):
+    @mock.patch("nwcsafpps_runner.pps_posttroll_hook.time.sleep")
+    def test_called_without_nameservers(self, mock_sleeep):
         """Test calling the PPSPublisher without specifying any nameservers."""
         mymock = MagicMock()
 
         manager = Manager()
         publisher_q = manager.Queue()
-
+        publisher_q.put("dummy_posttroll_message")
+        publisher_q.put(None)
         with patch('nwcsafpps_runner.pps_posttroll_hook.Publish', return_value=mymock) as mypatch:
             pub_thread = PPSPublisher(publisher_q)
             pub_thread.start()
 
         mypatch.assert_called_with('PPS', 0, nameservers=None)
+        pub_thread.join(timeout=0.001)
         pub_thread.stop()
 
 
@@ -172,7 +178,6 @@ class TestPPSMessage(unittest.TestCase):
         test_mda = {'filename': 'xxx', 'start_time': None, 'end_time': None, 'sensor': 'viirs'}
         with patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage', return_value=mymock) as mypatch:
             _ = self.pps_message_instance_from_yaml_config['pps_hook']['post_hook'](0, test_mda)
-
         mypatch.assert_called_once()
 
 
@@ -216,6 +221,14 @@ class TestPostTrollMessage(unittest.TestCase):
 
         self.mandatory_fields = {"output_format": "format"}
 
+    def test_class_instance_missing_filename(self):
+        """Test that the PPSMessage can be instantiated and called."""
+        test_mda = {'filename': "", 'start_time': None, 'end_time': None}
+        test_filename = PostTrollMessage(0, test_mda)
+        test_filename.send()
+        test_status = PostTrollMessage(1, test_mda)
+        test_status.send()
+
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_filename')
     @patch('nwcsafpps_runner.pps_posttroll_hook.PostTrollMessage.check_metadata_contains_mandatory_parameters')
     def test_send_method(self, mandatory_param, filename):
@@ -249,6 +262,15 @@ class TestPostTrollMessage(unittest.TestCase):
 
         posttroll_message = PostTrollMessage(0, self.metadata_with_filename)
         self.assertIsInstance(posttroll_message, PostTrollMessage)
+
+    def test_check_metadata_contains_mandatory_parameters_fails(self):
+        """Test that the filename has to be included in the metadata."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+
+        with pytest.raises(AttributeError) as exec_info:
+            posttroll_message = PostTrollMessage(0, self.metadata)
+        exception_raised = exec_info.value
+        self.assertEqual(str(exception_raised), "start_time is a required attribute but is missing in metadata!")
 
     @patch('socket.gethostname')
     def test_create_message_notopic_metadata_nosegment(self, socket_gethostname):
@@ -447,3 +469,14 @@ class TestPostTrollMessage(unittest.TestCase):
 
         result = posttroll_message.get_nameservers()
         self.assertEqual(result, None)
+
+    @mock.patch("nwcsafpps_runner.pps_posttroll_hook.time.sleep")
+    @mock.patch("nwcsafpps_runner.pps_posttroll_hook.Publish")
+    def test_publish(self, mock_publish, mock_sleep):
+        """Test that the message contains the mandatory fields."""
+        from nwcsafpps_runner.pps_posttroll_hook import PostTrollMessage
+        my_metadata = self.metadata_with_start_and_end_times.copy()
+        my_metadata["filename"] = "dummy"
+
+        posttroll_message = PostTrollMessage(0, my_metadata)
+        posttroll_message.send()
