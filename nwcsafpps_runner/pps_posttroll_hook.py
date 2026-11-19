@@ -265,22 +265,9 @@ class PostTrollMessage(object):
         """Create the publish topic from yaml file items and PPS metadata."""
         to_send = self._to_send.copy()
         to_send["pps_product"] = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
-        topic_pattern = to_send.get('publish_topic', self._create_default_topic())
-
+        topic_pattern = to_send.get('publish_topic', "/polar/direct_readout/CF/2/pps/{module}/{software}")
         topic_str = topic_pattern.format(**to_send)
         return topic_str
-
-    def _create_default_topic(self):
-        topic = '/segment' if self.is_segment() else ""
-        topic_pattern = "/".join((topic,
-                                  "{geo_or_polar}",
-                                  "{variant}",
-                                  "{format}",
-                                  "{data_processing_level}",
-                                  "{pps_product}",
-                                  "{software}",
-                                  ""))
-        return topic_pattern
 
     def create_message_content_from_metadata(self):
         """Create message content from the metadata."""
