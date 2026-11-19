@@ -96,11 +96,6 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
                                  'eos2': 'EOS-Aqua',
                                  }
 
-MANDATORY_FIELDS_FROM_YAML = {'level': 'data_processing_level',
-                              'output_format': 'format',
-                              'variant': 'variant',
-                              'geo_or_polar': 'geo_or_polar',
-                              'software': 'software'}
 
 VARIANT_TRANSLATE = {'DR': 'direct_readout'}
 
@@ -229,19 +224,6 @@ class PostTrollMessage(object):
         if 'filename' not in self.metadata:
             raise KeyError('filename')
 
-    def check_mandatory_fields(self):
-        """Check that mandatory fields are available in the metadata dict.
-
-        level, output_format and station are all required fields,
-        unless the posttroll_topic is specified.
-        """
-        if 'posttroll_topic' in self.metadata:
-            return
-
-        for attr in MANDATORY_FIELDS_FROM_YAML:
-            if attr not in self.metadata:
-                raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
-
     def send(self):
         """Create and publish (send) the message."""
 
@@ -287,7 +269,6 @@ class PostTrollMessage(object):
         # Add uri/uids to message content
         self._to_send.update(self.get_message_with_uri_and_uid())
 
-        self.fix_mandatory_fields_in_message()
         self.clean_unused_keys_in_message()
 
         publish_topic = self._create_message_topic()
@@ -331,14 +312,6 @@ class PostTrollMessage(object):
                 msg[key] = PLATFORM_CONVERSION_PPS2OSCAR.get(self.metadata[key], self.metadata[key])
 
         return msg
-
-    def fix_mandatory_fields_in_message(self):
-        """Fix the message keywords from the mandatory fields."""
-        self.check_mandatory_fields()
-
-        # Initialize:
-        for attr in MANDATORY_FIELDS_FROM_YAML:
-            self._to_send[MANDATORY_FIELDS_FROM_YAML.get(attr)] = self.metadata[attr]
 
     def clean_unused_keys_in_message(self):
         """Clean away the unused keyword names from message."""
