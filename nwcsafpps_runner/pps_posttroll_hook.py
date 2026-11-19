@@ -50,7 +50,6 @@ import os
 import socket
 import threading
 import time
-from datetime import timedelta
 from multiprocessing import Manager
 
 from posttroll.message import Message
@@ -82,7 +81,7 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
                                  'metopsga1': 'Metop-SGA1',
                                  'metopsga2': 'Metop-SGA2',
                                  'metopsga3': 'Metop-SGA3',
-                                 'metopd':: 'Metop-D',
+                                 'metopd': 'Metop-D',
                                  'noaa19': 'NOAA-19',
                                  'noaa18': 'NOAA-18',
                                  'noaa15': 'NOAA-15',
@@ -265,7 +264,7 @@ class PostTrollMessage(object):
         """Create the publish topic from yaml file items and PPS metadata."""
         to_send = self._to_send.copy()
         to_send["pps_product"] = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
-        topic_pattern = to_send.get('publish_topic', "/polar/direct_readout/CF/2/pps/{module}/{software}")
+        topic_pattern = to_send.get('publish_topic', "/polar/direct_readout/CF/2/pps/{pps_product}/{software}/")
         topic_str = topic_pattern.format(**to_send)
         return topic_str
 
