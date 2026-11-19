@@ -50,7 +50,6 @@ import os
 import socket
 import threading
 import time
-from datetime import timedelta
 from multiprocessing import Manager
 
 from posttroll.message import Message
@@ -58,8 +57,6 @@ from posttroll.publisher import Publish
 
 LOG = logging.getLogger(__name__)
 
-VIIRS_TIME_THR1 = timedelta(seconds=81)
-VIIRS_TIME_THR2 = timedelta(seconds=87)
 WAIT_SECONDS_TO_ALLOW_PUBLISHER_TO_BE_REGISTERED = 2.2
 
 PPS_PRODUCT_FILE_ID = {'ppsMakeAvhrr': 'RAD_SUN',
@@ -81,9 +78,10 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
                                  'noaa21': 'NOAA-21',
                                  'noaa22': 'NOAA-22',
                                  'noaa23': 'NOAA-23',
-                                 'metopsga1': 'Metop-SG-A1',
-                                 'metopsga2': 'Metop-SG-A2',
-                                 'metopsga3': 'Metop-SG-A3',
+                                 'metopsga1': 'Metop-SGA1',
+                                 'metopsga2': 'Metop-SGA2',
+                                 'metopsga3': 'Metop-SGA3',
+                                 'metopd': 'Metop-D',
                                  'noaa19': 'NOAA-19',
                                  'noaa18': 'NOAA-18',
                                  'noaa15': 'NOAA-15',
@@ -95,23 +93,8 @@ PLATFORM_CONVERSION_PPS2OSCAR = {'noaa20': 'NOAA-20',
                                  'eos2': 'EOS-Aqua',
                                  }
 
-MANDATORY_FIELDS_FROM_YAML = {'level': 'data_processing_level',
-                              'output_format': 'format',
-                              'variant': 'variant',
-                              'geo_or_polar': 'geo_or_polar',
-                              'software': 'software'}
 
 VARIANT_TRANSLATE = {'DR': 'direct_readout'}
-
-SEC_DURATION_ONE_GRANULE = 1.779
-MIN_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=60)
-MAX_VIIRS_GRANULE_LENGTH_SECONDS = timedelta(seconds=88)
-# One nominal VIIRS granule is 48 scans. The duration of one scan is 1.779 seconds.
-# Thus one granule is 1.779*48 = 85.4 seconds long.
-# Sometimes an SDR granule may be shorter if one or more scans are missing.
-# https://ncc.nesdis.noaa.gov/documents/documentation/viirs-users-guide-tech-report-142a-v1.3.pdf
-# Check page 37!
-#
 
 
 class PPSPublisher(threading.Thread):
@@ -196,8 +179,6 @@ class PostTrollMessage(object):
         self.metadata = metadata
         self.status = status
         self._to_send = {}
-        self.viirs_granule_time_bounds = (MIN_VIIRS_GRANULE_LENGTH_SECONDS,
-                                          MAX_VIIRS_GRANULE_LENGTH_SECONDS)
         # Check that the metadata has what is required:
         self.check_metadata_contains_mandatory_parameters()
         self.check_metadata_contains_filename()
@@ -227,19 +208,6 @@ class PostTrollMessage(object):
 
         if 'filename' not in self.metadata:
             raise KeyError('filename')
-
-    def check_mandatory_fields(self):
-        """Check that mandatory fields are available in the metadata dict.
-
-        level, output_format and station are all required fields,
-        unless the posttroll_topic is specified.
-        """
-        if 'posttroll_topic' in self.metadata:
-            return
-
-        for attr in MANDATORY_FIELDS_FROM_YAML:
-            if attr not in self.metadata:
-                raise AttributeError("pps_hook must contain metadata attribute %s" % attr)
 
     def send(self):
         """Create and publish (send) the message."""
@@ -286,9 +254,6 @@ class PostTrollMessage(object):
         # Add uri/uids to message content
         self._to_send.update(self.get_message_with_uri_and_uid())
 
-        self.fix_mandatory_fields_in_message()
-        self.clean_unused_keys_in_message()
-
         publish_topic = self._create_message_topic()
         msg_type = 'file'
         if "dataset" in self._to_send:
@@ -299,24 +264,9 @@ class PostTrollMessage(object):
         """Create the publish topic from yaml file items and PPS metadata."""
         to_send = self._to_send.copy()
         to_send["pps_product"] = PPS_PRODUCT_FILE_ID.get(self.metadata.get('module', 'unknown'), 'UNKNOWN')
-        to_send["variant"] = VARIANT_TRANSLATE.get(self._to_send['variant'], self._to_send['variant'])
-
-        topic_pattern = to_send.get('publish_topic', self._create_default_topic())
-
+        topic_pattern = to_send.get('publish_topic', "/polar/direct_readout/CF/2/pps/{pps_product}/{software}/")
         topic_str = topic_pattern.format(**to_send)
         return topic_str
-
-    def _create_default_topic(self):
-        topic = '/segment' if self.is_segment() else ""
-        topic_pattern = "/".join((topic,
-                                  "{geo_or_polar}",
-                                  "{variant}",
-                                  "{format}",
-                                  "{data_processing_level}",
-                                  "{pps_product}",
-                                  "{software}",
-                                  ""))
-        return topic_pattern
 
     def create_message_content_from_metadata(self):
         """Create message content from the metadata."""
@@ -330,20 +280,6 @@ class PostTrollMessage(object):
                 msg[key] = PLATFORM_CONVERSION_PPS2OSCAR.get(self.metadata[key], self.metadata[key])
 
         return msg
-
-    def fix_mandatory_fields_in_message(self):
-        """Fix the message keywords from the mandatory fields."""
-        self.check_mandatory_fields()
-
-        # Initialize:
-        for attr in MANDATORY_FIELDS_FROM_YAML:
-            self._to_send[MANDATORY_FIELDS_FROM_YAML.get(attr)] = self.metadata[attr]
-
-    def clean_unused_keys_in_message(self):
-        """Clean away the unused keyword names from message."""
-        for attr in MANDATORY_FIELDS_FROM_YAML:
-            if attr not in MANDATORY_FIELDS_FROM_YAML.values():
-                del self._to_send[attr]
 
     def get_message_with_uri_and_uid(self):
         """Generate a dict with the uri and uid's and return it."""
@@ -374,33 +310,3 @@ class PostTrollMessage(object):
                 msg['uid'] = os.path.basename(filename)
 
         return msg
-
-    def is_segment(self):
-        """Determine if the scene is a 'segment'.
-
-        That means a sensor data granule, e.g. 85 seconds of VIIRS.
-        """
-        if not self.sensor_is_viirs():
-            LOG.debug("Scene is not a VIIRS scene - and we assume then not a segment of a larger scene")
-            return False
-
-        delta_t = self.get_granule_duration()
-        LOG.debug("Scene length: %s", str(delta_t.total_seconds()))
-        if self.viirs_granule_time_bounds[0] < delta_t < self.viirs_granule_time_bounds[1]:
-            LOG.info("VIIRS scene is a segment. Scene length = %s", str(delta_t))
-            return True
-
-        LOG.debug("VIIRS scene is not a segment")
-        return False
-
-    def sensor_is_viirs(self):
-        """Check if the sensor is equal to VIIRS."""
-        sensor = self.metadata.get('sensor')
-        LOG.debug("Sensor = %s", str(sensor))
-        return sensor == 'viirs'
-
-    def get_granule_duration(self):
-        """Derive the scene/granule duration as a timedelta object."""
-        starttime = self.metadata['start_time']
-        endtime = self.metadata['end_time']
-        return (endtime - starttime + timedelta(seconds=SEC_DURATION_ONE_GRANULE))
